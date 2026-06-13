@@ -1,0 +1,72 @@
+// Game6 Sports Academy — data model.
+// Local dev uses SQLite; production swaps to Postgres by changing `provider`
+// and `DATABASE_URL` (see README). SQLite has no native enums, so status
+// fields are plain strings validated in app code.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// The active season drives the site banner + registration status. Making this
+/// data-driven structurally fixes the "hardcoded Spring banner" pain point:
+/// once the admin UI lands, Game6 flips these fields with no developer.
+model Season {
+  id                 String   @id @default(cuid())
+  label              String // e.g. "Spring", "Summer", "Fall", "Winter"
+  year               Int
+  // OPEN | CLOSED | WAITLIST  (validated in app code; SQLite has no enums)
+  registrationStatus String   @default("OPEN")
+  headline           String? // optional banner override copy
+  isActive           Boolean  @default(false)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+/// Youth programs / "the league". Editable per season once admin lands.
+model Program {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  name          String
+  blurb         String // short card line
+  details       String // longer description
+  weeklyCadence String? // e.g. "1x or 2x weekly", "Sat game + 1 weeknight"
+  ageHint       String? // soft guidance only — never a hard, fixed bracket
+  imagePath     String? // /images/...  (B&W placeholder, swappable)
+  sortOrder     Int      @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+/// Front-facing offer (e.g. "Free League Drop-In, ages 14–16"). This is a
+/// presentation layer over a class already running — `mappedClassNote` records
+/// which real class it maps onto. Schema only this pass; the calendar mapping
+/// + admin UI arrive in a later pass.
+model Offer {
+  id            String   @id @default(cuid())
+  label         String
+  ageRangeLabel String? // soft, marketing-facing range
+  mappedClassNote String? // internal: which existing class this maps to
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+/// A captured free-class lead. Written AND emailed to Game6 on submit.
+model Lead {
+  id           String   @id @default(cuid())
+  kidName      String
+  parentName   String
+  parentPhone  String
+  birthYear    Int?
+  experience   String? // free text: none / rec / competitive, etc.
+  offerLabel   String? // which offer the parent thinks they signed up for
+  source       String   @default("website")
+  createdAt    DateTime @default(now())
+}

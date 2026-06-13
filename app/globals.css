@@ -1,0 +1,51 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-ink text-bone font-body antialiased;
+  }
+
+  /* Bold, all-caps display headlines are the core of the brand. */
+  h1,
+  h2,
+  h3 {
+    @apply font-display uppercase tracking-brand;
+  }
+
+  ::selection {
+    @apply bg-bone text-ink;
+  }
+}
+
+@layer components {
+  .container-site {
+    @apply mx-auto w-full max-w-site px-5 sm:px-8;
+  }
+
+  /* Primary call-to-action — white block, black text, sharp edges. */
+  .btn-primary {
+    @apply inline-flex items-center justify-center bg-bone px-7 py-4 font-heading text-sm font-bold uppercase tracking-[0.12em] text-ink transition-colors duration-200 hover:bg-white;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center border border-bone/40 px-7 py-4 font-heading text-sm font-bold uppercase tracking-[0.12em] text-bone transition-colors duration-200 hover:border-bone hover:bg-bone hover:text-ink;
+  }
+
+  .eyebrow {
+    @apply font-heading text-xs font-bold uppercase tracking-[0.25em] text-smoke;
+  }
+
+  .field-label {
+    @apply mb-2 block font-heading text-xs font-bold uppercase tracking-[0.18em] text-smoke;
+  }
+
+  .field-input {
+    @apply w-full border border-bone/25 bg-steel px-4 py-3 font-body text-bone placeholder:text-smoke/60 focus:border-bone focus:outline-none focus:ring-0;
+  }
+}

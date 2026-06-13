@@ -1,1 +1,129 @@
-# TEST
+# Game6 Sports Academy — Website
+
+> Where Passion Meets Discipline.
+
+A rebuild of the Game6 Sports Academy site, built around the real business goal:
+**get a parent to bring their kid in for one free, in-person evaluation** — not
+online registration or upfront payment. Youth programs are the headline; court
+rentals are a quiet, owner-controlled secondary path.
+
+Built with **Next.js (App Router) + TypeScript + Tailwind CSS + Prisma**.
+
+---
+
+## What this build includes (Phase 1)
+
+- **Branded marketing site** — black & white, bold all-caps display type, the
+  "Where Passion Meets Discipline" line, an intro-reel slot, clean program cards,
+  the court icon and the "We got next." footer voice.
+- **Free League Drop-In funnel** as the primary call to action: a short capture
+  form (player name, parent name + phone, birth year, experience) that
+  **saves the lead to the database and emails Game6 instantly**.
+- **Programs rendered from the database** — G6BL, Junior Ball, Training Academy,
+  Lions Rep, Camps & Clinics, Girls Program.
+- **Data-driven season banner** — fixes the old hardcoded "Spring" banner.
+- **Quiet court-rentals page** — contact-only, no public availability calendar,
+  no far-in-advance public booking (exactly how Game6 wants it).
+
+### Deferred to a later pass (data model is already shaped for it)
+
+- A self-serve **admin UI** to edit the season, registration status, program
+  details, age groupings, and to create front-facing offers.
+- Mapping offers onto the **real class calendar** + the underlying court-time
+  booking layer.
+
+---
+
+## Getting started
+
+```bash
+npm install
+cp .env.example .env        # then fill in values (see below)
+npm run db:push             # create the local SQLite schema
+npm run db:seed             # seed the active season, 6 programs, 2 offers
+npm run dev                 # http://localhost:3000
+```
+
+### Environment variables (`.env`)
+
+| Variable            | Purpose                                                                 |
+| ------------------- | ----------------------------------------------------------------------- |
+| `DATABASE_URL`      | DB connection. Dev: `file:./dev.db` (SQLite). Prod: a Postgres URL.     |
+| `RESEND_API_KEY`    | Resend API key for lead emails. **If empty, leads still save and the payload is logged to the server console** — the funnel is fully testable without a key. |
+| `LEAD_NOTIFY_EMAIL` | Where new leads are emailed (Game6's inbox).                            |
+| `RESEND_FROM`       | Verified sender. `onboarding@resend.dev` works for testing.            |
+
+---
+
+## How Game6 edits content today (until the admin UI lands)
+
+All editable content lives in the database. Until the admin panel is built,
+update the values in **`prisma/seed.ts`** and re-run `npm run db:seed`:
+
+- **Season / registration status** — the `season.create(...)` block. Change
+  `label`, `year`, and `registrationStatus` (`OPEN` | `CLOSED` | `WAITLIST`).
+  Optionally set a `headline` to override the banner copy entirely.
+- **Programs** — the `programs` array (name, blurb, details, cadence, age hint).
+  `ageHint` is intentionally **soft guidance**, never a hard age bracket — kids
+  are placed by skill at the in-person evaluation.
+- **Front-facing offers** — the `offers` array (e.g. "Free League Drop-In —
+  Ages 14 to 16"). These populate the form's drop-down.
+
+> Once the Phase 2 admin UI ships, all of the above becomes point-and-click with
+> no developer and no redeploy — the public pages already read from the DB.
+
+---
+
+## Swapping in real assets
+
+The brand imagery currently uses clearly-marked black & white SVG placeholders so
+nothing looks broken before real media arrives.
+
+- **Program photos** — replace the files in `public/images/` (keep the same
+  filenames, e.g. `program-g6bl.svg`, or change `imagePath` in `prisma/seed.ts`
+  to point at new `.jpg`/`.png` files). Real photos need no config change.
+- **Intro reel** — drop the reel at `public/video/intro-reel.mp4` and swap the
+  gradient block in `components/Hero.tsx` for a `<video>` (a marked comment shows
+  where).
+- **Regenerate placeholders** (if needed): `node scripts/generate-placeholders.mjs`.
+
+---
+
+## Deploying to production (Vercel)
+
+1. In `prisma/schema.prisma`, change the datasource `provider` from `sqlite` to
+   `postgresql`.
+2. Provision Postgres (Neon or Vercel Postgres) and set `DATABASE_URL` in Vercel.
+3. Set `RESEND_API_KEY`, `LEAD_NOTIFY_EMAIL`, and `RESEND_FROM` in Vercel.
+4. Run `npx prisma db push` and `npm run db:seed` against the prod DB once.
+5. Deploy. `npm run build` runs `prisma generate` automatically.
+
+> The lead API uses a simple in-memory rate limit. For multi-instance
+> deployments, move it to a shared store (e.g. Upstash Redis).
+
+---
+
+## Project structure
+
+```
+app/
+  layout.tsx              # fonts, metadata, header/footer chrome
+  page.tsx                # home: season banner -> hero -> free-class -> programs -> rentals teaser
+  rentals/page.tsx        # quiet, contact-only court rentals
+  api/leads/route.ts      # POST: validate -> save lead -> email Game6
+components/                # Hero, FreeClassForm, ProgramCard/Grid, SeasonBanner, header/footer
+lib/                       # db (Prisma singleton), email (Resend), validation (zod)
+prisma/                    # schema + seed
+public/images/             # B&W placeholder program art (swap for real photos)
+scripts/                   # placeholder image generator
+```
+
+## Useful scripts
+
+| Command            | What it does                                  |
+| ------------------ | --------------------------------------------- |
+| `npm run dev`      | Dev server                                    |
+| `npm run build`    | Production build (runs `prisma generate`)     |
+| `npm run db:seed`  | Seed season, programs, offers                 |
+| `npm run db:studio`| Browse the DB (incl. captured leads)          |
+| `npm run db:reset` | Reset + reseed the local DB                   |
