@@ -17,6 +17,11 @@ const cards = [
   { file: "program-girls.svg", label: "Girls Program", sub: "Built For Her" },
 ];
 
+// Escape XML special chars — a raw "&" (e.g. "Camps & Clinics") makes the SVG
+// invalid XML and the image fails to render.
+const xml = (s) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
 function svg({ label, sub }, i) {
   const cx = 200 + ((i * 137) % 400);
   const cy = 150 + ((i * 91) % 260);
@@ -31,8 +36,8 @@ function svg({ label, sub }, i) {
   </g>
   <circle cx="${cx}" cy="${cy}" r="70" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="3"/>
   <path d="M${cx - 70} ${cy} H${cx + 70} M${cx} ${cy - 70} V${cy + 70}" stroke="#ffffff" stroke-opacity="0.16" stroke-width="3"/>
-  <text x="400" y="300" text-anchor="middle" font-family="Impact, Haettenschweiler, sans-serif" font-size="78" letter-spacing="2" fill="#f5f5f3" fill-opacity="0.92">${label.toUpperCase()}</text>
-  <text x="400" y="345" text-anchor="middle" font-family="Arial Narrow, sans-serif" font-size="22" letter-spacing="6" fill="#9a9a9a">${sub.toUpperCase()}</text>
+  <text x="400" y="300" text-anchor="middle" font-family="Impact, Haettenschweiler, sans-serif" font-size="78" letter-spacing="2" fill="#f5f5f3" fill-opacity="0.92">${xml(label.toUpperCase())}</text>
+  <text x="400" y="345" text-anchor="middle" font-family="Arial Narrow, sans-serif" font-size="22" letter-spacing="6" fill="#9a9a9a">${xml(sub.toUpperCase())}</text>
   <text x="400" y="560" text-anchor="middle" font-family="Arial Narrow, sans-serif" font-size="13" letter-spacing="4" fill="#ffffff" fill-opacity="0.18">PHOTO PLACEHOLDER — SWAP IN REAL IMAGERY</text>
 </svg>
 `;

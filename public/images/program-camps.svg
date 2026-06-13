@@ -9,7 +9,7 @@
   </g>
   <circle cx="348" cy="254" r="70" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="3"/>
   <path d="M278 254 H418 M348 184 V324" stroke="#ffffff" stroke-opacity="0.16" stroke-width="3"/>
-  <text x="400" y="300" text-anchor="middle" font-family="Impact, Haettenschweiler, sans-serif" font-size="78" letter-spacing="2" fill="#f5f5f3" fill-opacity="0.92">CAMPS & CLINICS</text>
+  <text x="400" y="300" text-anchor="middle" font-family="Impact, Haettenschweiler, sans-serif" font-size="78" letter-spacing="2" fill="#f5f5f3" fill-opacity="0.92">CAMPS &amp; CLINICS</text>
   <text x="400" y="345" text-anchor="middle" font-family="Arial Narrow, sans-serif" font-size="22" letter-spacing="6" fill="#9a9a9a">SEASONAL</text>
   <text x="400" y="560" text-anchor="middle" font-family="Arial Narrow, sans-serif" font-size="13" letter-spacing="4" fill="#ffffff" fill-opacity="0.18">PHOTO PLACEHOLDER — SWAP IN REAL IMAGERY</text>
 </svg>
