@@ -25,7 +25,7 @@ const xml = (s) =>
 function svg({ label, sub }, i) {
   const cx = 200 + ((i * 137) % 400);
   const cy = 150 + ((i * 91) % 260);
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="${label} placeholder">
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-label="${xml(label)} placeholder">
   <rect width="800" height="600" fill="#0a0a0a"/>
   <g stroke="#ffffff" stroke-opacity="0.10" stroke-width="2" fill="none">
     <rect x="20" y="20" width="760" height="560"/>

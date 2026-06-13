@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 // Programs-forward nav. Rentals is present but deliberately quiet (last item),
 // matching how Game6 wants it: secondary, for people who already know to look.
@@ -29,14 +30,13 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <Link href="/#free-class" className="hidden md:inline-flex btn-primary !px-5 !py-2.5">
-          Free Drop-In
-        </Link>
-
-        {/* Mobile: single primary action keeps the funnel front-and-center. */}
-        <Link href="/#free-class" className="md:hidden btn-primary !px-4 !py-2 text-xs">
-          Free Drop-In
-        </Link>
+        <div className="flex items-center gap-2 sm:gap-3">
+          <ThemeToggle />
+          {/* Single primary action keeps the funnel front-and-center on every size. */}
+          <Link href="/#free-class" className="btn-primary !px-4 !py-2.5 text-xs sm:!px-5">
+            Free Drop-In
+          </Link>
+        </div>
       </div>
     </header>
   );

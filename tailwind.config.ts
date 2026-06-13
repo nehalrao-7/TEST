@@ -1,6 +1,7 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: [
     "./app/**/*.{ts,tsx}",
     "./components/**/*.{ts,tsx}",
@@ -8,11 +9,14 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // True black & white brand system with a few neutral steps.
-        ink: "#0a0a0a",
-        bone: "#f5f5f3",
-        smoke: "#9a9a9a",
-        steel: "#1a1a1a",
+        // Semantic brand tokens, theme-flipped via CSS variables (see globals.css).
+        //   ink  = page background    bone = foreground / text
+        //   steel = raised surface    smoke = muted text
+        // Channel-triplet vars let Tailwind opacity modifiers (e.g. bone/15) work.
+        ink: "rgb(var(--ink) / <alpha-value>)",
+        bone: "rgb(var(--bone) / <alpha-value>)",
+        smoke: "rgb(var(--smoke) / <alpha-value>)",
+        steel: "rgb(var(--steel) / <alpha-value>)",
       },
       fontFamily: {
         // Display = bold condensed all-caps; body = clean grotesque.

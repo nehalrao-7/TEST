@@ -4,6 +4,7 @@ import { Hero } from "@/components/Hero";
 import { SeasonBanner } from "@/components/SeasonBanner";
 import { ProgramsGrid } from "@/components/ProgramsGrid";
 import { FreeClassForm } from "@/components/FreeClassForm";
+import { Reveal } from "@/components/motion/Reveal";
 
 // Always render fresh so seeded/admin-edited content shows immediately.
 export const dynamic = "force-dynamic";
@@ -32,7 +33,7 @@ export default async function HomePage() {
           immediately after the hero. */}
       <section id="free-class" className="border-b border-bone/10 bg-ink py-24">
         <div className="container-site grid items-start gap-12 lg:grid-cols-[1fr_1.1fr]">
-          <div>
+          <Reveal>
             <p className="eyebrow">Start Here</p>
             <h2 className="mt-4 text-4xl leading-[0.95] text-bone sm:text-6xl">
               Free League
@@ -59,11 +60,11 @@ export default async function HomePage() {
                 </li>
               ))}
             </ul>
-          </div>
+          </Reveal>
 
-          <div className="lg:sticky lg:top-24">
+          <Reveal delay={0.15} className="lg:sticky lg:top-24">
             <FreeClassForm offers={offers.map((o) => ({ id: o.id, label: o.label }))} />
-          </div>
+          </Reveal>
         </div>
       </section>
 
@@ -72,7 +73,7 @@ export default async function HomePage() {
       {/* Quiet, secondary rentals path — present for those who know to look,
           never competing with the programs funnel. */}
       <section className="bg-ink py-16">
-        <div className="container-site flex flex-col items-start justify-between gap-6 border border-bone/10 p-8 sm:flex-row sm:items-center">
+        <Reveal className="container-site flex flex-col items-start justify-between gap-6 border border-bone/10 p-8 sm:flex-row sm:items-center">
           <div>
             <p className="eyebrow">Our Courts</p>
             <p className="mt-2 max-w-xl font-body text-base leading-relaxed text-smoke">
@@ -83,7 +84,7 @@ export default async function HomePage() {
           <Link href="/rentals" className="btn-ghost shrink-0">
             Court Rentals
           </Link>
-        </div>
+        </Reveal>
       </section>
     </>
   );

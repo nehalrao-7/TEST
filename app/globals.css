@@ -3,8 +3,57 @@
 @tailwind utilities;
 
 @layer base {
+  /* Light theme (default). Tokens are "R G B" channel triplets. */
+  :root {
+    --ink: 245 245 243; /* page background  */
+    --bone: 10 10 10; /* foreground/text  */
+    --steel: 255 255 255; /* raised surface   */
+    --smoke: 90 90 88; /* muted text       */
+    --hero-blob: 224 224 219;
+    --hero-blob2: 235 235 231;
+    color-scheme: light;
+  }
+
+  /* Dark theme — the brand-first default look, applied via the .dark class. */
+  .dark {
+    --ink: 10 10 10;
+    --bone: 245 245 243;
+    --steel: 26 26 26;
+    --smoke: 154 154 154;
+    --hero-blob: 31 31 31;
+    --hero-blob2: 22 22 22;
+    color-scheme: dark;
+  }
+
   html {
     scroll-behavior: smooth;
+  }
+
+  /* Smooth theme transition without flashing animated content. */
+  body,
+  header,
+  section,
+  footer,
+  article,
+  input,
+  textarea,
+  select {
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Offset anchored sections so the sticky header never covers headings. */
+  section[id],
+  [id="free-class"],
+  [id="programs"] {
+    scroll-margin-top: 5rem;
   }
 
   body {
@@ -46,6 +95,27 @@
   }
 
   .field-input {
-    @apply w-full border border-bone/25 bg-steel px-4 py-3 font-body text-bone placeholder:text-smoke/60 focus:border-bone focus:outline-none focus:ring-0;
+    @apply w-full border border-bone/25 bg-steel px-4 py-3 text-base font-body text-bone placeholder:text-smoke/60 focus:border-bone focus:outline-none focus:ring-0;
+  }
+
+  /* Theme-aware hero backdrop — soft radial blobs + a faint pinstripe grid. */
+  .hero-glow {
+    background-image: radial-gradient(
+        circle at 30% 20%,
+        rgb(var(--hero-blob)),
+        transparent 55%
+      ),
+      radial-gradient(circle at 80% 80%, rgb(var(--hero-blob2)), transparent 50%);
+  }
+
+  .hero-grid {
+    background-image: repeating-linear-gradient(
+      90deg,
+      rgb(var(--bone) / 1) 0,
+      rgb(var(--bone) / 1) 1px,
+      transparent 1px,
+      transparent 42px
+    );
+    opacity: 0.05;
   }
 }

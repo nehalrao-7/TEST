@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Reveal } from "@/components/motion/Reveal";
 
 export const metadata: Metadata = {
   title: "Court Rentals",
@@ -13,7 +14,7 @@ export const metadata: Metadata = {
 export default function RentalsPage() {
   return (
     <section className="border-b border-bone/10 py-24">
-      <div className="container-site max-w-3xl">
+      <Reveal className="container-site max-w-3xl">
         <p className="eyebrow">Game6 Facility</p>
         <h1 className="mt-4 text-5xl leading-[0.95] text-bone sm:text-7xl">Court Rentals</h1>
 
@@ -55,7 +56,7 @@ export default function RentalsPage() {
             Looking for youth programs? Start here
           </Link>
         </div>
-      </div>
+      </Reveal>
     </section>
   );
 }

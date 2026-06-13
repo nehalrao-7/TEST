@@ -3,6 +3,7 @@ import { Anton, Oswald, Inter } from "next/font/google";
 import "./globals.css";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteFooter } from "@/components/SiteFooter";
+import { ThemeProvider, themeScript } from "@/components/theme/ThemeProvider";
 
 // Display: heavy condensed all-caps. Heading: condensed grotesque. Body: clean.
 const anton = Anton({ weight: "400", subsets: ["latin"], variable: "--font-display" });
@@ -28,11 +29,17 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${anton.variable} ${oswald.variable} ${inter.variable}`}>
+    <html lang="en" className={`${anton.variable} ${oswald.variable} ${inter.variable}`} suppressHydrationWarning>
+      <head>
+        {/* Sets the theme class before paint to avoid a flash of the wrong theme. */}
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>
-        <SiteHeader />
-        <main>{children}</main>
-        <SiteFooter />
+        <ThemeProvider>
+          <SiteHeader />
+          <main>{children}</main>
+          <SiteFooter />
+        </ThemeProvider>
       </body>
     </html>
   );
