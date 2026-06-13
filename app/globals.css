@@ -70,6 +70,16 @@
   ::selection {
     @apply bg-bone text-ink;
   }
+
+  /* Visible keyboard focus ring (mouse clicks stay clean via :focus-visible). */
+  a:focus-visible,
+  button:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    outline: 2px solid rgb(var(--bone));
+    outline-offset: 2px;
+  }
 }
 
 @layer components {
