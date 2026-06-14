@@ -9,6 +9,21 @@ rentals are a quiet, owner-controlled secondary path.
 
 Built with **Next.js (App Router) + TypeScript + Tailwind CSS + Prisma**.
 
+## 🚀 One-tap deploy (live link)
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fnehalrao-7%2Ftest%2Ftree%2Fclaude%2Fgame6-sports-academy-rebuild-nesmdq&env=DATABASE_URL,ADMIN_PASSWORD,ADMIN_SESSION_SECRET&envDescription=Postgres%20URL%2C%20an%20admin%20password%2C%20and%20a%20random%20session%20secret&project-name=game6-sports-academy&repository-name=game6-sports-academy)
+
+Tapping this clones the repo into your Vercel account and deploys it. On deploy,
+the build automatically creates the database tables and seeds starting content
+(`vercel.json` → `prisma db push` + a seed-if-empty step), so the live site comes
+up fully populated. You'll be asked for three env vars:
+
+- `DATABASE_URL` — a Postgres URL. Easiest: in the deploy flow's **Storage** tab,
+  add **Neon** (one click) and it fills this in automatically. Or paste a free
+  string from [neon.tech](https://neon.tech).
+- `ADMIN_PASSWORD` — your password for `/admin`.
+- `ADMIN_SESSION_SECRET` — any long random string (e.g. `openssl rand -hex 32`).
+
 ---
 
 ## What this build includes (Phase 1)
