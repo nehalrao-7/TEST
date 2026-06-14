@@ -35,11 +35,10 @@ Built with **Next.js (App Router) + TypeScript + Tailwind CSS + Prisma**.
   label, registration status, program details + age groupings, creates
   front-facing offers, and reads the leads inbox. No developer, no redeploy;
   edits publish to the public site instantly.
-
-### Deferred to a later pass (data model is already shaped for it)
-
-- Mapping offers onto the **real class calendar** + the underlying court-time
-  booking layer. (Offers already store an internal "maps to which class" note.)
+- **Internal calendar + booking layer** — courts (the inventory), recurring
+  class sessions that reserve court time, owner-logged court bookings/rentals,
+  and a weekly schedule view. Offers map onto real classes (the facade mechanic).
+  This layer is internal only — never exposed as a public availability calendar.
 
 ---
 
@@ -76,7 +75,14 @@ and publishes to the public site instantly:
   visibility; add or delete programs. Age hints are intentionally **soft
   guidance**, never a hard bracket — kids are placed by skill at the evaluation.
 - **Offers** — create/edit the front-facing "free drop-in" options shown in the
-  sign-up form. Each carries an internal note for which real class it maps to.
+  sign-up form. Each can be **mapped to a real class session** (the facade
+  mechanic), so a public "free drop-in" resolves to a class already running —
+  no separate event scheduled.
+- **Schedule / Classes** — the internal base layer: courts (inventory) and the
+  recurring class sessions that reserve court time (day, time, court, program,
+  capacity). The weekly Schedule view is a read-only, internal-only overview.
+- **Bookings** — owner-logged court reservations (rentals, holds, one-off
+  program time). Internal only; there is no public booking surface, by design.
 - **Leads** — the inbox of free-class sign-ups (newest first, tap-to-call),
   in addition to the instant email notification.
 

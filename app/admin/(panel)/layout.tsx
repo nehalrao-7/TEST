@@ -3,9 +3,12 @@ import { logout } from "@/app/admin/auth-actions";
 
 const navLinks = [
   { href: "/admin", label: "Overview" },
-  { href: "/admin/season", label: "Season" },
+  { href: "/admin/schedule", label: "Schedule" },
+  { href: "/admin/classes", label: "Classes" },
+  { href: "/admin/bookings", label: "Bookings" },
   { href: "/admin/programs", label: "Programs" },
   { href: "/admin/offers", label: "Offers" },
+  { href: "/admin/season", label: "Season" },
   { href: "/admin/leads", label: "Leads" },
 ];
 

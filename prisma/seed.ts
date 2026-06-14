@@ -103,20 +103,97 @@ async function main() {
     },
   });
 
+  const programRecords: Record<string, string> = {};
   for (const p of programs) {
-    await prisma.program.upsert({
+    const rec = await prisma.program.upsert({
       where: { slug: p.slug },
       update: p,
       create: p,
     });
+    programRecords[p.slug] = rec.id;
   }
 
+  // Base inventory layer: courts, and the recurring classes that consume them.
+  await prisma.booking.deleteMany();
   await prisma.offer.deleteMany();
-  for (const o of offers) {
-    await prisma.offer.create({ data: o });
-  }
+  await prisma.classSession.deleteMany();
+  await prisma.court.deleteMany();
 
-  console.log("Seeded: 1 active season, %d programs, %d offers.", programs.length, offers.length);
+  const court1 = await prisma.court.create({ data: { name: "Court 1", sortOrder: 1 } });
+  const court2 = await prisma.court.create({ data: { name: "Court 2", sortOrder: 2 } });
+
+  // A few sample recurring classes (weekday: 0=Sun..6=Sat).
+  const hsTue = await prisma.classSession.create({
+    data: {
+      name: "High School Practice",
+      weekday: 2,
+      startTime: "18:00",
+      endTime: "20:00",
+      capacity: 24,
+      ageHint: "High school",
+      programId: programRecords["g6bl"],
+      courtId: court1.id,
+    },
+  });
+  await prisma.classSession.create({
+    data: {
+      name: "High School Practice",
+      weekday: 4,
+      startTime: "18:00",
+      endTime: "20:00",
+      capacity: 24,
+      ageHint: "High school",
+      programId: programRecords["g6bl"],
+      courtId: court1.id,
+    },
+  });
+  const elemWed = await prisma.classSession.create({
+    data: {
+      name: "Elementary Practice",
+      weekday: 3,
+      startTime: "17:00",
+      endTime: "18:30",
+      capacity: 20,
+      ageHint: "Elementary",
+      programId: programRecords["junior-ball"],
+      courtId: court2.id,
+    },
+  });
+
+  // Offers map onto existing classes (the facade mechanic).
+  await prisma.offer.create({
+    data: {
+      label: "Free League Drop-In — Ages 14 to 16",
+      ageRangeLabel: "Ages 14–16",
+      mappedClassNote: "Tue/Thu HS practice",
+      classSessionId: hsTue.id,
+      sortOrder: 1,
+    },
+  });
+  await prisma.offer.create({
+    data: {
+      label: "Free Evaluation Class — Ages 9 to 11",
+      ageRangeLabel: "Ages 9–11",
+      mappedClassNote: "Wed elementary practice",
+      classSessionId: elemWed.id,
+      sortOrder: 2,
+    },
+  });
+
+  // A sample owner-logged court rental (internal only).
+  await prisma.booking.create({
+    data: {
+      title: "Adult Rental — Riconosciuto group",
+      type: "RENTAL",
+      date: new Date(),
+      startTime: "21:00",
+      endTime: "22:30",
+      contact: "416-555-0148",
+      courtId: court2.id,
+    },
+  });
+
+  console.log("Seeded: season, %d programs, 2 courts, 3 classes, 2 offers, 1 booking.", programs.length);
 }
 
 main()

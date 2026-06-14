@@ -1,11 +1,22 @@
 import { prisma } from "@/lib/db";
 import { createOffer, deleteOffer, updateOffer } from "@/app/admin/content-actions";
 import { SubmitButton } from "@/components/admin/SubmitButton";
+import { formatTimeRange, weekdayLabel } from "@/lib/schedule";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminOffers() {
-  const offers = await prisma.offer.findMany({ orderBy: { sortOrder: "asc" } });
+  const [offers, classes] = await Promise.all([
+    prisma.offer.findMany({ orderBy: { sortOrder: "asc" } }),
+    prisma.classSession.findMany({
+      where: { isActive: true },
+      include: { court: true },
+      orderBy: [{ weekday: "asc" }, { startTime: "asc" }],
+    }),
+  ]);
+
+  const classLabel = (c: (typeof classes)[number]) =>
+    `${c.name} — ${weekdayLabel(c.weekday)} ${formatTimeRange(c.startTime, c.endTime)}${c.court ? ` · ${c.court.name}` : ""}`;
 
   return (
     <div className="max-w-3xl">
@@ -34,7 +45,16 @@ export default async function AdminOffers() {
                 <input name="sortOrder" type="number" defaultValue={o.sortOrder} className="field-input" />
               </div>
               <div className="sm:col-span-2">
-                <label className="field-label">Internal Note — maps to which class?</label>
+                <label className="field-label">Maps to class (the facade)</label>
+                <select name="classSessionId" defaultValue={o.classSessionId ?? ""} className="field-input">
+                  <option value="">— Not linked —</option>
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.id}>{classLabel(c)}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="field-label">Internal Note (optional)</label>
                 <input name="mappedClassNote" defaultValue={o.mappedClassNote ?? ""} className="field-input" />
               </div>
               <label className="flex items-center gap-3">
@@ -72,8 +92,13 @@ export default async function AdminOffers() {
             <input name="ageRangeLabel" className="field-input" placeholder="Ages 9–11" />
           </div>
           <div className="sm:col-span-2">
-            <label className="field-label">Internal Note — maps to which class?</label>
-            <input name="mappedClassNote" className="field-input" placeholder="Wed 6pm elementary practice" />
+            <label className="field-label">Maps to class (the facade)</label>
+            <select name="classSessionId" defaultValue="" className="field-input">
+              <option value="">— Not linked —</option>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>{classLabel(c)}</option>
+              ))}
+            </select>
           </div>
         </div>
         <div className="mt-6">

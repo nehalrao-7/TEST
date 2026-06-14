@@ -39,6 +39,7 @@ model Program {
   imagePath     String? // /images/...  (B&W placeholder, swappable)
   sortOrder     Int      @default(0)
   isActive      Boolean  @default(true)
+  classes       ClassSession[]
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 }
@@ -51,11 +52,71 @@ model Offer {
   id            String   @id @default(cuid())
   label         String
   ageRangeLabel String? // soft, marketing-facing range
-  mappedClassNote String? // internal: which existing class this maps to
+  mappedClassNote String? // internal free-text fallback for the mapped class
+  // The facade mechanic: an offer is a presentation layer over a class that is
+  // already running. Linking to a real ClassSession means "free drop-in" just
+  // shows up as new kids on an existing class — no separate event scheduled.
+  classSessionId String?
+  classSession   ClassSession? @relation(fields: [classSessionId], references: [id], onDelete: SetNull)
   isActive      Boolean  @default(true)
   sortOrder     Int      @default(0)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+/// The base inventory layer — physical courts. Programs reserve court time via
+/// ClassSessions; rentals fill whatever is left via Bookings. This layer is
+/// internal/owner-only; it is never exposed as a public availability calendar.
+model Court {
+  id        String   @id @default(cuid())
+  name      String // e.g. "Court 1", "Main Court"
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  classes   ClassSession[]
+  bookings  Booking[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// A recurring class on the real calendar (e.g. "HS Practice, Tuesdays 6–8pm").
+/// This is what actually consumes court time. Offers map onto these so a public
+/// "free drop-in" resolves to a class already on the books.
+model ClassSession {
+  id        String   @id @default(cuid())
+  name      String
+  weekday   Int // 0=Sunday .. 6=Saturday
+  startTime String // "18:00" (24h, local)
+  endTime   String // "20:00"
+  capacity  Int?
+  ageHint   String? // soft guidance only — never a hard bracket
+  notes     String?
+  isActive  Boolean  @default(true)
+
+  programId String?
+  program   Program? @relation(fields: [programId], references: [id], onDelete: SetNull)
+  courtId   String?
+  court     Court?   @relation(fields: [courtId], references: [id], onDelete: SetNull)
+
+  offers    Offer[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// Owner-controlled, one-off court reservations: rentals, program holds, events.
+/// Logged by Game6 internally — there is no public booking surface, by design.
+model Booking {
+  id        String   @id @default(cuid())
+  title     String // e.g. "Rental — Smith group"
+  type      String   @default("RENTAL") // RENTAL | PROGRAM | HOLD
+  date      DateTime // the day of the booking
+  startTime String // "20:00"
+  endTime   String // "22:00"
+  contact   String?
+  notes     String?
+  courtId   String?
+  court     Court?   @relation(fields: [courtId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 /// A captured free-class lead. Written AND emailed to Game6 on submit.
