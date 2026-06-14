@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      # Local SQLite is enough for lint/typecheck/test/build. Dynamic pages don't
+      # query the DB at build time; this just satisfies the Prisma datasource.
+      DATABASE_URL: "file:./prisma/dev.db"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Prepare database
+        run: npm run db:push
+
+      - name: Build
+        run: npm run build

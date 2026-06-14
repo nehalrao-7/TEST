@@ -145,6 +145,22 @@ scripts/                   # placeholder image generator
 | ------------------ | --------------------------------------------- |
 | `npm run dev`      | Dev server                                    |
 | `npm run build`    | Production build (runs `prisma generate`)     |
+| `npm run lint`     | ESLint (next/core-web-vitals)                 |
+| `npm run typecheck`| `tsc --noEmit`                                |
+| `npm test`         | Unit tests (Vitest)                           |
 | `npm run db:seed`  | Seed season, programs, offers                 |
 | `npm run db:studio`| Browse the DB (incl. captured leads)          |
 | `npm run db:reset` | Reset + reseed the local DB                   |
+
+## Tests & CI
+
+Unit tests (Vitest) cover the framework-agnostic core in `lib/`:
+
+- `tests/validation.test.ts` — the lead capture schema (required fields, phone
+  format, birth-year coercion/range, honeypot passthrough).
+- `tests/auth.test.ts` — admin session token sign/verify (tamper, expiry, wrong
+  secret) and `passwordMatches`.
+- `tests/schedule.test.ts` — time/weekday formatting helpers.
+
+GitHub Actions (`.github/workflows/ci.yml`) runs **lint → typecheck → test →
+build** on every push and pull request.
