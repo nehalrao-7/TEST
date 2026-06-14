@@ -10,9 +10,9 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     env:
-      # Local SQLite is enough for lint/typecheck/test/build. Dynamic pages don't
-      # query the DB at build time; this just satisfies the Prisma datasource.
-      DATABASE_URL: "file:./prisma/dev.db"
+      # A placeholder is enough for CI: prisma generate doesn't connect, and the
+      # dynamic pages don't query the DB at build time. No live database needed.
+      DATABASE_URL: "postgresql://user:pass@localhost:5432/db?schema=public"
     steps:
       - uses: actions/checkout@v4
 
@@ -32,9 +32,6 @@ jobs:
 
       - name: Unit tests
         run: npm test
-
-      - name: Prepare database
-        run: npm run db:push
 
       - name: Build
         run: npm run build

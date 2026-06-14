@@ -112,12 +112,15 @@ nothing looks broken before real media arrives.
 
 ## Deploying to production (Vercel)
 
-1. In `prisma/schema.prisma`, change the datasource `provider` from `sqlite` to
-   `postgresql`.
-2. Provision Postgres (Neon or Vercel Postgres) and set `DATABASE_URL` in Vercel.
-3. Set `RESEND_API_KEY`, `LEAD_NOTIFY_EMAIL`, and `RESEND_FROM` in Vercel.
-4. Run `npx prisma db push` and `npm run db:seed` against the prod DB once.
-5. Deploy. `npm run build` runs `prisma generate` automatically.
+The app is Postgres-backed and deploy-ready (the build needs no live DB).
+
+1. Provision Postgres (Neon or Vercel Postgres) and set `DATABASE_URL`.
+2. Set `ADMIN_PASSWORD` and a long random `ADMIN_SESSION_SECRET`.
+3. (Optional) Set `RESEND_API_KEY`, `LEAD_NOTIFY_EMAIL`, `RESEND_FROM` for live
+   lead emails.
+4. One-time, against the prod DB: `npx prisma db push` then `npm run db:seed`.
+5. Import the repo in Vercel (or `vercel deploy`). `npm run build` runs
+   `prisma generate` automatically.
 
 > The lead API uses a simple in-memory rate limit. For multi-instance
 > deployments, move it to a shared store (e.g. Upstash Redis).

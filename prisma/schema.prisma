@@ -1,14 +1,13 @@
 // Game6 Sports Academy — data model.
-// Local dev uses SQLite; production swaps to Postgres by changing `provider`
-// and `DATABASE_URL` (see README). SQLite has no native enums, so status
-// fields are plain strings validated in app code.
+// Postgres (Neon / Vercel Postgres) in every environment via DATABASE_URL.
+// Status fields are plain strings validated in app code (kept portable).
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
