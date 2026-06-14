@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Anton, Oswald, Inter } from "next/font/google";
 import "./globals.css";
-import { SiteHeader } from "@/components/SiteHeader";
-import { SiteFooter } from "@/components/SiteFooter";
 import { ThemeProvider, themeScript } from "@/components/theme/ThemeProvider";
 
 // Display: heavy condensed all-caps. Heading: condensed grotesque. Body: clean.
@@ -56,17 +54,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body>
-        <ThemeProvider>
-          <a
-            href="#main"
-            className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:bg-bone focus:px-4 focus:py-2 focus:font-heading focus:text-sm focus:uppercase focus:tracking-widest focus:text-ink"
-          >
-            Skip to content
-          </a>
-          <SiteHeader />
-          <main id="main">{children}</main>
-          <SiteFooter />
-        </ThemeProvider>
+        <ThemeProvider>{children}</ThemeProvider>
       </body>
     </html>
   );
