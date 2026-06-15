@@ -10,9 +10,10 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     env:
-      # A placeholder is enough for CI: prisma generate doesn't connect, and the
+      # Placeholders are enough for CI: prisma generate doesn't connect, and the
       # dynamic pages don't query the DB at build time. No live database needed.
-      DATABASE_URL: "postgresql://user:pass@localhost:5432/db?schema=public"
+      POSTGRES_PRISMA_URL: "postgresql://user:pass@localhost:5432/db?schema=public"
+      POSTGRES_URL_NON_POOLING: "postgresql://user:pass@localhost:5432/db?schema=public"
     steps:
       - uses: actions/checkout@v4
 

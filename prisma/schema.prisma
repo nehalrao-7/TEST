@@ -7,8 +7,12 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  // Vercel + Neon canonical setup: pooled (pgbouncer) for runtime queries,
+  // direct (non-pooling) for migrations / `prisma db push`. Both are provided
+  // by the Neon integration; locally they point at the same Postgres.
+  url       = env("POSTGRES_PRISMA_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
 }
 
 /// The active season drives the site banner + registration status. Making this
