@@ -137,4 +137,27 @@
     );
     opacity: 0.05;
   }
+
+  /* Full-bleed autoplay background reel. The iframe is scaled to cover the hero
+     (no letterbox bars) and ignores pointer events so the CTAs stay clickable. */
+  .hero-video {
+    @apply pointer-events-none absolute inset-0 overflow-hidden;
+  }
+  .hero-video iframe {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: max(100vw, 177.78vh);
+    height: max(56.25vw, 100vh);
+    border: 0;
+  }
+
+  /* Dark scrim over the reel so white overlay text stays legible. */
+  .hero-scrim {
+    @apply pointer-events-none absolute inset-0;
+    background:
+      linear-gradient(90deg, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.4) 55%, rgba(0, 0, 0, 0.2)),
+      linear-gradient(to bottom, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.55));
+  }
 }

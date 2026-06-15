@@ -39,9 +39,17 @@ export function Hero() {
   };
 
   return (
-    <section className="relative overflow-hidden border-b border-bone/10">
-      <div className="hero-glow absolute inset-0" aria-hidden="true" />
-      <div className="hero-grid absolute inset-0" aria-hidden="true" />
+    <section className="relative overflow-hidden border-b border-white/10 bg-[#080808]">
+      {/* Autoplay, muted, looping background reel. */}
+      <div className="hero-video" aria-hidden="true">
+        <iframe
+          src={`https://player.vimeo.com/video/${REEL_ID}?background=1&autoplay=1&loop=1&muted=1&dnt=1`}
+          allow="autoplay; fullscreen"
+          title="Game6 Sports Academy reel"
+          tabIndex={-1}
+        />
+      </div>
+      <div className="hero-scrim" aria-hidden="true" />
 
       <motion.div
         variants={container}
@@ -55,16 +63,16 @@ export function Hero() {
 
         <motion.h1
           variants={item}
-          className="mt-5 max-w-4xl text-[3.25rem] leading-[0.92] text-bone sm:text-7xl lg:text-8xl"
+          className="mt-5 max-w-4xl text-[3.25rem] leading-[0.92] text-white drop-shadow-[0_2px_20px_rgba(0,0,0,0.5)] sm:text-7xl lg:text-8xl"
         >
           Where Passion
           <br />
           Meets Discipline
         </motion.h1>
 
-        <motion.p variants={item} className="mt-7 max-w-xl font-body text-lg leading-relaxed text-smoke">
+        <motion.p variants={item} className="mt-7 max-w-xl font-body text-lg leading-relaxed text-white/75">
           This is where players are made. Bring your kid in for a{" "}
-          <span className="text-bone">free league drop-in</span> — they play, we watch,
+          <span className="text-white">free league drop-in</span> — they play, we watch,
           and we find exactly where they belong.
         </motion.p>
 
@@ -72,22 +80,24 @@ export function Hero() {
           <Link href="#free-class" className="btn-primary">
             Claim Your Free Drop-In
           </Link>
-          <ScribbleLink href="#programs">Explore Programs</ScribbleLink>
+          <ScribbleLink href="#programs" className="!text-white">
+            Explore Programs
+          </ScribbleLink>
         </motion.div>
 
-        {/* Intro reel — opens the Vimeo reel in a lightbox. */}
+        {/* Intro reel — opens the Vimeo reel with sound in a lightbox. */}
         <motion.button
           variants={item}
           type="button"
           onClick={() => setReelOpen(true)}
-          className="group mt-14 inline-flex items-center gap-3 text-bone"
+          className="group mt-14 inline-flex items-center gap-3 text-white"
         >
           <span className="flex h-11 w-11 items-center justify-center rounded-full border border-accent/60 text-accent transition-colors group-hover:bg-accent group-hover:text-white">
             <svg width="13" height="13" viewBox="0 0 12 14" fill="currentColor" aria-hidden="true">
               <path d="M0 0v14l12-7z" />
             </svg>
           </span>
-          <span className="font-heading text-xs font-bold uppercase tracking-[0.25em] text-smoke transition-colors group-hover:text-bone">
+          <span className="font-heading text-xs font-bold uppercase tracking-[0.25em] text-white/75 transition-colors group-hover:text-white">
             Play Reel
           </span>
         </motion.button>
