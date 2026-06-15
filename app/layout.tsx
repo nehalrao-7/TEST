@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from "next";
-import { Anton, Oswald, Inter } from "next/font/google";
+import { Archivo, Oswald, Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider, themeScript } from "@/components/theme/ThemeProvider";
 
-// Display: heavy condensed all-caps. Heading: condensed grotesque. Body: clean.
-const anton = Anton({ weight: "400", subsets: ["latin"], variable: "--font-display" });
+// Display: wide, heavy grotesque (Archivo expanded/black). Heading: condensed
+// grotesque for labels. Body: clean sans.
+const archivo = Archivo({ subsets: ["latin"], axes: ["wdth"], variable: "--font-display" });
 const oswald = Oswald({ subsets: ["latin"], variable: "--font-heading" });
 const inter = Inter({ subsets: ["latin"], variable: "--font-body" });
 
@@ -48,7 +49,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${anton.variable} ${oswald.variable} ${inter.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${archivo.variable} ${oswald.variable} ${inter.variable}`} suppressHydrationWarning>
       <head>
         {/* Sets the theme class before paint to avoid a flash of the wrong theme. */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />

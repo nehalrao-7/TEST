@@ -64,11 +64,20 @@
     @apply bg-ink text-bone font-body antialiased;
   }
 
-  /* Bold, all-caps display headlines are the core of the brand. */
+  /* Wide, heavy, all-caps display headlines are the core of the brand. */
+  h1,
+  h2,
+  h3,
+  .font-display {
+    font-weight: 900;
+    font-variation-settings: "wdth" 125; /* Archivo expanded */
+  }
+
   h1,
   h2,
   h3 {
-    @apply font-display uppercase tracking-brand;
+    @apply font-display uppercase;
+    letter-spacing: -0.01em;
   }
 
   ::selection {
