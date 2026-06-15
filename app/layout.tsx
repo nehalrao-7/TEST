@@ -2,6 +2,10 @@ import type { Metadata, Viewport } from "next";
 import { Archivo, Oswald, Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider, themeScript } from "@/components/theme/ThemeProvider";
+import { Analytics } from "@vercel/analytics/react";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { GoogleAnalytics } from "@/components/seo/GoogleAnalytics";
+import { SITE_URL, organizationJsonLd, websiteJsonLd } from "@/lib/seo";
 
 // Display: wide, heavy grotesque (Archivo expanded/black). Heading: condensed
 // grotesque for labels. Body: clean sans.
@@ -10,13 +14,14 @@ const oswald = Oswald({ subsets: ["latin"], variable: "--font-heading" });
 const inter = Inter({ subsets: ["latin"], variable: "--font-body" });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://game6sportsacademy.com"),
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "Game6 Sports Academy — Where Passion Meets Discipline",
-    template: "%s — Game6 Sports Academy",
+    default: "Game6 Sports Academy | Youth Basketball in Woodbridge & Vaughan",
+    template: "%s | Game6 Sports Academy",
   },
   description:
-    "Youth basketball in Woodbridge, ON. Get your kid a free league drop-in — come play, get evaluated live, and find their place in the league.",
+    "Youth basketball league, training, rep teams & camps in Woodbridge, ON — serving Vaughan and the GTA. Get your kid a free league drop-in: come play, get evaluated live, and find their place.",
+  alternates: { canonical: "/" },
   keywords: [
     "youth basketball Woodbridge",
     "basketball academy Vaughan",
@@ -53,9 +58,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         {/* Sets the theme class before paint to avoid a flash of the wrong theme. */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <JsonLd data={organizationJsonLd()} />
+        <JsonLd data={websiteJsonLd()} />
+        <GoogleAnalytics />
       </head>
       <body>
         <ThemeProvider>{children}</ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );

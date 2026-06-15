@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { track } from "@vercel/analytics";
 
 type Offer = { id: string; label: string };
 
@@ -33,6 +34,11 @@ export function FreeClassForm({ offers }: { offers: Offer[] }) {
       }
 
       form.reset();
+      // Conversion event for analytics / the marketing retainer's reporting.
+      track("free_class_lead");
+      if (typeof window !== "undefined" && (window as { gtag?: (...a: unknown[]) => void }).gtag) {
+        (window as unknown as { gtag: (...a: unknown[]) => void }).gtag("event", "generate_lead");
+      }
       setState("success");
     } catch {
       setError("Network error. Please try again or give us a call.");

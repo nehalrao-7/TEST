@@ -5,9 +5,39 @@ import { SeasonBanner } from "@/components/SeasonBanner";
 import { ProgramsGrid } from "@/components/ProgramsGrid";
 import { FreeClassForm } from "@/components/FreeClassForm";
 import { Reveal } from "@/components/motion/Reveal";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { faqJsonLd, localBusinessJsonLd } from "@/lib/seo";
 
 // Always render fresh so seeded/admin-edited content shows immediately.
 export const dynamic = "force-dynamic";
+
+// Parent-intent FAQ — also emitted as FAQPage structured data for rich results.
+const FAQS = [
+  {
+    q: "How do I get my child started at Game6 Sports Academy?",
+    a: "Claim a free league drop-in on this page. Your child comes in for one class, our coaches watch them play, and we place them in the right program by skill. A coach calls you to confirm which class to attend.",
+  },
+  {
+    q: "What ages do you coach?",
+    a: "We coach youth from beginners through high school across our programs. Placement is by skill, not just age, which is why every new player starts with a free evaluation drop-in.",
+  },
+  {
+    q: "Where is Game6 Sports Academy located?",
+    a: "We're at 241 Trade Valley Dr in Woodbridge, ON, serving Vaughan, Maple, Kleinburg and the Greater Toronto Area.",
+  },
+  {
+    q: "What basketball programs do you offer?",
+    a: "The G6 Basketball League (house league), Junior Ball for beginners, the Training Academy for advanced players, the Lions competitive rep program, seasonal Camps & Clinics, and a dedicated Girls Program.",
+  },
+  {
+    q: "Do you run basketball camps?",
+    a: "Yes — three times a year (summer, winter break and March break), in partnership with Nike Sports Camp Canada, with full-day and half-day options.",
+  },
+  {
+    q: "How much does it cost?",
+    a: "Pricing varies by program and season. Your first league drop-in is free, so your child can try Game6 before you commit.",
+  },
+];
 
 export default async function HomePage() {
   const [season, programs, offers] = await Promise.all([
@@ -27,6 +57,8 @@ export default async function HomePage() {
         />
       ) : null}
 
+      <JsonLd data={localBusinessJsonLd()} />
+      <JsonLd data={faqJsonLd(FAQS)} />
       <Hero />
 
       {/* The free-class offer is the primary conversion block — front and center,
@@ -70,6 +102,24 @@ export default async function HomePage() {
       </section>
 
       <ProgramsGrid programs={programs} />
+
+      <section id="faq" className="border-b border-bone/10 py-24">
+        <div className="container-site max-w-3xl">
+          <Reveal>
+            <p className="eyebrow">Parent Questions</p>
+            <h2 className="mt-4 text-4xl leading-[0.95] text-bone sm:text-5xl">FAQ</h2>
+            <div className="accent-rule" />
+          </Reveal>
+          <dl className="mt-10 divide-y divide-bone/10 border-y border-bone/10">
+            {FAQS.map((f) => (
+              <div key={f.q} className="py-6">
+                <dt className="font-heading text-base font-bold uppercase tracking-[0.04em] text-bone">{f.q}</dt>
+                <dd className="mt-2 font-body text-sm leading-relaxed text-smoke">{f.a}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </section>
 
       {/* Quiet, secondary rentals path — present for those who know to look,
           never competing with the programs funnel. */}

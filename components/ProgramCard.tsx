@@ -1,6 +1,8 @@
 import Image from "next/image";
+import Link from "next/link";
 
 type ProgramCardProps = {
+  slug?: string;
   name: string;
   blurb: string;
   details: string;
@@ -9,9 +11,13 @@ type ProgramCardProps = {
   imagePath?: string | null;
 };
 
-export function ProgramCard({ name, blurb, details, weeklyCadence, ageHint, imagePath }: ProgramCardProps) {
+export function ProgramCard({ slug, name, blurb, details, weeklyCadence, ageHint, imagePath }: ProgramCardProps) {
+  const Wrapper = (slug ? Link : "div") as React.ElementType;
   return (
-    <article className="group flex h-full flex-col border border-bone/10 bg-steel transition-all duration-300 hover:-translate-y-1 hover:border-bone/30 hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.45)]">
+    <Wrapper
+      {...(slug ? { href: `/programs/${slug}` } : {})}
+      className="group flex h-full flex-col border border-bone/10 bg-steel transition-all duration-300 hover:-translate-y-1 hover:border-bone/30 hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.45)]"
+    >
       <div className="relative aspect-[4/3] overflow-hidden bg-ink">
         {imagePath ? (
           <Image
@@ -50,7 +56,12 @@ export function ProgramCard({ name, blurb, details, weeklyCadence, ageHint, imag
             </span>
           ) : null}
         </div>
+        {slug ? (
+          <span className="mt-5 inline-block font-heading text-[11px] font-bold uppercase tracking-[0.15em] text-accent">
+            View Program →
+          </span>
+        ) : null}
       </div>
-    </article>
+    </Wrapper>
   );
 }

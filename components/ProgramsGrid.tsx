@@ -3,6 +3,7 @@ import { Reveal, RevealGroup, RevealItem } from "@/components/motion/Reveal";
 
 type Program = {
   id: string;
+  slug: string;
   name: string;
   blurb: string;
   details: string;
