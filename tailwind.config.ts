@@ -17,6 +17,10 @@ const config: Config = {
         bone: "rgb(var(--bone) / <alpha-value>)",
         smoke: "rgb(var(--smoke) / <alpha-value>)",
         steel: "rgb(var(--steel) / <alpha-value>)",
+        // Signature Game6 bronze/copper accent (sampled from the brand).
+        accent: "rgb(var(--accent) / <alpha-value>)",
+        // Fixed bronze for solid buttons (white text on top in both themes).
+        "accent-solid": "rgb(var(--accent-solid) / <alpha-value>)",
       },
       fontFamily: {
         // Display = bold condensed all-caps; body = clean grotesque.

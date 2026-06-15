@@ -21,7 +21,7 @@ export function SeasonBanner({ label, year, registrationStatus, headline }: Seas
   return (
     <div className="border-b border-bone/10 bg-bone text-ink">
       <div className="container-site flex items-center justify-center gap-3 py-2.5 text-center">
-        <span className="hidden h-1.5 w-1.5 shrink-0 rounded-full bg-ink sm:block" />
+        <span className="hidden h-1.5 w-1.5 shrink-0 rounded-full bg-accent-solid sm:block" />
         <p className="font-heading text-xs font-bold uppercase tracking-[0.2em]">{text}</p>
       </div>
     </div>

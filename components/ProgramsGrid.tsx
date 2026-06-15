@@ -20,6 +20,7 @@ export function ProgramsGrid({ programs }: { programs: Program[] }) {
           <h2 className="mt-4 max-w-3xl text-4xl leading-[0.95] text-bone sm:text-6xl">
             Find Your Game
           </h2>
+          <div className="accent-rule" />
           <p className="mt-5 max-w-2xl font-body text-base leading-relaxed text-smoke">
             From first dribble to competitive rep. Placement is by skill, not just
             age — that&apos;s why every player starts with a free drop-in so we can

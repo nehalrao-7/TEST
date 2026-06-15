@@ -40,6 +40,7 @@ export default async function HomePage() {
               <br />
               Drop-In
             </h2>
+            <div className="accent-rule" />
             <p className="mt-6 max-w-md font-body text-lg leading-relaxed text-smoke">
               One class, on us. Your kid drops into a real session, plays live, and
               our coaches see exactly where they fit. No tryout pressure, no
@@ -53,7 +54,7 @@ export default async function HomePage() {
                 "We call you to lock in the right class",
               ].map((step, i) => (
                 <li key={i} className="flex items-start gap-4">
-                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center bg-bone font-display text-sm text-ink">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center bg-accent-solid font-display text-sm text-white">
                     {i + 1}
                   </span>
                   <span className="font-body text-base leading-relaxed text-bone">{step}</span>

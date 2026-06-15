@@ -9,6 +9,8 @@
     --bone: 10 10 10; /* foreground/text  */
     --steel: 255 255 255; /* raised surface   */
     --smoke: 90 90 88; /* muted text       */
+    --accent: 158 95 34; /* deeper bronze for text on light */
+    --accent-solid: 181 114 46; /* bronze button fill */
     --hero-blob: 224 224 219;
     --hero-blob2: 235 235 231;
     color-scheme: light;
@@ -20,6 +22,8 @@
     --bone: 245 245 243;
     --steel: 26 26 26;
     --smoke: 154 154 154;
+    --accent: 206 140 72; /* brighter bronze for text on dark */
+    --accent-solid: 181 114 46;
     --hero-blob: 31 31 31;
     --hero-blob2: 22 22 22;
     color-scheme: dark;
@@ -87,9 +91,9 @@
     @apply mx-auto w-full max-w-site px-5 sm:px-8;
   }
 
-  /* Primary call-to-action — white block, black text, sharp edges. */
+  /* Primary call-to-action — signature bronze block, white text. */
   .btn-primary {
-    @apply inline-flex items-center justify-center bg-bone px-7 py-4 font-heading text-sm font-bold uppercase tracking-[0.12em] text-ink transition-colors duration-200 hover:bg-white;
+    @apply inline-flex items-center justify-center bg-accent-solid px-7 py-4 font-heading text-sm font-bold uppercase tracking-[0.12em] text-white transition-all duration-200 hover:brightness-110;
   }
 
   .btn-ghost {
@@ -97,7 +101,12 @@
   }
 
   .eyebrow {
-    @apply font-heading text-xs font-bold uppercase tracking-[0.25em] text-smoke;
+    @apply font-heading text-xs font-bold uppercase tracking-[0.25em] text-accent;
+  }
+
+  /* Short bronze tick under section/program titles (brand signature). */
+  .accent-rule {
+    @apply mt-4 h-[3px] w-12 bg-accent-solid;
   }
 
   .field-label {

@@ -30,6 +30,12 @@ export function ProgramCard({ name, blurb, details, weeklyCadence, ageHint, imag
 
       <div className="flex flex-1 flex-col p-6">
         <h3 className="text-xl leading-tight text-bone">{name}</h3>
+        <div className="accent-rule" />
+        {blurb ? (
+          <p className="mt-4 font-heading text-[11px] font-bold uppercase tracking-[0.18em] text-accent">
+            {blurb}
+          </p>
+        ) : null}
         <p className="mt-3 font-body text-sm leading-relaxed text-smoke">{details}</p>
 
         <div className="mt-5 flex flex-wrap gap-2 pt-2">

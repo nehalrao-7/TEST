@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { LogoLockup } from "@/components/brand/Logo";
 
 // Programs-forward nav. Rentals is present but deliberately quiet (last item),
 // matching how Game6 wants it: secondary, for people who already know to look.
@@ -14,8 +15,8 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-bone/10 bg-ink/90 backdrop-blur">
       <div className="container-site flex h-16 items-center justify-between">
-        <Link href="/" className="font-display text-xl uppercase tracking-brand text-bone">
-          Game<span className="text-smoke">6</span>
+        <Link href="/" className="text-bone" aria-label="Game6 Sports Academy home">
+          <LogoLockup />
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">

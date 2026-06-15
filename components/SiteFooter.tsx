@@ -29,11 +29,24 @@ export function SiteFooter() {
           </div>
 
           <div>
-            <p className="eyebrow mb-4">Visit</p>
+            <p className="eyebrow mb-4">Contact</p>
             <address className="not-italic font-body text-sm leading-relaxed text-smoke">
               241 Trade Valley Dr
               <br />
               Woodbridge, ON
+              <br />
+              <a href="tel:+19058563223" className="mt-3 inline-block text-bone transition-colors hover:text-accent">
+                (905) 856-3223
+              </a>
+              <br />
+              <a
+                href="https://instagram.com/game6sportsacademy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-heading text-xs font-bold uppercase tracking-[0.12em] text-accent transition-opacity hover:opacity-80"
+              >
+                @game6sportsacademy
+              </a>
             </address>
           </div>
 
@@ -61,7 +74,7 @@ export function SiteFooter() {
 
         <div className="mt-14 flex flex-col items-start justify-between gap-4 border-t border-bone/10 pt-8 sm:flex-row sm:items-center">
           <p className="font-display text-3xl uppercase tracking-brand text-bone">
-            We got next.
+            We Got Next
           </p>
           <p className="font-body text-xs text-smoke">
             © {new Date().getFullYear()} Game6 Sports Academy. All rights reserved.

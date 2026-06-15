@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { motion, useReducedMotion } from "framer-motion";
+import { ScribbleLink } from "@/components/brand/Scribble";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -50,14 +51,28 @@ export function Hero() {
           and we find exactly where they belong.
         </motion.p>
 
-        <motion.div variants={item} className="mt-10 flex flex-col gap-4 sm:flex-row">
+        <motion.div variants={item} className="mt-10 flex flex-col items-start gap-3 sm:flex-row sm:items-center">
           <Link href="#free-class" className="btn-primary">
             Claim Your Free Drop-In
           </Link>
-          <Link href="#programs" className="btn-ghost">
-            Explore Programs
-          </Link>
+          <ScribbleLink href="#programs">Explore Programs</ScribbleLink>
         </motion.div>
+
+        {/* Intro-reel affordance — drop the real reel in and wire this to play it. */}
+        <motion.button
+          variants={item}
+          type="button"
+          className="group mt-14 inline-flex items-center gap-3 text-bone"
+        >
+          <span className="flex h-11 w-11 items-center justify-center rounded-full border border-accent/60 text-accent transition-colors group-hover:bg-accent group-hover:text-white">
+            <svg width="13" height="13" viewBox="0 0 12 14" fill="currentColor" aria-hidden="true">
+              <path d="M0 0v14l12-7z" />
+            </svg>
+          </span>
+          <span className="font-heading text-xs font-bold uppercase tracking-[0.25em] text-smoke transition-colors group-hover:text-bone">
+            Play Reel
+          </span>
+        </motion.button>
       </motion.div>
     </section>
   );
