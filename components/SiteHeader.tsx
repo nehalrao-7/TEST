@@ -1,6 +1,6 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
-import { LogoLockup } from "@/components/brand/Logo";
 
 // Programs-forward nav. Rentals is present but deliberately quiet (last item),
 // matching how Game6 wants it: secondary, for people who already know to look.
@@ -15,8 +15,16 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-50 border-b border-bone/10 bg-ink/90 backdrop-blur">
       <div className="container-site flex h-16 items-center justify-between">
-        <Link href="/" className="text-bone" aria-label="Game6 Sports Academy home">
-          <LogoLockup />
+        <Link href="/" aria-label="Game6 Sports Academy home" className="flex items-center">
+          {/* Black logo: blends on light header, auto-inverts to white on dark. */}
+          <Image
+            src="/images/game6-logo.jpg"
+            alt="Game6 Sports Academy"
+            width={483}
+            height={164}
+            priority
+            className="h-9 w-auto mix-blend-multiply dark:mix-blend-normal dark:invert"
+          />
         </Link>
 
         <nav className="hidden items-center gap-8 md:flex">

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo, Oswald, Inter } from "next/font/google";
+import { Anybody, Oswald, Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider, themeScript } from "@/components/theme/ThemeProvider";
 import { Analytics } from "@vercel/analytics/react";
@@ -7,9 +7,9 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { GoogleAnalytics } from "@/components/seo/GoogleAnalytics";
 import { SITE_URL, organizationJsonLd, websiteJsonLd } from "@/lib/seo";
 
-// Display: wide, heavy grotesque (Archivo expanded/black). Heading: condensed
+// Display: extra-wide grotesque (Anybody, expanded to 150). Heading: condensed
 // grotesque for labels. Body: clean sans.
-const archivo = Archivo({ subsets: ["latin"], axes: ["wdth"], variable: "--font-display" });
+const display = Anybody({ subsets: ["latin"], axes: ["wdth"], variable: "--font-display" });
 const oswald = Oswald({ subsets: ["latin"], variable: "--font-heading" });
 const inter = Inter({ subsets: ["latin"], variable: "--font-body" });
 
@@ -54,7 +54,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${archivo.variable} ${oswald.variable} ${inter.variable}`} suppressHydrationWarning>
+    <html lang="en" className={`${display.variable} ${oswald.variable} ${inter.variable}`} suppressHydrationWarning>
       <head>
         {/* Sets the theme class before paint to avoid a flash of the wrong theme. */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
