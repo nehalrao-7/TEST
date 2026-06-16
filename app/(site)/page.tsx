@@ -48,6 +48,10 @@ export default async function HomePage() {
 
   return (
     <>
+      <JsonLd data={localBusinessJsonLd()} />
+      <JsonLd data={faqJsonLd(FAQS)} />
+      <Hero />
+
       {season ? (
         <SeasonBanner
           label={season.label}
@@ -56,10 +60,6 @@ export default async function HomePage() {
           headline={season.headline}
         />
       ) : null}
-
-      <JsonLd data={localBusinessJsonLd()} />
-      <JsonLd data={faqJsonLd(FAQS)} />
-      <Hero />
 
       {/* The free-class offer is the primary conversion block — front and center,
           immediately after the hero. */}

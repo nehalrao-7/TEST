@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useTheme } from "@/components/theme/ThemeProvider";
 
 // 44px tap target, animated sun/moon swap. Works identically on mobile + desktop.
-export function ThemeToggle() {
+export function ThemeToggle({ overlay = false }: { overlay?: boolean }) {
   const { theme, toggle } = useTheme();
   const isDark = theme === "dark";
 
@@ -14,7 +14,9 @@ export function ThemeToggle() {
       onClick={toggle}
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
       aria-pressed={isDark}
-      className="relative inline-flex h-10 w-10 items-center justify-center rounded-full border border-bone/20 text-bone transition-colors hover:border-bone/50"
+      className={`relative inline-flex h-10 w-10 items-center justify-center rounded-full border transition-colors ${
+        overlay ? "border-white/30 text-white hover:border-white/70" : "border-bone/20 text-bone hover:border-bone/50"
+      }`}
     >
       <AnimatePresence mode="wait" initial={false}>
         <motion.span

@@ -39,7 +39,7 @@ export function Hero() {
   };
 
   return (
-    <section className="relative overflow-hidden border-b border-white/10 bg-[#080808]">
+    <section className="relative -mt-16 overflow-hidden border-b border-white/10 bg-[#080808]">
       {/* Autoplay, muted, looping background reel. */}
       <div className="hero-video" aria-hidden="true">
         <iframe
