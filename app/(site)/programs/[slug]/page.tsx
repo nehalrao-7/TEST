@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
   const p = await getProgram(params.slug);
   if (!p) return {};
   return {
-    title: `${p.name} — Youth Basketball in Woodbridge`,
+    title: `${p.name}, Youth Basketball in Woodbridge`,
     description: `${p.blurb} ${p.details}`.slice(0, 155),
     alternates: { canonical: `/programs/${p.slug}` },
     openGraph: { title: `${p.name} | Game6 Sports Academy`, description: p.blurb },

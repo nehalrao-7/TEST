@@ -5,7 +5,7 @@ import { leadSchema } from "@/lib/validation";
 
 // Very small in-memory rate limit (per-IP, per-process). Good enough to blunt
 // casual abuse; a production deployment behind multiple instances should move
-// this to a shared store (e.g. Upstash) — noted in README.
+// this to a shared store (e.g. Upstash), noted in README.
 const WINDOW_MS = 60_000;
 const MAX_PER_WINDOW = 5;
 const hits = new Map<string, number[]>();
@@ -40,7 +40,7 @@ export async function POST(request: Request) {
 
   const parsed = leadSchema.safeParse(body);
   if (!parsed.success) {
-    // Honeypot tripped or invalid input — return a generic field error map.
+    // Honeypot tripped or invalid input, return a generic field error map.
     const fieldErrors = parsed.error.flatten().fieldErrors;
     return NextResponse.json({ ok: false, error: "Please check the form.", fieldErrors }, { status: 400 });
   }

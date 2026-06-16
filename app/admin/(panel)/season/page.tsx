@@ -25,7 +25,7 @@ export default async function AdminSeason() {
       <h1 className="font-display text-3xl uppercase tracking-brand">Season</h1>
       <p className="mt-2 font-body text-sm text-smoke">
         Controls the banner across the site. This replaces the old hardcoded
-        &ldquo;Spring Season&rdquo; banner — change it any time.
+        &ldquo;Spring Season&rdquo; banner, change it any time.
       </p>
 
       <form action={updateSeason} className="mt-8 border border-bone/10 bg-steel p-6">

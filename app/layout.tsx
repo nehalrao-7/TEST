@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     template: "%s | Game6 Sports Academy",
   },
   description:
-    "Youth basketball league, training, rep teams & camps in Woodbridge, ON — serving Vaughan and the GTA. Get your kid a free league drop-in: come play, get evaluated live, and find their place.",
+    "Youth basketball league, training, rep teams & camps in Woodbridge, ON, serving Vaughan and the GTA. Get your kid a free league drop-in: come play, get evaluated live, and find their place.",
   alternates: { canonical: "/" },
   keywords: [
     "youth basketball Woodbridge",
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     "Game6 Sports Academy",
   ],
   openGraph: {
-    title: "Game6 Sports Academy — Where Passion Meets Discipline",
+    title: "Game6 Sports Academy, Where Passion Meets Discipline",
     description:
       "Youth basketball in Woodbridge, ON. Claim a free league drop-in for your kid.",
     type: "website",
@@ -39,7 +39,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Game6 Sports Academy — Where Passion Meets Discipline",
+    title: "Game6 Sports Academy, Where Passion Meets Discipline",
     description: "Youth basketball in Woodbridge, ON. Claim a free league drop-in for your kid.",
   },
 };

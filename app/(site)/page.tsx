@@ -11,7 +11,7 @@ import { faqJsonLd, localBusinessJsonLd } from "@/lib/seo";
 // Always render fresh so seeded/admin-edited content shows immediately.
 export const dynamic = "force-dynamic";
 
-// Parent-intent FAQ — also emitted as FAQPage structured data for rich results.
+// Parent-intent FAQ, also emitted as FAQPage structured data for rich results.
 const FAQS = [
   {
     q: "How do I get my child started at Game6 Sports Academy?",
@@ -31,7 +31,7 @@ const FAQS = [
   },
   {
     q: "Do you run basketball camps?",
-    a: "Yes — three times a year (summer, winter break and March break), in partnership with Nike Sports Camp Canada, with full-day and half-day options.",
+    a: "Yes, three times a year (summer, winter break and March break), in partnership with Nike Sports Camp Canada, with full-day and half-day options.",
   },
   {
     q: "How much does it cost?",
@@ -61,7 +61,7 @@ export default async function HomePage() {
         />
       ) : null}
 
-      {/* The free-class offer is the primary conversion block — front and center,
+      {/* The free-class offer is the primary conversion block, front and center,
           immediately after the hero. */}
       <section id="free-class" className="border-b border-bone/10 bg-ink py-24">
         <div className="container-site grid items-start gap-12 lg:grid-cols-[1fr_1.1fr]">
@@ -76,7 +76,7 @@ export default async function HomePage() {
             <p className="mt-6 max-w-md font-body text-lg leading-relaxed text-smoke">
               One class, on us. Your kid drops into a real session, plays live, and
               our coaches see exactly where they fit. No tryout pressure, no
-              commitment — just basketball.
+              commitment, just basketball.
             </p>
 
             <ul className="mt-8 space-y-4">
@@ -121,7 +121,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Quiet, secondary rentals path — present for those who know to look,
+      {/* Quiet, secondary rentals path, present for those who know to look,
           never competing with the programs funnel. */}
       <section className="bg-ink py-16">
         <Reveal className="container-site flex flex-col items-start justify-between gap-6 border border-bone/10 p-8 sm:flex-row sm:items-center">

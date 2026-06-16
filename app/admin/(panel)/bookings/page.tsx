@@ -34,7 +34,7 @@ export default async function AdminBookings() {
     <div className="max-w-3xl">
       <h1 className="font-display text-3xl uppercase tracking-brand">Court Bookings</h1>
       <p className="mt-2 font-body text-sm text-smoke">
-        Owner-controlled court reservations — rentals, holds, and one-off program
+        Owner-controlled court reservations, rentals, holds, and one-off program
         time. Internal only; there is no public booking surface, by design.
       </p>
 
@@ -44,7 +44,7 @@ export default async function AdminBookings() {
         <div className="mt-4 grid gap-5 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label className="field-label">Title</label>
-            <input name="title" required className="field-input" placeholder="e.g. Adult Rental — Smith group" />
+            <input name="title" required className="field-input" placeholder="e.g. Adult Rental, Smith group" />
           </div>
           <div>
             <label className="field-label">Type</label>
@@ -57,7 +57,7 @@ export default async function AdminBookings() {
           <div>
             <label className="field-label">Court</label>
             <select name="courtId" defaultValue="" className="field-input">
-              <option value="">— None —</option>
+              <option value="">None</option>
               {courts.map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}

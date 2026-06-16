@@ -24,7 +24,7 @@ export default async function AdminSchedule() {
         <div>
           <h1 className="font-display text-3xl uppercase tracking-brand">Weekly Schedule</h1>
           <p className="mt-2 max-w-2xl font-body text-sm text-smoke">
-            The base inventory layer — the courts are the inventory, and these
+            The base inventory layer, the courts are the inventory, and these
             classes reserve court time. Internal only; this is never shown to the
             public as an availability calendar.
           </p>

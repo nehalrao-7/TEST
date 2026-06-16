@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const currentYear = new Date().getFullYear();
 
-// Lead capture payload. `website` is a honeypot — real users never fill it.
+// Lead capture payload. `website` is a honeypot, real users never fill it.
 export const leadSchema = z.object({
   kidName: z.string().trim().min(1, "Player name is required").max(120),
   parentName: z.string().trim().min(1, "Your name is required").max(120),

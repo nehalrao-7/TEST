@@ -72,7 +72,7 @@ export function Hero() {
 
         <motion.p variants={item} className="mt-7 max-w-xl font-body text-lg leading-relaxed text-white/75">
           This is where players are made. Bring your kid in for a{" "}
-          <span className="text-white">free league drop-in</span> — they play, we watch,
+          <span className="text-white">free league drop-in</span>, they play, we watch,
           and we find exactly where they belong.
         </motion.p>
 
@@ -85,7 +85,7 @@ export function Hero() {
           </ScribbleLink>
         </motion.div>
 
-        {/* Intro reel — opens the Vimeo reel with sound in a lightbox. */}
+        {/* Intro reel, opens the Vimeo reel with sound in a lightbox. */}
         <motion.button
           variants={item}
           type="button"
@@ -136,7 +136,7 @@ export function Hero() {
                 className="absolute inset-0 h-full w-full"
                 allow="autoplay; fullscreen; picture-in-picture"
                 allowFullScreen
-                title="Game6 Sports Academy — Intro Reel"
+                title="Game6 Sports Academy, Intro Reel"
               />
             </motion.div>
           </motion.div>

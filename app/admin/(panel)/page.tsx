@@ -19,8 +19,8 @@ export default async function AdminOverview() {
     ]);
 
   const stats = [
-    { label: "Active Season", value: season ? `${season.label} ${season.year}` : "—", href: "/admin/season" },
-    { label: "Registration", value: season?.registrationStatus ?? "—", href: "/admin/season" },
+    { label: "Active Season", value: season ? `${season.label} ${season.year}` : "-", href: "/admin/season" },
+    { label: "Registration", value: season?.registrationStatus ?? "-", href: "/admin/season" },
     { label: "Programs", value: String(programCount), href: "/admin/programs" },
     { label: "Classes", value: String(classCount), href: "/admin/schedule" },
     { label: "Active Offers", value: String(offerCount), href: "/admin/offers" },
@@ -32,7 +32,7 @@ export default async function AdminOverview() {
     <div>
       <h1 className="font-display text-3xl uppercase tracking-brand">Overview</h1>
       <p className="mt-2 font-body text-sm text-smoke">
-        Everything here is live — changes publish to the site instantly.
+        Everything here is live, changes publish to the site instantly.
       </p>
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

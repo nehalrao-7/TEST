@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Youth Basketball Programs in Woodbridge & Vaughan",
   description:
-    "Explore Game6 Sports Academy's youth basketball programs in Woodbridge, ON — house league, junior ball, advanced training, rep teams, camps and a girls program.",
+    "Explore Game6 Sports Academy's youth basketball programs in Woodbridge, ON, house league, junior ball, advanced training, rep teams, camps and a girls program.",
   alternates: { canonical: "/programs" },
 };
 

@@ -39,7 +39,7 @@ export default async function AdminClasses() {
       <p className="mt-2 font-body text-sm text-smoke">
         The recurring classes that actually consume court time. Offers map onto
         these, so a public &ldquo;free drop-in&rdquo; resolves to a class already
-        on the books — no separate event needed.
+        on the books, no separate event needed.
       </p>
 
       {/* Courts (the inventory) */}
@@ -88,7 +88,7 @@ export default async function AdminClasses() {
               <div>
                 <label className="field-label">Court</label>
                 <select name="courtId" defaultValue={c.courtId ?? ""} className="field-input">
-                  <option value="">— None —</option>
+                  <option value="">None</option>
                   {courts.map((ct) => (
                     <option key={ct.id} value={ct.id}>{ct.name}</option>
                   ))}
@@ -105,7 +105,7 @@ export default async function AdminClasses() {
               <div>
                 <label className="field-label">Program</label>
                 <select name="programId" defaultValue={c.programId ?? ""} className="field-input">
-                  <option value="">— None —</option>
+                  <option value="">None</option>
                   {programs.map((p) => (
                     <option key={p.id} value={p.id}>{p.name}</option>
                   ))}
@@ -144,7 +144,7 @@ export default async function AdminClasses() {
         <div className="mt-4 grid gap-5 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label className="field-label">Class Name</label>
-            <input name="name" required className="field-input" placeholder="e.g. Junior Ball — Beginners" />
+            <input name="name" required className="field-input" placeholder="e.g. Junior Ball, Beginners" />
           </div>
           <div>
             <label className="field-label">Day</label>
@@ -153,7 +153,7 @@ export default async function AdminClasses() {
           <div>
             <label className="field-label">Court</label>
             <select name="courtId" defaultValue="" className="field-input">
-              <option value="">— None —</option>
+              <option value="">None</option>
               {courts.map((ct) => (
                 <option key={ct.id} value={ct.id}>{ct.name}</option>
               ))}
@@ -170,7 +170,7 @@ export default async function AdminClasses() {
           <div>
             <label className="field-label">Program</label>
             <select name="programId" defaultValue="" className="field-input">
-              <option value="">— None —</option>
+              <option value="">None</option>
               {programs.map((p) => (
                 <option key={p.id} value={p.id}>{p.name}</option>
               ))}

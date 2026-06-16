@@ -12,7 +12,7 @@ export const WEEKDAYS = [
 export const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
 export function weekdayLabel(weekday: number): string {
-  return WEEKDAYS[weekday] ?? "—";
+  return WEEKDAYS[weekday] ?? "-";
 }
 
 // "18:00" -> "6:00 PM"

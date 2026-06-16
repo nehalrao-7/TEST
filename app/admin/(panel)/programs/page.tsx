@@ -12,7 +12,7 @@ export default async function AdminPrograms() {
       <h1 className="font-display text-3xl uppercase tracking-brand">Programs</h1>
       <p className="mt-2 font-body text-sm text-smoke">
         Edit program details, ordering, and visibility. Age hints are soft
-        guidance only — placement still happens by skill at the evaluation.
+        guidance only, placement still happens by skill at the evaluation.
       </p>
 
       <div className="mt-8 space-y-5">

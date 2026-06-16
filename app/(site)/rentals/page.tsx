@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 // Deliberately quiet, contact-only page. No public availability calendar and no
-// far-in-advance public booking — bookings stay owner-controlled by phone, which
+// far-in-advance public booking, bookings stay owner-controlled by phone, which
 // is exactly how Game6 wants it.
 export default function RentalsPage() {
   return (
@@ -21,7 +21,7 @@ export default function RentalsPage() {
         <p className="mt-8 font-body text-lg leading-relaxed text-smoke">
           Our courts in Woodbridge are available for rental when they&apos;re not in
           use by our programs and league. Availability is limited and changes week to
-          week, so rentals are arranged directly with our team — not booked far in
+          week, so rentals are arranged directly with our team, not booked far in
           advance online.
         </p>
 

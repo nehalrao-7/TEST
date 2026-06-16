@@ -1,5 +1,5 @@
 // Game6 wordmark lockup. The mark is a clean placeholder for the real angular
-// "6" logo — drop the official SVG into <LogoMark> to swap it everywhere.
+// "6" logo, drop the official SVG into <LogoMark> to swap it everywhere.
 export function LogoMark({ className = "h-9 w-9 text-xl" }: { className?: string }) {
   return (
     <span

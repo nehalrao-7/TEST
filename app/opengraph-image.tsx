@@ -1,8 +1,8 @@
 import { ImageResponse } from "next/og";
 
-// Dynamic social-share card — on-brand black with the headline + tagline.
+// Dynamic social-share card, on-brand black with the headline + tagline.
 export const runtime = "nodejs";
-export const alt = "Game6 Sports Academy — Where Passion Meets Discipline";
+export const alt = "Game6 Sports Academy, Where Passion Meets Discipline";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 

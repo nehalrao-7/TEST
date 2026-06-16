@@ -47,9 +47,9 @@ export default async function AdminLeads() {
                       {l.parentPhone}
                     </a>
                   </td>
-                  <td className="p-3 text-smoke">{l.birthYear ?? "—"}</td>
-                  <td className="p-3 text-smoke">{l.offerLabel ?? "—"}</td>
-                  <td className="max-w-xs p-3 text-smoke">{l.experience ?? "—"}</td>
+                  <td className="p-3 text-smoke">{l.birthYear ?? "-"}</td>
+                  <td className="p-3 text-smoke">{l.offerLabel ?? "-"}</td>
+                  <td className="max-w-xs p-3 text-smoke">{l.experience ?? "-"}</td>
                 </tr>
               ))}
             </tbody>

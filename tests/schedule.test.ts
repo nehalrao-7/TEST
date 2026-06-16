@@ -16,7 +16,7 @@ describe("schedule helpers", () => {
   it("labels weekdays (0=Sunday)", () => {
     expect(weekdayLabel(0)).toBe("Sunday");
     expect(weekdayLabel(6)).toBe("Saturday");
-    expect(weekdayLabel(99)).toBe("—");
+    expect(weekdayLabel(99)).toBe("-");
   });
 
   it("orders the week Monday-first", () => {

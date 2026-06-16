@@ -12,11 +12,11 @@ const statusCopy: Record<string, string> = {
 };
 
 // Data-driven season banner. This is the structural fix for the old site's
-// hardcoded "Spring Season" banner — Game6 edits the active Season record
+// hardcoded "Spring Season" banner, Game6 edits the active Season record
 // (seed today, admin UI later) and this updates everywhere.
 export function SeasonBanner({ label, year, registrationStatus, headline }: SeasonBannerProps) {
   const status = statusCopy[registrationStatus] ?? registrationStatus;
-  const text = headline ?? `${label} ${year} Programs — ${status}`;
+  const text = headline ?? `${label} ${year} Programs, ${status}`;
 
   return (
     <div className="border-b border-bone/10 bg-bone text-ink">

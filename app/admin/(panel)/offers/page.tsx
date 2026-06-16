@@ -16,14 +16,14 @@ export default async function AdminOffers() {
   ]);
 
   const classLabel = (c: (typeof classes)[number]) =>
-    `${c.name} — ${weekdayLabel(c.weekday)} ${formatTimeRange(c.startTime, c.endTime)}${c.court ? ` · ${c.court.name}` : ""}`;
+    `${c.name}, ${weekdayLabel(c.weekday)} ${formatTimeRange(c.startTime, c.endTime)}${c.court ? ` · ${c.court.name}` : ""}`;
 
   return (
     <div className="max-w-3xl">
       <h1 className="font-display text-3xl uppercase tracking-brand">Offers</h1>
       <p className="mt-2 font-body text-sm text-smoke">
         Front-facing &ldquo;free drop-in&rdquo; options shown in the sign-up form.
-        Each is a presentation layer over a class already running — use the
+        Each is a presentation layer over a class already running, use the
         internal note to record which real class it maps to. No new event needed.
       </p>
 
@@ -47,7 +47,7 @@ export default async function AdminOffers() {
               <div className="sm:col-span-2">
                 <label className="field-label">Maps to class (the facade)</label>
                 <select name="classSessionId" defaultValue={o.classSessionId ?? ""} className="field-input">
-                  <option value="">— Not linked —</option>
+                  <option value="">Not linked</option>
                   {classes.map((c) => (
                     <option key={c.id} value={c.id}>{classLabel(c)}</option>
                   ))}
@@ -76,7 +76,7 @@ export default async function AdminOffers() {
           </form>
         ))}
         {offers.length === 0 ? (
-          <p className="font-body text-sm text-smoke">No offers yet — add one below.</p>
+          <p className="font-body text-sm text-smoke">No offers yet, add one below.</p>
         ) : null}
       </div>
 
@@ -85,7 +85,7 @@ export default async function AdminOffers() {
         <div className="mt-4 grid gap-5 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label className="field-label">Offer Label (public)</label>
-            <input name="label" required className="field-input" placeholder="Free League Drop-In — Ages 9 to 11" />
+            <input name="label" required className="field-input" placeholder="Free League Drop-In, Ages 9 to 11" />
           </div>
           <div>
             <label className="field-label">Age Range Label</label>
@@ -94,7 +94,7 @@ export default async function AdminOffers() {
           <div className="sm:col-span-2">
             <label className="field-label">Maps to class (the facade)</label>
             <select name="classSessionId" defaultValue="" className="field-input">
-              <option value="">— Not linked —</option>
+              <option value="">Not linked</option>
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>{classLabel(c)}</option>
               ))}

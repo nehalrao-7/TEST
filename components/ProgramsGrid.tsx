@@ -24,7 +24,7 @@ export function ProgramsGrid({ programs }: { programs: Program[] }) {
           <div className="accent-rule" />
           <p className="mt-5 max-w-2xl font-body text-base leading-relaxed text-smoke">
             From first dribble to competitive rep. Placement is by skill, not just
-            age — that&apos;s why every player starts with a free drop-in so we can
+            age, that&apos;s why every player starts with a free drop-in so we can
             see them play.
           </p>
         </Reveal>

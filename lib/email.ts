@@ -13,7 +13,7 @@ type LeadEmailPayload = {
  * Emails a new free-class lead to Game6 instantly.
  *
  * If RESEND_API_KEY is not set (e.g. local dev), this logs the payload instead
- * of failing — so the funnel is fully testable without a provider key. Wire a
+ * of failing, so the funnel is fully testable without a provider key. Wire a
  * real key in production via env (see README). An SMTP/nodemailer alternative
  * can be dropped in here without touching callers.
  */
@@ -40,7 +40,7 @@ export async function sendLeadNotification(lead: LeadEmailPayload): Promise<{ de
 
   if (!apiKey || !to) {
     console.warn(
-      "[email] RESEND_API_KEY or LEAD_NOTIFY_EMAIL not set — logging lead instead of sending:\n%s",
+      "[email] RESEND_API_KEY or LEAD_NOTIFY_EMAIL not set, logging lead instead of sending:\n%s",
       text,
     );
     return { delivered: false };

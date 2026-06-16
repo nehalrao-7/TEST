@@ -67,7 +67,7 @@ export function FreeClassForm({ offers }: { offers: Offer[] }) {
 
   return (
     <form onSubmit={handleSubmit} className="border border-bone/15 bg-steel p-6 sm:p-8">
-      {/* Honeypot — hidden from humans, catches bots. */}
+      {/* Honeypot, hidden from humans, catches bots. */}
       <div className="absolute left-[-9999px]" aria-hidden="true">
         <label htmlFor="website">Leave this empty</label>
         <input id="website" name="website" type="text" tabIndex={-1} autoComplete="off" />
@@ -122,7 +122,7 @@ export function FreeClassForm({ offers }: { offers: Offer[] }) {
             Which drop-in?
           </label>
           <select id="offerLabel" name="offerLabel" defaultValue="" className="field-input">
-            <option value="">Not sure — help me pick</option>
+            <option value="">Not sure, help me pick</option>
             {offers.map((o) => (
               <option key={o.id} value={o.label}>
                 {o.label}

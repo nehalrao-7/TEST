@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-// Hand-drawn bronze ellipse around a secondary CTA — a Game6 brand signature.
+// Hand-drawn bronze ellipse around a secondary CTA, a Game6 brand signature.
 export function ScribbleLink({
   href,
   children,

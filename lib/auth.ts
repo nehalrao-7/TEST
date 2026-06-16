@@ -1,5 +1,5 @@
 // Lightweight admin auth: a single shared password (ADMIN_PASSWORD) exchanged
-// for a signed, expiring session cookie. No external service, no user table —
+// for a signed, expiring session cookie. No external service, no user table,
 // enough to gate the owner-only admin. Uses Web Crypto so the same verify runs
 // in both the Edge middleware and Node server actions.
 

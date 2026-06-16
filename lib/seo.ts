@@ -36,7 +36,7 @@ export const SITE = {
 
 const sameAs = [SITE.instagram];
 
-// SportsActivityLocation is a LocalBusiness subtype — ideal for a facility.
+// SportsActivityLocation is a LocalBusiness subtype, ideal for a facility.
 export function localBusinessJsonLd() {
   return {
     "@context": "https://schema.org",
@@ -121,7 +121,7 @@ export function programJsonLd(program: {
   return {
     "@context": "https://schema.org",
     "@type": "Service",
-    serviceType: `Youth basketball — ${program.name}`,
+    serviceType: `Youth basketball, ${program.name}`,
     name: program.name,
     description: program.details || program.blurb,
     url: `${SITE_URL}/programs/${program.slug}`,

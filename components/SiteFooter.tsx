@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-// Simple court-line icon — nods to the current site's court iconography.
+// Simple court-line icon, nods to the current site's court iconography.
 function CourtIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 120 70" fill="none" className={className} aria-hidden="true">
