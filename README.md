@@ -1,13 +1,16 @@
-# Sarav Accounting Services (SAS) — One-Page Website
+# Sarav Accounting Services (SAS) — Website
 
-Single-page marketing site for Sarav Accounting Services, built as a static HTML file (`index.html`) with Tailwind CDN, vanilla JS, and GSAP/Lenis for motion. No build step required — open `index.html` in a browser or deploy the folder as-is.
+Marketing site for Sarav Accounting Services, positioned as a GTA-wide firm based in Markham. Built as static HTML files with Tailwind CDN, vanilla JS, and GSAP/Lenis for motion. No build step required — open any HTML file in a browser or deploy the folder as-is.
 
 ## Files
 
-- `index.html` — the complete site
+- `index.html` — the main one-page site (services, process, results, FAQ, contact form)
+- `accountant-markham.html`, `accountant-brampton.html`, `accountant-scarborough.html`, `accountant-richmond-hill.html`, `accountant-vaughan.html`, `accountant-mississauga.html`, `accountant-toronto.html` — localized landing pages for local SEO, one per GTA city. Each has its own `<title>`, meta description, H1, and `AccountingService` JSON-LD scoped to that city, and links back to `index.html` for services/process/FAQ/the contact form. They also cross-link to each other ("nearby areas") and are listed in the homepage's "Service Areas" section and footer.
 - `robots.txt` — search engine crawl rules
-- `sitemap.xml` — sitemap for search engines
+- `sitemap.xml` — sitemap covering the homepage and all seven city pages
 - `README.md` — this file
+
+To add another city page, copy the pattern in one of the `accountant-*.html` files (same header/footer/scripts, city-specific hero/FAQ/JSON-LD), then add it to the homepage's "Service Areas" section (`index.html`), the footer's "Service Areas" column on every page, and `sitemap.xml`.
 
 ## Business details already filled in
 
