@@ -25,7 +25,8 @@
 </header>
 
 <section id="top" class="hero">
-  <div class="container hero-inner">
+  <div class="hero-glow"></div>
+  <div class="container hero-inner reveal">
     <h1>Trusted Tax &amp; Accounting Services in Markham</h1>
     <p>Personal &amp; corporate tax, bookkeeping, payroll and government benefit applications — done right, done on time.</p>
     <div class="hero-actions">
@@ -37,45 +38,45 @@
 
 <section id="services" class="services">
   <div class="container">
-    <h2>Our Services</h2>
+    <h2 class="reveal">Our Services</h2>
     <div class="service-grid">
-      <div class="service-card">
+      <div class="service-card reveal">
         <h3>Personal Income Tax</h3>
         <p>Accurate, maximized personal tax returns filed on time, every time.</p>
       </div>
-      <div class="service-card">
+      <div class="service-card reveal">
         <h3>Corporate Tax</h3>
         <p>Corporate tax filing and planning tailored to your business structure.</p>
       </div>
-      <div class="service-card">
+      <div class="service-card reveal">
         <h3>Bookkeeping</h3>
         <p>Clean, up-to-date books so you always know where your business stands.</p>
       </div>
-      <div class="service-card">
+      <div class="service-card reveal">
         <h3>Payroll Services</h3>
         <p>Reliable payroll processing, remittances, and compliance.</p>
       </div>
-      <div class="service-card">
+      <div class="service-card reveal">
         <h3>GST / HST</h3>
         <p>GST/HST registration, filing, and ongoing compliance support.</p>
       </div>
-      <div class="service-card">
+      <div class="service-card reveal">
         <h3>Audit Representation</h3>
         <p>Expert representation and support through CRA audits and reviews.</p>
       </div>
-      <div class="service-card">
+      <div class="service-card reveal">
         <h3>Tax Debt</h3>
         <p>Guidance and negotiation support for outstanding tax debt.</p>
       </div>
-      <div class="service-card">
+      <div class="service-card reveal">
         <h3>Government Benefit Applications</h3>
         <p>Help accessing the government benefits and credits you qualify for.</p>
       </div>
-      <div class="service-card">
+      <div class="service-card reveal">
         <h3>Business Continuity Plan</h3>
         <p>Planning to keep your business resilient and running through disruption.</p>
       </div>
-      <div class="service-card">
+      <div class="service-card reveal">
         <h3>Free Consultation</h3>
         <p>Not sure where to start? Book a free consultation with our team.</p>
       </div>
@@ -84,7 +85,7 @@
 </section>
 
 <section id="about" class="about">
-  <div class="container about-inner">
+  <div class="container about-inner reveal">
     <h2>About Sarav Accounting</h2>
     <p>Sarav Accounting is a Markham-based firm providing personal and corporate tax, bookkeeping, payroll, and business advisory services. We work with individuals and small businesses across the GTA to keep their finances organized, compliant, and optimized.</p>
   </div>
@@ -92,13 +93,17 @@
 
 <section id="contact" class="contact">
   <div class="container contact-inner">
-    <div class="contact-info">
+    <div class="contact-info reveal">
       <h2>Get in Touch</h2>
       <p><strong>Address</strong><br>45 Karachi Dr Unit#1B<br>Markham, ON L3S 0B6</p>
       <p><strong>Phone</strong><br><a href="tel:+16473001790">(647) 300-1790</a></p>
-      <a href="tel:+16473001790" class="btn btn-primary">Call Now</a>
+      <p><strong>Email</strong><br><a href="mailto:Info@saravacc.com">Info@saravacc.com</a></p>
+      <div class="contact-actions">
+        <a href="tel:+16473001790" class="btn btn-primary">Call Now</a>
+        <a href="mailto:Info@saravacc.com" class="btn btn-outline">Email Us</a>
+      </div>
     </div>
-    <div class="contact-map">
+    <div class="contact-map reveal">
       <iframe
         title="Sarav Accounting location map"
         src="https://www.google.com/maps?q=45+Karachi+Dr+Unit+1B,+Markham,+ON+L3S+0B6&output=embed"
@@ -114,11 +119,43 @@
       <span class="logo-main">SARAV</span>
       <span class="logo-sub">ACCOUNTING</span>
     </span>
-    <p>45 Karachi Dr Unit#1B, Markham, ON L3S 0B6 &nbsp;·&nbsp; (647) 300-1790</p>
+    <p>45 Karachi Dr Unit#1B, Markham, ON L3S 0B6 &nbsp;·&nbsp; (647) 300-1790 &nbsp;·&nbsp; <a href="mailto:Info@saravacc.com">Info@saravacc.com</a></p>
     <p class="copyright">&copy; <span id="year"></span> Sarav Accounting. All rights reserved.</p>
   </div>
 </footer>
 
-<script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+<script>
+  document.getElementById('year').textContent = new Date().getFullYear();
+
+  // Header shrink/shadow on scroll
+  const header = document.querySelector('.site-header');
+  const onScroll = () => header.classList.toggle('scrolled', window.scrollY > 12);
+  document.addEventListener('scroll', onScroll, { passive: true });
+  onScroll();
+
+  // Scroll-reveal animation
+  const revealEls = document.querySelectorAll('.reveal');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach((entry, i) => {
+      if (entry.isIntersecting) {
+        entry.target.style.transitionDelay = (i % 6) * 60 + 'ms';
+        entry.target.classList.add('is-visible');
+        io.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.15 });
+  revealEls.forEach(el => io.observe(el));
+
+  // Smooth anchor scrolling
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', (e) => {
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+</script>
 </body>
 </html>
