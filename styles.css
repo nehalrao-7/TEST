@@ -42,10 +42,23 @@ body {
 /* Logo */
 .logo {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  gap: 12px;
   line-height: 1;
   text-decoration: none;
   color: inherit;
+}
+.logo-mark {
+  display: block;
+  flex-shrink: 0;
+  transition: transform 0.3s var(--ease);
+}
+.logo:hover .logo-mark {
+  transform: scale(1.06) rotate(-2deg);
+}
+.logo-text {
+  display: flex;
+  flex-direction: column;
 }
 .logo-main {
   font-size: 26px;
@@ -256,7 +269,7 @@ body {
   padding: 44px 0;
   text-align: center;
 }
-.footer-logo { align-items: center; margin-bottom: 14px; }
+.footer-logo { justify-content: center; margin-bottom: 14px; }
 .footer-logo .logo-main { color: #fff; }
 .site-footer a { color: #cdd6e2; text-decoration: none; transition: color 0.25s var(--ease); }
 .site-footer a:hover { color: var(--gold-light); }
