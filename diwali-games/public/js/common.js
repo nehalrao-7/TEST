@@ -4,17 +4,73 @@
     offset: 0,
     now() { return Date.now() + this.offset; },
 
+    // Live connection: fetch our view over HTTP, refresh whenever Supabase Realtime says the
+    // game changed (or every few seconds as a fallback), and ask the server to tick when a
+    // timer runs out. Returns an object with a socket-like emit(kind, action, cb).
     connect(role, token, onState, onAuthError) {
-      const sock = io({ auth: { role, token }, transports: ['websocket', 'polling'] });
-      sock.on('state', (s) => {
-        this.offset = s.serverNow - Date.now();
-        onState(s);
-      });
-      sock.on('auth_error', (m) => onAuthError && onAuthError(m));
-      sock.on('kicked', () => onAuthError && onAuthError('You were removed by the host.'));
-      sock.on('disconnect', () => document.body.classList.add('offline'));
-      sock.on('connect', () => document.body.classList.remove('offline'));
-      return sock;
+      let version = 0, stopped = false, inflight = false, again = false, debounce = null, deadlineTimer = null, failures = 0;
+      const body = (extra) => JSON.stringify({ role, token, ...extra });
+      const apply = (v) => {
+        if (stopped || !v) return;
+        App.offset = v.serverNow - Date.now();
+        version = Math.max(version, v.version || 0);
+        clearTimeout(deadlineTimer);
+        if (v.nextDeadline) {
+          const wait = v.nextDeadline - App.now() + (role === 'player' ? 600 + Math.random() * 900 : 0);
+          deadlineTimer = setTimeout(() => refresh('tick'), Math.max(50, Math.min(wait, 120000)));
+        }
+        onState(v);
+      };
+      const authFail = (msg) => { stopped = true; onAuthError && onAuthError(msg); };
+      async function refresh(kind = 'view') {
+        if (stopped) return;
+        if (inflight) { again = true; return; }
+        inflight = true;
+        try {
+          const res = await fetch('/api/' + kind, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body() });
+          const data = await res.json().catch(() => ({}));
+          if (res.status === 401) return authFail(data.error || 'Please log in again.');
+          if (!res.ok) throw new Error(data.error);
+          failures = 0;
+          document.body.classList.remove('offline');
+          apply(data);
+        } catch {
+          if (++failures >= 2) document.body.classList.add('offline');
+        } finally {
+          inflight = false;
+          if (again) { again = false; setTimeout(refresh, 100); }
+        }
+      }
+      const soon = () => { clearTimeout(debounce); debounce = setTimeout(refresh, 60 + Math.random() * 140); };
+
+      fetch('/api/meta').then((r) => r.json()).then((meta) => {
+        const rt = meta.realtime;
+        if (rt && window.supabase) {
+          const client = window.supabase.createClient(rt.url, rt.key);
+          client.channel(rt.channel).on('broadcast', { event: 'state' }, ({ payload }) => {
+            if (!payload || payload.v > version) soon();
+          }).subscribe();
+          setInterval(refresh, role === 'player' ? 8000 : 5000);
+        } else {
+          setInterval(refresh, 1200);
+        }
+      }).catch(() => setInterval(refresh, 1500));
+      document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
+      refresh();
+
+      return {
+        emit(_kind, action, cb) {
+          fetch('/api/act', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: body({ action }) })
+            .then(async (res) => {
+              const data = await res.json().catch(() => ({}));
+              if (res.status === 401) { authFail(data.error); return; }
+              if (data.view) apply(data.view);
+              if (cb) cb(data.error ? { error: data.error } : { ok: true });
+            })
+            .catch(() => cb && cb({ error: 'Connection problem — try again.' }));
+        },
+        disconnect() { stopped = true; clearTimeout(deadlineTimer); },
+      };
     },
 
     esc(s) {

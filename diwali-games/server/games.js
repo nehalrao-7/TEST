@@ -5,18 +5,9 @@ const crypto = require('crypto');
 const S = require('./state');
 
 const now = () => Date.now();
-const timers = new Map();
-let onTick = () => {};
-function setTickHandler(fn) { onTick = fn; }
-function schedule(key, at, fn) {
-  clearTimeout(timers.get(key));
-  timers.set(key, setTimeout(() => {
-    timers.delete(key);
-    try { fn(); } catch (e) { console.error(e); }
-    onTick();
-  }, Math.max(0, at - now())));
-}
-function clearAll() { for (const t of timers.values()) clearTimeout(t); timers.clear(); }
+// Timers are not kept in memory (the app runs on serverless functions). Deadlines are
+// enforced by tick(), which runs at the start of every request.
+function schedule() {}
 
 const pickWrong = (q, n) => S.shuffle(q.options.map((_, i) => i).filter((i) => i !== q.answer)).slice(0, n);
 const countBy = (answers, n) => {
@@ -507,4 +498,39 @@ const custom = {
 
 const engines = { quiz, jeopardy, kbc, hookstep, custom };
 
-module.exports = { engines, schedule, clearAll, setTickHandler };
+// Apply any deadlines that have passed. Runs before every request.
+function tick(state) {
+  const t = now();
+  if (state.tv.announce && state.tv.announce.until < t - 1000) state.tv.announce = null;
+  const live = state.live;
+  if (!live) return;
+  const game = state.games.find((g) => g.id === live.gameId);
+  if (!game) return;
+  if (game.type === 'quiz' && live.phase === 'question' && t > live.deadline + 300) quiz.reveal(live, game);
+  if (game.type === 'kbc') {
+    if (live.phase === 'ff' && live.ff && t > live.ff.deadline + 300) kbc.ffClose(live, game);
+    if (live.hot && live.hot.poll && live.hot.poll.open && t > live.hot.poll.deadline) live.hot.poll.open = false;
+  }
+  if (game.type === 'hookstep') {
+    if (live.phase === 'voting' && t > live.until) live.phase = 'tally';
+    if (live.phase === 'spin' && t > live.spinUntil) live.phase = 'ready';
+  }
+}
+
+// Earliest upcoming deadline, so clients know when to ask the server to tick.
+function nextDeadline(state) {
+  const c = [];
+  if (state.tv.announce) c.push(state.tv.announce.until + 1100);
+  const live = state.live;
+  if (live) {
+    if (live.phase === 'question' && live.deadline) c.push(live.deadline + 400);
+    if (live.phase === 'ff' && live.ff) c.push(live.ff.deadline + 400);
+    if (live.hot && live.hot.poll && live.hot.poll.open) c.push(live.hot.poll.deadline + 100);
+    if (live.phase === 'voting') c.push(live.until + 100);
+    if (live.phase === 'spin') c.push(live.spinUntil + 100);
+  }
+  const future = c.filter((x) => x > now() - 5000);
+  return future.length ? Math.min(...future) : null;
+}
+
+module.exports = { engines, tick, nextDeadline };

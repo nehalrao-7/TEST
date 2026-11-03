@@ -1,13 +1,9 @@
 // Central game state: players, teams, games, the points ledger, power-ups,
 // persistence and the per-role views sent to clients.
 
-const fs = require('fs');
-const path = require('path');
 const crypto = require('crypto');
 const { defaultGames } = require('./content');
 
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
-const FILE = path.join(DATA_DIR, 'state.json');
 
 const AVATARS = ['🪔', '🎆', '🐘', '🦚', '🐯', '🌺', '🪷', '🍬', '🎇', '🥭', '🌶️', '🦁', '🐒', '👑', '🪁', '🍵', '🌙', '⭐'];
 const COLORS = ['#FF6B1A', '#E6007E', '#FFC300', '#00B3A4', '#7C3AED', '#FF3D5A', '#2BB24C', '#1E88E5', '#F59E0B', '#C026D3', '#14B8A6', '#EF4444', '#8B5CF6', '#F97316', '#06B6D4', '#84CC16'];
@@ -66,38 +62,11 @@ function freshState() {
   };
 }
 
-let state;
-function load() {
-  try {
-    state = JSON.parse(fs.readFileSync(FILE, 'utf8'));
-    if (process.env.HOST_PIN) state.hostPin = process.env.HOST_PIN;
-  } catch {
-    state = freshState();
-    save(true);
-  }
-  return state;
-}
-
-let saveTimer = null;
-function save(now = false) {
-  const write = () => {
-    saveTimer = null;
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-    const tmp = FILE + '.tmp';
-    fs.writeFileSync(tmp, JSON.stringify(state));
-    fs.renameSync(tmp, FILE);
-  };
-  if (now) return write();
-  if (!saveTimer) saveTimer = setTimeout(write, 250);
-}
-
-function resetAll() {
-  const pin = state.hostPin;
-  const tokens = state.hostTokens;
-  state = freshState();
-  state.hostPin = pin;
-  state.hostTokens = tokens;
-  save(true);
+let state = null;
+// The state object for the request being handled (requests are serialised by server/core.js).
+function setState(s) {
+  state = s;
+  if (process.env.HOST_PIN) state.hostPin = process.env.HOST_PIN;
   return state;
 }
 
@@ -376,7 +345,7 @@ function basePublic(onlineSet) {
 
 module.exports = {
   get state() { return state; },
-  load, save, resetAll, id, shuffle,
+  setState, freshState, id, shuffle,
   AVATARS, POWERUPS, TEAM_PRESETS,
   createPlayer, dealPowerups, makeTeams, teamMembers, scores, ranking,
   award, awardEntity, parseEntity, entityKeyFor, entityInfo,

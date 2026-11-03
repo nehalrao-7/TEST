@@ -9,8 +9,7 @@
   },
   "dependencies": {
     "express": "^4.22.3",
-    "qrcode": "^1.5.4",
-    "socket.io": "^4.8.4"
+    "qrcode": "^1.5.4"
   },
   "engines": {
     "node": ">=18"
