@@ -78,15 +78,21 @@
     },
 
     // Replace innerHTML only when it changed, and never while the user is typing inside.
-    patch(el, html) {
+    patch(el, html, force) {
       if (!el) return;
       if (el._html === html) return;
       const a = document.activeElement;
-      if (a && el.contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName) && el._html !== undefined) {
+      if (!force && a && el.contains(a) && /INPUT|TEXTAREA|SELECT/.test(a.tagName) && el._html !== undefined) {
         el._dirty = html;
         if (!a._patchHook) {
           a._patchHook = true;
-          a.addEventListener('blur', () => { setTimeout(() => { if (el._dirty) { const h = el._dirty; el._dirty = null; App.patch(el, h); } }, 150); }, { once: true });
+          // Apply the queued update after focus leaves, but never mid-click: replacing the DOM
+          // between pointerdown and click would swallow the click.
+          const flush = () => {
+            if (App.pointerDown) { setTimeout(flush, 80); return; }
+            if (el._dirty) { const h = el._dirty; el._dirty = null; App.patch(el, h); }
+          };
+          a.addEventListener('blur', () => { a._patchHook = false; setTimeout(flush, 250); }, { once: true });
         }
         return;
       }
@@ -220,6 +226,9 @@
     fmt(n) { return Number(n || 0).toLocaleString('en-IN'); },
     letters: ['A', 'B', 'C', 'D', 'E', 'F'],
   };
+  document.addEventListener('pointerdown', () => { App.pointerDown = true; }, true);
+  document.addEventListener('pointerup', () => { setTimeout(() => { App.pointerDown = false; }, 50); }, true);
+  document.addEventListener('pointercancel', () => { App.pointerDown = false; }, true);
   window.App = App;
   requestAnimationFrame(App.tickTimers);
 })();

@@ -20,6 +20,21 @@ A live, multiplayer party-game system for 12–16 guests: players use their phon
 
 Every game can be switched between **Solo** and **Teams**, reordered, edited (questions, clues, songs, point values) or duplicated from the **Games** tab. You can also add **Custom** games (Antakshari, Tambola, Dumb Charades…) that you score by hand.
 
+## Editing questions & adding music
+
+**Host → ✏️ Questions** shows every game's questions on one page as normal form fields. You can:
+- type questions and options, and click the circle next to the correct option
+- add, delete and reorder questions, Jeopardy categories and clues, KBC levels and songs
+- save one game at a time, or use **Save all**
+
+Every question, clue and song has a **🎵 YouTube link** field. Paste a link with a timestamp (`https://youtu.be/abc?t=75`, `…watch?v=abc&t=1m15s`, or a Shorts link) and the TV plays it from that point. **Play for (s)** stops it after that many seconds.
+
+- Questions play the audio only, so the video doesn't give the answer away. The video appears when the answer is revealed. Tick **show video** to show it from the start.
+- Hook Step songs play while the performer is dancing.
+- The host's TV card has **Replay / Show video / Stop** buttons, and a box to play any YouTube link on the TV right away.
+
+Click **Tap to enable sound & music** on the TV once, because browsers block audio until someone clicks on the page.
+
 ## Scoring, rankings & power-ups
 
 - Every point goes into a ledger. You can **undo** any entry from *Scores & Settings*, and award or deduct points for any player or team at any time.

@@ -21,9 +21,12 @@
     <footer class="ticker"><div id="ticker" class="ticker-inner"></div></footer>
   </div>
   <div id="announce" class="announce hidden"></div>
-  <button id="soundBtn" class="btn gold sound-btn">🔊 Tap to enable sound</button>
+  <div id="mediaBox" class="media-box audio"><div id="ytPlayer"></div><div id="mediaLabel" class="media-label"></div></div>
+  <div id="musicChip" class="music-chip hidden"><span class="eq"><i></i><i></i><i></i><i></i></span><span id="musicText">Now playing</span></div>
+  <button id="soundBtn" class="btn gold sound-btn">🔊 Tap to enable sound &amp; music</button>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
   <script src="/js/common.js"></script>
   <script src="/js/tv.js"></script>
+  <script src="https://www.youtube.com/iframe_api"></script>
 </body>
 </html>

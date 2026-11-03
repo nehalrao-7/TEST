@@ -34,18 +34,21 @@
     sock = App.connect('host', token, (s) => { S = s; render(); }, () => { store.del('dgn_host'); sock.disconnect(); loginView(); });
   }
 
+  const editor = window.createEditor({ send: (a, cb) => sock.emit('host', a, cb), toast: App.toast, rerender: (force) => render(force) });
+  window.addEventListener('beforeunload', (e) => { if (editor.isDirty()) { e.preventDefault(); e.returnValue = ''; } });
+
   const act = (a, ok) => sock.emit('host', a, (r) => { if (r && r.error) App.toast(r.error, true); else if (ok) App.toast(ok); });
   const gameAct = (action, ok) => act({ type: 'game', action }, ok);
 
   // ---------- render ----------
-  function render() {
+  function render(force) {
     if (!S) return;
     const pend = S.pending.length;
-    App.patch(document.getElementById('tabs'), [['live', '🎮 Live'], ['games', '🗂 Games'], ['players', `👥 Players${pend ? `<span class="dot">${pend}</span>` : ''}`], ['scores', '📊 Scores & Settings']]
+    App.patch(document.getElementById('tabs'), [['live', '🎮 Live'], ['games', '🗂 Games'], ['questions', '✏️ Questions'], ['players', `👥 Players${pend ? `<span class="dot">${pend}</span>` : ''}`], ['scores', '📊 Scores & Settings']]
       .map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? 'on' : ''}">${l}</button>`).join(''));
     const main = document.getElementById('main');
-    const html = { live: liveTab, games: gamesTab, players: playersTab, scores: scoresTab }[tab]();
-    App.patch(main, html);
+    const html = { live: liveTab, games: gamesTab, questions: () => editor.html(S), players: playersTab, scores: scoresTab }[tab]();
+    App.patch(main, html, force);
   }
 
   const player = (id) => S.players.find((p) => p.id === id);
@@ -79,7 +82,19 @@
     return `<div class="card"><h3>📺 TV display</h3><div class="btn-row">${views.map(([k, l]) => `<button class="btn small ${v === k ? '' : 'ghost'}" data-a="tv" data-v="${k}">${l}</button>`).join('')}</div>
       <div class="sec-title">Big announcement</div>
       <div class="row"><input type="text" data-ui="annTitle" placeholder="Title (e.g. Dinner break!)" value="${esc(ui.annTitle)}" class="grow" style="flex:1 1 160px"/><input type="text" data-ui="annText" placeholder="Message" value="${esc(ui.annText)}" style="flex:2 1 200px"/><button class="btn small gold" data-a="announce">📣 Show</button></div>
+      ${mediaHtml()}
       <div class="sec-title">Links</div>${linksHtml()}</div>`;
+  }
+
+  function mediaHtml() {
+    const m = S.media;
+    const now = m && !m.stopped
+      ? `<div class="kv"><span>🎵 <b>${esc(m.label || 'Clip')}</b> <span class="small muted">from ${window.fmtTime(m.start || 0)}${m.end ? ' to ' + window.fmtTime(m.end) : ''} · ${m.show ? 'video showing' : 'audio only'}</span></span></div>
+        <div class="btn-row" style="margin-top:8px"><button class="btn small" data-a="media" data-op="replay">↺ Replay from start</button><button class="btn small ghost" data-a="media" data-op="${m.show ? 'hide' : 'show'}">${m.show ? '🙈 Hide video' : '👁 Show video'}</button><button class="btn small red" data-a="media" data-op="stop">⏹ Stop</button></div>`
+      : m && m.stopped ? `<div class="kv"><span>⏹ Stopped: ${esc(m.label || '')}</span><button class="btn small" data-a="media" data-op="replay">↺ Play again</button></div>`
+      : '<p class="small muted" style="margin:4px 0">Nothing playing. Clips on questions, clues and songs start automatically.</p>';
+    return `<div class="sec-title">🎵 Music & video on TV</div>${now}
+      <div class="row" style="margin-top:8px"><input type="text" data-ui="djUrl" placeholder="Paste any YouTube link to play on the TV now" value="${esc(ui.djUrl || '')}" style="flex:1 1 220px"/><button class="btn small gold" data-a="media" data-op="dj">▶ Play</button></div>`;
   }
 
   function linksHtml() {
@@ -208,7 +223,8 @@
         <span class="chip ${g.status === 'live' ? 'live' : g.status === 'done' ? 'done' : ''}">${g.status}</span>
         <div class="btn-row">
           ${g.status === 'live' ? '<button class="btn small red" data-a="end">End</button>' : `<button class="btn small" data-a="start" data-id="${g.id}">${g.status === 'done' ? 'Replay' : 'Start'}</button>`}
-          <button class="btn small ghost" data-a="edit" data-id="${g.id}">✏️ Edit</button>
+          <button class="btn small ghost" data-a="edit" data-id="${g.id}">✏️ Edit questions</button>
+          <button class="btn small ghost" data-a="json" data-id="${g.id}" title="Edit as JSON">{ }</button>
           <button class="btn small ghost" data-a="move" data-id="${g.id}" data-d="-1" ${i === 0 ? 'disabled' : ''}>↑</button>
           <button class="btn small ghost" data-a="move" data-id="${g.id}" data-d="1" ${i === S.games.length - 1 ? 'disabled' : ''}>↓</button>
           ${g.status === 'done' ? `<button class="btn small ghost" data-a="resetGame" data-id="${g.id}">↺</button>` : ''}
@@ -291,9 +307,10 @@
   }
 
   // ---------- events ----------
-  app.addEventListener('input', (e) => { const k = e.target.dataset && e.target.dataset.ui; if (k) ui[k] = e.target.value; });
+  app.addEventListener('input', (e) => { if (e.target.dataset && e.target.dataset.eg && !/radio|checkbox/.test(e.target.type) && e.target.tagName !== 'SELECT') { editor.onInput(e); return; } const k = e.target.dataset && e.target.dataset.ui; if (k) ui[k] = e.target.value; });
   app.addEventListener('change', (e) => {
     const t = e.target;
+    if (t.dataset && t.dataset.eg) { if (/radio|checkbox/.test(t.type) || t.tagName === 'SELECT') editor.onInput(e); return; }
     if (t.dataset.ui) { ui[t.dataset.ui] = t.value; render(); return; }
     if (t.dataset.a === 'mode') act({ type: 'editGame', gameId: t.dataset.id, mode: t.value });
     if (t.dataset.a === 'setTeam') act({ type: 'setTeam', playerId: t.dataset.id, teamId: t.value });
@@ -301,7 +318,8 @@
 
   app.addEventListener('click', (e) => {
     const tb = e.target.closest('[data-tab]');
-    if (tb) { tab = tb.dataset.tab; store.set('dgn_host_tab', tab); render(); return; }
+    if (tb) { tab = tb.dataset.tab; store.set('dgn_host_tab', tab); render(true); return; }
+    if (editor.onClick(e)) return;
     const g = e.target.closest('[data-g]');
     if (g) {
       const a = { type: g.dataset.g };
@@ -319,6 +337,13 @@
       case 'tv': act({ type: 'tv', view: b.dataset.v }); break;
       case 'announce': if (!ui.annTitle && !ui.annText) return App.toast('Write a title or message', true);
         act({ type: 'announce', title: ui.annTitle || '📣', text: ui.annText }, 'On the TV!'); ui.annTitle = ''; ui.annText = ''; app.querySelectorAll('[data-ui=annTitle],[data-ui=annText]').forEach((x) => { x.value = ''; }); break;
+      case 'media': {
+        const op = b.dataset.op;
+        if (op === 'dj' && !ui.djUrl) return App.toast('Paste a YouTube link first', true);
+        act({ type: 'media', op, url: ui.djUrl }, op === 'dj' ? 'Playing on the TV 🎵' : null);
+        if (op === 'dj') { ui.djUrl = ''; const inp = app.querySelector('[data-ui=djUrl]'); if (inp) inp.value = ''; }
+        break;
+      }
       case 'copy': navigator.clipboard && navigator.clipboard.writeText(b.dataset.u).then(() => App.toast('Copied!')); break;
       case 'award': {
         if (!ui.awardTarget) return App.toast('Pick a player or team first', true);
@@ -330,7 +355,8 @@
       case 'hookSetup': if (!ui.performer && !(S.live.perf)) return App.toast('Pick a performer', true);
         gameAct({ type: 'setup', performer: ui.performer || S.live.perf.performer.key, songIndex: ui.song }); break;
       case 'hookScore': gameAct({ type: 'score', judge: Number(ui.judge) }); ui.performer = ''; ui.song = ''; break;
-      case 'edit': editModal(id); break;
+      case 'edit': tab = 'questions'; store.set('dgn_host_tab', tab); render(true); setTimeout(() => { const el = document.getElementById('ed-' + id); if (el) el.scrollIntoView({ behavior: 'smooth' }); }, 50); break;
+      case 'json': editModal(id); break;
       case 'move': act({ type: 'moveGame', gameId: id, dir: Number(b.dataset.d) }); break;
       case 'resetGame': act({ type: 'resetGame', gameId: id }); break;
       case 'addGame': act({ type: 'addGame', gameType: ui.newType, title: ui.newTitle || 'New Game', mode: ui.newMode }, 'Game added'); ui.newTitle = ''; break;

@@ -8,6 +8,7 @@ const S = require('./state');
 const { engines, tick, nextDeadline } = require('./games');
 const { templates } = require('./content');
 const { smsEnabled, sendSms } = require('./sms');
+const { parseYouTube } = require('./youtube');
 
 const st = () => S.state;
 let ONLINE = new Set();
@@ -104,6 +105,75 @@ function endGame() {
   S.announce({ emoji: '🏁', title: `${game.title} complete!`, text: top ? `${top.name} leads the party with ${top.score} points` : '', kind: 'end', ms: 4500 });
 }
 
+
+// ---------------- music / video on the TV ----------------
+
+// What the TV should be playing right now: the YouTube link on the current question, clue
+// or song (derived from the live game), or a link the host pasted. Host overrides (replay,
+// stop, show/hide video) apply while the same item is current.
+function autoMedia() {
+  const s = st();
+  const live = s.live;
+  if (!live) return null;
+  const game = s.games.find((g) => g.id === live.gameId);
+  if (!game) return null;
+  const c = game.content || {};
+  const mk = (item, key, show, label) => {
+    const yt = item && parseYouTube(item.youtube, item.clip);
+    return yt ? { ...yt, key: `${game.id}:${key}`, show: Boolean(item.showVideo) || show, label } : null;
+  };
+  if (game.type === 'quiz' && ['question', 'reveal'].includes(live.phase)) {
+    return mk((c.questions || [])[live.qIndex], `q${live.qIndex}`, live.phase === 'reveal', `${game.title} · Q${live.qIndex + 1}`);
+  }
+  if (game.type === 'jeopardy' && live.cur && ['clue', 'answer'].includes(live.phase)) {
+    const cl = c.categories[live.cur.c].clues[live.cur.i];
+    return mk(cl, `c${live.cur.c}-${live.cur.i}`, live.phase === 'answer', `${c.categories[live.cur.c].name} ${cl.value}`);
+  }
+  if (game.type === 'kbc') {
+    if (['ff', 'ff-result'].includes(live.phase) && live.ff) return mk((c.fastestFinger || [])[live.ff.qi], `ff${live.ff.qi}`, live.phase === 'ff-result', 'Fastest Finger First');
+    const h = live.hot;
+    if (live.phase === 'hot' && h && h.qPhase !== 'over') {
+      const lvl = c.ladder[h.qLevel];
+      const q = lvl.questions[h.seat % lvl.questions.length];
+      return mk(q, `hot${h.seat}-${h.qLevel}`, h.qPhase === 'reveal', `KBC · Q${h.qLevel + 1}`);
+    }
+  }
+  if (game.type === 'hookstep' && live.perf && live.perf.songIndex != null && live.phase === 'perform') {
+    const song = (c.songs || [])[live.perf.songIndex];
+    return mk(song, `song${live.perf.songIndex}-${live.results.length}`, false, song ? song.title : '');
+  }
+  return null;
+}
+
+function currentMedia() {
+  const s = st();
+  const dj = s.dj && !s.dj.stopped ? { ...s.dj, key: `dj:${s.dj.id}` } : null;
+  const m = dj || autoMedia();
+  if (!m) return null;
+  const ctl = s.mediaCtl && s.mediaCtl.key === m.key ? s.mediaCtl : {};
+  if (ctl.stopped) return { key: m.key, stopped: true, label: m.label };
+  return { ...m, show: ctl.show != null ? ctl.show : m.show, nonce: ctl.nonce || 0, stopped: false };
+}
+
+function mediaAction(a) {
+  const s = st();
+  if (a.op === 'dj') {
+    const yt = parseYouTube(a.url, a.clip);
+    if (!yt) throw new Error('That does not look like a YouTube link.');
+    s.dj = { ...yt, id: S.id(5), show: a.show !== false, label: 'Host pick' };
+    return;
+  }
+  const m = currentMedia() || (s.mediaCtl && s.mediaCtl.key ? { key: s.mediaCtl.key } : null);
+  if (!m) throw new Error('Nothing to control — no clip on the current question.');
+  if (a.op === 'stop' && s.dj && m.key === `dj:${s.dj.id}`) { s.dj = null; return; }
+  const ctl = s.mediaCtl && s.mediaCtl.key === m.key ? s.mediaCtl : { key: m.key, nonce: 0 };
+  if (a.op === 'replay') { ctl.nonce = (ctl.nonce || 0) + 1; ctl.stopped = false; }
+  else if (a.op === 'stop') ctl.stopped = true;
+  else if (a.op === 'show') ctl.show = true;
+  else if (a.op === 'hide') ctl.show = false;
+  s.mediaCtl = ctl;
+}
+
 function validateContent(type, c) {
   if (!c || typeof c !== 'object') throw new Error('Content must be a JSON object.');
   const checkQ = (q, where) => {
@@ -152,6 +222,7 @@ function hostAction(a) {
       break;
     }
     case 'undo': s.ledger = s.ledger.filter((e) => e.id !== a.entryId); break;
+    case 'media': mediaAction(a); break;
     case 'tv': if (['lobby', 'game', 'leaderboard', 'podium', 'teams'].includes(a.view)) s.tv.view = a.view; break;
     case 'announce': S.announce({ emoji: a.emoji || '📣', title: String(a.title || 'Announcement').slice(0, 40), text: String(a.text || '').slice(0, 140), ms: 8000 }); break;
     case 'dismiss': s.tv.announce = null; break;
@@ -266,14 +337,14 @@ function baseFor() {
 function viewFor(role, tok) {
   if (role === 'host') {
     if (!isHostToken(tok)) throw new HttpError(401, 'Please log in again.');
-    return hostView(baseFor());
+    return { ...hostView(baseFor()), media: currentMedia() };
   }
   if (role === 'player') {
     const p = findPlayerByToken(tok);
     if (!p) throw new HttpError(401, 'Please log in again.');
     return playerView(p, baseFor());
   }
-  return { ...baseFor(), role: 'tv', live: liveView({ tv: true }) };
+  return { ...baseFor(), role: 'tv', live: liveView({ tv: true }), media: currentMedia() };
 }
 
 async function handle(store, method, path, body = {}, query = {}) {

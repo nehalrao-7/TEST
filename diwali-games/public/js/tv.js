@@ -8,7 +8,37 @@
   let prev = { sceneKey: null, announceId: null, revealKey: null, lbKey: null };
   const shownAnnounce = new Set();
 
-  $('soundBtn').onclick = () => { App.enableSound(); App.sfx('join'); $('soundBtn').remove(); };
+  $('soundBtn').onclick = () => { App.enableSound(); App.sfx('join'); $('soundBtn').remove(); mediaSig = ''; syncMedia(); };
+
+  // ---------- YouTube music / video ----------
+  let yt = null, ytReady = false, mediaSig = '';
+  window.onYouTubeIframeAPIReady = () => {
+    yt = new YT.Player('ytPlayer', {
+      width: '100%', height: '100%',
+      playerVars: { autoplay: 0, controls: 0, rel: 0, modestbranding: 1, playsinline: 1, disablekb: 1, fs: 0, iv_load_policy: 3 },
+      events: { onReady: () => { ytReady = true; syncMedia(); } },
+    });
+  };
+  function syncMedia() {
+    const m = S && S.media;
+    const playing = m && !m.stopped && m.videoId;
+    const box = $('mediaBox');
+    box.classList.toggle('audio', !(playing && m.show));
+    $('mediaLabel').textContent = playing ? '🎵 ' + (m.label || '') : '';
+    const chip = $('musicChip');
+    chip.classList.toggle('hidden', !(playing && !m.show));
+    chip.classList.toggle('blocked', Boolean(playing && !App.soundOn));
+    $('musicText').textContent = !playing ? '' : App.soundOn ? 'Now playing… listen closely!' : 'Music ready — click "enable sound" on the TV';
+    if (!ytReady) return;
+    const sig = playing ? `${m.key}|${m.nonce}|${m.videoId}|${m.start}|${m.end}` : 'none';
+    if (sig === mediaSig) return;
+    mediaSig = sig;
+    if (!playing) { yt.stopVideo(); return; }
+    const opts = { videoId: m.videoId, startSeconds: m.start || 0 };
+    if (m.end) opts.endSeconds = m.end;
+    yt.loadVideoById(opts);
+    if (App.soundOn) { yt.unMute(); yt.setVolume(100); } else yt.mute();
+  }
 
   App.connect('tv', null, (s) => { S = s; render(); });
 
@@ -44,6 +74,7 @@
     }
     App.patch(stage.firstElementChild, html);
     renderAnnounce();
+    syncMedia();
   }
 
   function onSceneChange(key) {

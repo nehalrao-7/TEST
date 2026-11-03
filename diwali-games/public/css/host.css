@@ -54,3 +54,33 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .toggle { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; }
 .toggle input { width: 20px; height: 20px; accent-color: var(--magenta); }
 .feed-row { font-size: 13px; padding: 5px 0; border-bottom: 1px dashed var(--line); }
+
+/* Questions editor */
+.ed-top { margin-bottom: 14px; }
+.ed-nav { display: flex; flex-wrap: wrap; gap: 6px; }
+.ed-nav a { text-decoration: none; }
+.ed-sec { margin-bottom: 14px; scroll-margin-top: 150px; }
+.ed-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ed-head .ed-title { font-family: var(--font-display); font-size: 20px; font-weight: 700; flex: 1 1 200px; }
+.ed-body { margin-top: 12px; }
+.qe { border: 2px solid var(--line); border-radius: 14px; padding: 10px; margin-bottom: 10px; background: #fff; }
+.qe-level { background: #fffaf0; border-color: #ffe3a3; }
+.qe-head, .qe-row, .qe-media { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.qe-row, .qe-media { margin-top: 8px; }
+.qe .grow { flex: 1 1 220px; min-width: 0; }
+.qe input[type=text], .qe input[type=number] { padding: 8px 10px; font-size: 14px; border-radius: 10px; }
+.qe-q { font-weight: 700; }
+.qe-n { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: var(--ink); color: #fff; font-size: 13px; flex-shrink: 0; }
+.qe-l { font-size: 12px; font-weight: 700; color: var(--muted); }
+.qe-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 8px; }
+@media (max-width: 640px) { .qe-opts { grid-template-columns: 1fr; } }
+.qe-opt { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 12px; border: 2px solid transparent; }
+.qe-opt.right { border-color: #22c55e; background: #e9fbf0; }
+.qe-opt input[type=radio] { width: 20px; height: 20px; accent-color: #16a34a; flex-shrink: 0; cursor: pointer; }
+.qe-opt .k { font-family: var(--font-display); font-weight: 800; color: var(--plum); width: 16px; }
+.qe-opt input[type=text] { flex: 1; }
+.qe-clue { border-top: 1px dashed var(--line); padding-top: 8px; margin-top: 8px; }
+.qe-yt { font-size: 12px; }
+.yt-ok { color: #15803d; font-weight: 700; }
+.yt-bad { color: #dc2626; font-weight: 700; }
+.qe .btn.small { padding: 6px 10px; }
