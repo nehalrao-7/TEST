@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#2a0845" />
+  <title>Diwali Game Night</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪔</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/app.css" />
+  <style>
+    .home { max-width: 760px; margin: 0 auto; padding: 8vh 16px 40px; text-align: center; color: #fff; }
+    .home .em { font-size: 80px; filter: drop-shadow(0 0 24px rgba(255,179,0,.9)); animation: flicker 2.5s infinite; }
+    .home h1 { font-size: clamp(40px, 8vw, 72px); }
+    .home h1 span { background: linear-gradient(90deg, var(--gold), var(--saffron), var(--pink)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .home p { opacity: .85; font-size: 18px; }
+    .choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-top: 32px; }
+    .choice { display: block; text-decoration: none; color: var(--ink); background: #fff; border-radius: 20px; padding: 24px 18px; box-shadow: var(--shadow); transition: transform .15s; }
+    .choice:hover { transform: translateY(-4px); }
+    .choice .i { font-size: 44px; }
+    .choice b { display: block; font-family: var(--font-display); font-size: 24px; margin-top: 6px; }
+    .choice span { color: var(--muted); font-size: 14px; }
+    .choice.main { background: linear-gradient(135deg, var(--saffron), var(--magenta)); color: #fff; }
+    .choice.main span { color: rgba(255,255,255,.85); }
+  </style>
+</head>
+<body>
+  <div class="wrap home">
+    <div class="em">🪔</div>
+    <h1>Diwali <span>Game Night</span></h1>
+    <p>Hook steps, filmy guesses, Jeopardy, Kahoot & KBC — with secret power-ups.</p>
+    <div class="choices">
+      <a class="choice main" href="/play"><div class="i">📱</div><b>Join the game</b><span>Players — log in with your phone</span></a>
+      <a class="choice" href="/tv"><div class="i">📺</div><b>TV display</b><span>Open this on the big screen</span></a>
+      <a class="choice" href="/host"><div class="i">🎛️</div><b>Host console</b><span>Run the show</span></a>
+    </div>
+  </div>
+  <script src="/js/common.js"></script>
+  <script>App.sparkles(50)</script>
+</body>
+</html>

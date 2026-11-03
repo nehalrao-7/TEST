@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Diwali Game Night — TV</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪔</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/app.css" />
+  <link rel="stylesheet" href="/css/tv.css" />
+</head>
+<body class="tv">
+  <div class="wrap tv-wrap">
+    <header class="tv-top">
+      <div class="logo"><span class="diya">🪔</span><b id="eventName">Diwali <span>Game Night</span></b></div>
+      <div id="nowPlaying" class="now-playing"></div>
+      <div id="miniTop" class="mini-top"></div>
+    </header>
+    <main id="stage" class="stage"></main>
+    <footer class="ticker"><div id="ticker" class="ticker-inner"></div></footer>
+  </div>
+  <div id="announce" class="announce hidden"></div>
+  <button id="soundBtn" class="btn gold sound-btn">🔊 Tap to enable sound</button>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/common.js"></script>
+  <script src="/js/tv.js"></script>
+</body>
+</html>

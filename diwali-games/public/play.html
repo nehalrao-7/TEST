@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#2a0845" />
+  <title>Diwali Game Night — Play</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪔</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/app.css" />
+  <link rel="stylesheet" href="/css/play.css" />
+</head>
+<body class="play">
+  <div class="wrap pwrap" id="app"></div>
+  <nav class="nav hidden" id="nav">
+    <button data-tab="play" class="on"><span class="ic">🎮</span>Play</button>
+    <button data-tab="power"><span class="ic">🎁</span>Power-ups<span class="dot hidden" id="puDot"></span></button>
+    <button data-tab="ranks"><span class="ic">🏆</span>Ranks</button>
+  </nav>
+  <div id="modal"></div>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/js/common.js"></script>
+  <script src="/js/play.js"></script>
+</body>
+</html>

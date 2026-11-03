@@ -1,0 +1,19 @@
+{
+  "name": "diwali-game-night",
+  "version": "1.0.0",
+  "description": "Live multiplayer Diwali party games: players on phones, host console, TV display.",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "dependencies": {
+    "express": "^4.22.3",
+    "qrcode": "^1.5.4",
+    "socket.io": "^4.8.4"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "private": true
+}
