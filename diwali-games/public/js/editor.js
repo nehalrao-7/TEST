@@ -169,6 +169,7 @@
     }
 
     // ---------- personalisation & questionnaire ----------
+    const PROMPT_TYPES = [['text', '✍️ Free text'], ['pick', '👯 Pick a guest'], ['vote', '🗳️ Group vote'], ['choice', '🔘 Choice']];
     function personalCard() {
       const st = S.settings;
       const pv = S.personalPreview || { total: 0, sample: [] };
@@ -182,13 +183,18 @@
         <div class="row"><span class="chip ${done ? 'done' : ''}">${done} of ${S.players.length} guests answered</span><span class="chip gold">${pv.total} personal questions available</span></div>
         ${pv.sample.length ? `<div class="sec-title">Sample of what guests will see</div>${pv.sample.map((q) => `<div class="kv"><span>${esc(q.q)} <span class="small muted">(${q.options.map((o, i) => i === q.answer ? `<b>${esc(o)}</b>` : esc(o)).join(' · ')})</span></span><span class="small muted">about ${esc(q.about)}</span></div>`).join('')}` : '<p class="small muted">Questions will appear here once a few guests have answered (you need 2+ guests).</p>'}
         <div class="sec-title">Questionnaire (what guests are asked)</div>
-        ${prompts.map((q, i) => `<div class="qe-row"><b class="qe-n">${i + 1}</b>
+        ${prompts.map((q, i) => {
+          const type = q.type || 'text';
+          const extra = type === 'text' ? `<input type="text" data-eg="__q" data-ep="prompts.${i}.ph" data-ek="text" value="${esc(q.ph || '')}" placeholder="Example answer" style="flex:0 1 200px"/>`
+            : type === 'choice' ? `<input type="text" data-eg="__q" data-ep="prompts.${i}.optionsText" data-ek="text" value="${esc(q.optionsText != null ? q.optionsText : (q.options || []).join(', '))}" placeholder="Options, comma separated" style="flex:0 1 220px"/>` : '';
+          return `<div class="qe-row"><b class="qe-n">${i + 1}</b>
+          <select data-eg="__q" data-ep="prompts.${i}.type" data-ek="text" style="width:auto" title="Answer type">${PROMPT_TYPES.map(([v, l]) => `<option value="${v}" ${type === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
           <input type="text" class="grow" data-eg="__q" data-ep="prompts.${i}.text" data-ek="text" value="${esc(q.text)}" placeholder="Question for guests"/>
-          <input type="text" data-eg="__q" data-ep="prompts.${i}.ph" data-ek="text" value="${esc(q.ph || '')}" placeholder="Example answer" style="flex:0 1 220px"/>
-          ${btn('pqDel', '🗑', `data-i="${i}"`)}</div>`).join('')}
+          ${extra}${btn('pqDel', '🗑', `data-i="${i}"`)}</div>`;
+        }).join('')}
         <div class="row" style="margin-top:10px">${btn('pqAdd', '+ Add question', '', 'teal small')}<span class="grow"></span>
           ${qDraft.dirty ? '<span class="chip gold">Unsaved</span>' : ''}${btn('pqSave', '💾 Save questionnaire', qDraft.dirty ? '' : 'disabled', 'small')}</div>
-        <p class="small muted">Tip: open-ended "favourite…" questions work best. Answers are used as-is in game questions, and you can delete any answer in the Players tab.</p>
+        <p class="small muted"><b>Free text</b>: "Whose favourite garba song is…?" / "What is Priya's…?". <b>Pick a guest</b> (partner, best friend): "Who is Priya's other half?". <b>Group vote</b>: secret votes, and only a clear winner becomes "The group has voted! Who is the best garba dancer?". <b>Choice</b>: fixed options such as Garba / Dandiya. Answers are used as-is, and you can delete any of them in the Players tab.</p>
       </section>`;
     }
 
@@ -233,7 +239,19 @@
         send({ type: 'settings', [t.dataset.ep]: v }, (r) => { if (r && r.error) toast(r.error, true); else toast('Saved ✓'); });
         return true;
       }
-      if (t.dataset.eg === '__q') { setAt(qDraft, t.dataset.ep, t.value); qDraft.dirty = true; return true; }
+      if (t.dataset.eg === '__q') {
+        setAt(qDraft, t.dataset.ep, t.value);
+        qDraft.dirty = true;
+        const m = t.dataset.ep.match(/^prompts\.(\d+)\.type$/);
+        if (m) {
+          const q = qDraft.prompts[Number(m[1])];
+          delete q.who; delete q.what; delete q.clue; // default wording no longer fits
+          q.section = { pick: 'group', vote: 'vote' }[q.type] || q.section || 'you';
+          if (q.type === 'choice' && !q.options) q.options = ['Yes', 'No'];
+          rerender(true);
+        }
+        return true;
+      }
       const d = drafts[t.dataset.eg];
       if (!d) return true;
       let v = t.dataset.ek === 'bool' ? t.checked : t.value;
@@ -274,7 +292,7 @@
       switch (b.dataset.ea) {
         case 'pqAdd': qDraft.prompts.push({ id: 'q' + Math.random().toString(36).slice(2, 8), text: '', ph: '', tag: 'fun' }); qDraft.dirty = true; break;
         case 'pqDel': if (!confirm('Remove this question? Answers to it will no longer be used.')) return true; qDraft.prompts.splice(i, 1); qDraft.dirty = true; break;
-        case 'pqSave': send({ type: 'questionnaire', prompts: qDraft.prompts.filter((q) => (q.text || '').trim()) }, (r) => {
+        case 'pqSave': send({ type: 'questionnaire', prompts: qDraft.prompts.filter((q) => (q.text || '').trim()).map(({ optionsText, ...q }) => (optionsText != null ? { ...q, options: optionsText.split(',') } : q)) }, (r) => {
           if (r && r.error) toast(r.error, true); else { qDraft.dirty = false; toast('Questionnaire saved ✓'); rerender(true); }
         }); return true;
         case 'toggle': collapsed.has(gid) ? collapsed.delete(gid) : collapsed.add(gid); break;

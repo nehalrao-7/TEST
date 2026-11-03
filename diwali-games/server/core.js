@@ -51,7 +51,7 @@ function playerView(p, base) {
       doublePending: p.doublePending, doubleActive: Boolean(st().live && p.doubleGameId === st().live.gameId),
       history: st().ledger.filter((e) => e.playerId === p.id).slice(-15).reverse(),
     },
-    questionnaire: { open: Boolean(st().settings.questionnaireOpen), prompts: st().questionnaire.map(({ id, text, ph }) => ({ id, text, ph })), answers: p.answers || {} },
+    questionnaire: { open: Boolean(st().settings.questionnaireOpen), prompts: st().questionnaire.map(({ id, text, ph, type, options, section }) => ({ id, text, ph, type: type || 'text', options, section: section || 'you' })), answers: p.answers || {} },
     live: liveView({ player: p }),
   };
 }
@@ -239,7 +239,10 @@ function hostAction(a) {
     case 'undo': s.ledger = s.ledger.filter((e) => e.id !== a.entryId); break;
     case 'media': mediaAction(a); break;
     case 'questionnaire': {
-      const prompts = (a.prompts || []).map((q) => ({ ...q, id: String(q.id || S.id(6)).slice(0, 24), text: String(q.text || '').trim().slice(0, 80), ph: String(q.ph || '').slice(0, 60) })).filter((q) => q.text);
+      const types = ['text', 'pick', 'vote', 'choice'];
+      const prompts = (a.prompts || []).map((q) => ({ ...q, id: String(q.id || S.id(6)).slice(0, 24), text: String(q.text || '').trim().slice(0, 100), ph: String(q.ph || '').slice(0, 60),
+        type: types.includes(q.type) ? q.type : 'text', options: q.type === 'choice' ? (Array.isArray(q.options) ? q.options : String(q.options || '').split(',')).map((o) => String(o).trim()).filter(Boolean).slice(0, 4) : undefined }))
+        .filter((q) => q.text && (q.type !== 'choice' || q.options.length >= 2));
       if (!prompts.length) throw new Error('Keep at least one question.');
       s.questionnaire = prompts;
       break;
@@ -309,9 +312,15 @@ function playerAction(p, a) {
     S.usePowerup(p, a.powerupId, a.targetId, liveCtx);
   } else if (a.type === 'answers') {
     if (!s.settings.questionnaireOpen) throw new Error('The questionnaire is closed.');
-    const ids = new Set(s.questionnaire.map((q) => q.id));
+    const byId = Object.fromEntries(s.questionnaire.map((q) => [q.id, q]));
     p.answers = p.answers || {};
-    for (const [k, v] of Object.entries(a.answers || {})) if (ids.has(k)) p.answers[k] = P.cleanAnswer(v);
+    for (const [k, v] of Object.entries(a.answers || {})) {
+      const q = byId[k];
+      if (!q) continue;
+      if (q.type === 'pick' || q.type === 'vote') p.answers[k] = s.players[v] && v !== p.id ? v : '';
+      else if (q.type === 'choice') p.answers[k] = (q.options || []).includes(v) ? v : '';
+      else p.answers[k] = P.cleanAnswer(v);
+    }
   } else if (a.type === 'avatar') {
     if (S.AVATARS.includes(a.avatar)) p.avatar = a.avatar;
   } else if (a.type === 'game') {

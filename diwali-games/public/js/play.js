@@ -281,24 +281,49 @@
     if (!Q.open) return '';
     const n = answeredCount(), total = Q.prompts.length;
     return `<div class="card about-card" style="margin-bottom:12px"><div class="row"><div style="font-size:40px">📝</div><div class="grow">
-      <h3 style="margin:0">${n ? 'Thanks for sharing!' : 'Tell us about you'}</h3>
-      <p class="small muted" style="margin:4px 0 0">${n ? `${n} of ${total} answered. Some of tonight's questions will be about you 👀` : 'Answer a few fun questions. Some of them turn into game questions tonight ✨'}</p></div></div>
-      <button class="btn ${n ? 'ghost' : ''} block" style="margin-top:12px" data-act="about">${n ? 'Edit my answers' : 'Start (2 minutes) →'}</button></div>`;
+      <h3 style="margin:0">${n ? 'Thanks for sharing!' : 'Tell us about you & the gang'}</h3>
+      <p class="small muted" style="margin:4px 0 0">${n ? `${n} of ${total} answered. Some of tonight's questions will be about you 👀` : 'Quick questions about you, your garba crew and secret group votes. They turn into game questions tonight ✨'}</p></div></div>
+      <button class="btn ${n ? 'ghost' : ''} block" style="margin-top:12px" data-act="about">${n ? 'Edit my answers' : 'Start (3 minutes) →'}</button></div>`;
   }
+  const SECTIONS = [['you', '🙋 About you'], ['garba', '🪔 Garba time'], ['group', '👯 About the group'], ['vote', '🗳️ Secret group votes']];
   function openQuestionnaire() {
     const Q = S.questionnaire;
     const draft = { ...(Q.answers || {}) };
-    modal.innerHTML = `<div class="modal"><div class="sheet about-sheet"><h3>📝 About you</h3>
-      <p class="muted small" style="margin-top:4px">Answer as many as you like (skip any). Your answers become some of tonight's game questions, so the whole party gets to guess! Keep it fun 🙂</p>
-      <form id="qf" class="stack">${Q.prompts.map((q, i) => `<div><label class="field">${i + 1}. ${esc(q.text)}</label>
-        <input type="text" maxlength="70" data-qid="${q.id}" value="${esc(draft[q.id] || '')}" placeholder="${esc(q.ph || '')}"/></div>`).join('')}
-        <div class="row"><button type="button" class="btn ghost grow" data-m="no">Later</button><button class="btn grow" type="submit">Save my answers ✨</button></div></form></div></div>`;
+    const others = S.players.filter((p) => p.id !== S.me.id).sort((a, b) => a.name.localeCompare(b.name));
+    let n = 0;
+    const field = (q) => {
+      n++;
+      const v = draft[q.id] || '';
+      const label = `<label class="field">${n}. ${esc(q.text)}</label>`;
+      if (q.type === 'pick' || q.type === 'vote') {
+        return `<div>${label}<select data-qid="${q.id}"><option value="">${q.type === 'vote' ? '— pick a guest (or skip) —' : '— pick a guest (or skip) —'}</option>
+          ${others.map((p) => `<option value="${p.id}" ${v === p.id ? 'selected' : ''}>${esc(p.avatar)} ${esc(p.name)}</option>`).join('')}</select></div>`;
+      }
+      if (q.type === 'choice') {
+        return `<div>${label}<div class="choice-row">${(q.options || []).map((o) => `<label class="choice ${v === o ? 'on' : ''}"><input type="radio" name="c-${q.id}" data-qid="${q.id}" value="${esc(o)}" ${v === o ? 'checked' : ''}/>${esc(o)}</label>`).join('')}</div></div>`;
+      }
+      return `<div>${label}<input type="text" maxlength="70" data-qid="${q.id}" value="${esc(v)}" placeholder="${esc(q.ph || '')}"/></div>`;
+    };
+    const known = SECTIONS.map(([k]) => k);
+    const groups = SECTIONS.map(([k, title]) => [title, Q.prompts.filter((q) => (q.section || 'you') === k)])
+      .concat([['✨ More', Q.prompts.filter((q) => !known.includes(q.section || 'you'))]])
+      .filter(([, list]) => list.length);
+    modal.innerHTML = `<div class="modal"><div class="sheet about-sheet"><h3>📝 About you & the gang</h3>
+      <p class="muted small" style="margin-top:4px">Answer as many as you like (skip any). Answers become some of tonight's game questions, so the whole party gets to guess! Votes stay secret. Only the winner is revealed 🤫</p>
+      <form id="qf" class="stack">${groups.map(([title, list]) => `<div class="q-sec"><h4>${title}</h4>${list.map(field).join('')}${title.includes('group') || title.includes('votes') ? '<p class="small muted" style="margin:6px 0 0">Someone missing? They may not have joined yet. Come back and update your answers later.</p>' : ''}</div>`).join('')}
+        <div class="row q-actions"><button type="button" class="btn ghost grow" data-m="no">Later</button><button class="btn grow" type="submit">Save my answers ✨</button></div></form></div></div>`;
     const f = modal.querySelector('#qf');
+    f.querySelectorAll('.choice input').forEach((r) => r.addEventListener('change', () => {
+      f.querySelectorAll(`[name="${r.name}"]`).forEach((x) => x.parentElement.classList.toggle('on', x.checked));
+    }));
     modal.querySelector('[data-m=no]').onclick = () => { modal.innerHTML = ''; };
     f.onsubmit = (e) => {
       e.preventDefault();
       const answers = {};
-      f.querySelectorAll('[data-qid]').forEach((inp) => { answers[inp.dataset.qid] = inp.value; });
+      f.querySelectorAll('[data-qid]').forEach((inp) => {
+        if (inp.type === 'radio') { if (inp.checked) answers[inp.dataset.qid] = inp.value; else if (!(inp.dataset.qid in answers)) answers[inp.dataset.qid] = ''; }
+        else answers[inp.dataset.qid] = inp.value;
+      });
       send({ type: 'answers', answers }, () => { modal.innerHTML = ''; App.confetti(0.6); App.toast('Saved! Watch out for questions about you 👀'); });
     };
   }

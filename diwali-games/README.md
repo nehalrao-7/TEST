@@ -37,7 +37,11 @@ Click **Tap to enable sound & music** on the TV once, because browsers block aud
 
 ## Personalised questions ("About me")
 
-1. After joining, each guest sees a short **About me** questionnaire on their phone: favourite movie, dream holiday, Diwali sweet, a song that gets them dancing, a hidden talent and more. You can edit the list in **✏️ Questions → ✨ Personalised questions**.
+1. After joining, each guest sees an **About me** questionnaire on their phone with four sections. You can edit the questions, and their answer types, in **✏️ Questions → ✨ Personalised questions**.
+   - 🙋 **About you:** favourite movie, star, dream holiday, Diwali sweet, dance song, hidden talent, fun fact.
+   - 🪔 **Garba time:** favourite garba song, favourite Toronto garba, signature move, garba or dandiya.
+   - 👯 **About the group:** partner/spouse, best friend, go-to dandiya partner, and who you'd call if your car broke down after garba. Guests pick from the list of guests, which becomes questions like "Who is Priya's other half?". Couples become a single question.
+   - 🗳️ **Secret group votes:** best garba dancer, still dancing when the garba ends, late to garba, best Navratri outfits. Only a clear winner becomes "The group has voted! Who is the best garba dancer?", and ties are skipped. Other guests never see individual votes, but you can, in the Players tab.
 2. When you **start** a game, about **20%** of its questions (adjustable from 0–50%) are swapped for questions built from those answers. The rest come from your standard set, and your saved questions are never changed.
    - **Quiz games:** for example "Whose dream holiday destination is Bali?" (options are guest names) or "What is Priya's favourite movie?" (options are other guests' answers). Guess the Movie prefers movie answers.
    - **Jeopardy:** one category becomes **✨ Know Your Guests**.

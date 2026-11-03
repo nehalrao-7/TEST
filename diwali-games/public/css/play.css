@@ -105,3 +105,12 @@ body.offline .pwrap::before { content: 'Reconnecting…'; display: block; text-a
 body.play .toast { bottom: calc(96px + env(safe-area-inset-bottom)); }
 .about-card { background: linear-gradient(135deg, #fff8ec, #ffe9f4); }
 .about-sheet input[type=text] { font-size: 15px; padding: 10px 12px; }
+.q-sec { border-top: 1px solid var(--line); padding-top: 12px; }
+.q-sec h4 { font-size: 18px; margin: 0 0 10px; }
+.q-sec > div + div { margin-top: 12px; }
+.about-sheet select { font-size: 15px; padding: 10px 12px; }
+.choice-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.choice { flex: 1 1 auto; text-align: center; padding: 10px 12px; border-radius: 12px; border: 2px solid var(--line); background: #fcf9fe; font-weight: 700; cursor: pointer; }
+.choice input { display: none; }
+.choice.on { border-color: var(--magenta); background: #ffe9f4; color: var(--magenta); }
+.q-actions { position: sticky; bottom: -18px; background: #fff; padding: 12px 0; }

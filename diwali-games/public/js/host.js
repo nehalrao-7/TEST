@@ -294,7 +294,7 @@
       const a = (S.answers.find((x) => x.id === p.id) || { answers: {} }).answers;
       const n = prompts.filter((q) => a[q.id]).length;
       return `<details class="ans-row"><summary><span>${esc(p.avatar)} <b>${esc(p.name)}</b></span><span class="chip ${n ? 'done' : ''}">${n}/${prompts.length} answered</span></summary>
-        ${n ? prompts.filter((q) => a[q.id]).map((q) => `<div class="kv"><span><span class="small muted">${esc(q.text)}</span><br/>${esc(a[q.id])}</span><button class="btn small ghost" data-a="clearAnswer" data-id="${p.id}" data-q="${q.id}" title="Delete this answer">🗑</button></div>`).join('') : '<p class="small muted">No answers yet.</p>'}</details>`;
+        ${n ? prompts.filter((q) => a[q.id]).map((q) => `<div class="kv"><span><span class="small muted">${esc(q.text)}</span><br/>${esc(q.type === 'pick' || q.type === 'vote' ? `${q.type === 'vote' ? '🗳️ ' : '👉 '}${(player(a[q.id]) || { name: '(guest left)' }).name}` : a[q.id])}</span><button class="btn small ghost" data-a="clearAnswer" data-id="${p.id}" data-q="${q.id}" title="Delete this answer">🗑</button></div>`).join('') : '<p class="small muted">No answers yet.</p>'}</details>`;
     }).join('');
     return `<div class="card" style="margin-top:14px"><h3>📝 "About me" answers <span class="chip ${S.settings.questionnaireOpen ? 'done' : ''}">${S.settings.questionnaireOpen ? 'open' : 'closed'}</span></h3>
       <p class="small muted" style="margin-top:0">These become personalised game questions (see ✏️ Questions → ✨ Personalised questions). Delete anything you don't want shown on the TV.</p>${rows || '<p class="muted">No guests yet.</p>'}</div>`;

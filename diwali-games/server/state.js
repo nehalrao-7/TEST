@@ -62,6 +62,7 @@ function freshState() {
     feed: [],
     pending: {},
     questionnaire: require('./personalize').DEFAULT_PROMPTS.map((x) => ({ ...x })),
+    questionnaireVersion: 2,
     personalUsed: [],
   };
 }
@@ -72,7 +73,16 @@ function setState(s) {
   state = s;
   if (process.env.HOST_PIN) state.hostPin = process.env.HOST_PIN;
   // Fill in fields added after a saved game was created.
-  if (!state.questionnaire) state.questionnaire = require('./personalize').DEFAULT_PROMPTS.map((x) => ({ ...x }));
+  const PZ = require('./personalize');
+  if (!state.questionnaire) state.questionnaire = PZ.DEFAULT_PROMPTS.map((x) => ({ ...x }));
+  if ((state.questionnaireVersion || 1) < 2) {
+    // v2 adds garba + "about the group" questions. Replace an unedited v1 list; otherwise append.
+    const ids = state.questionnaire.map((q) => q.id);
+    const unedited = ids.length === PZ.V1_IDS.length && ids.every((id, i) => id === PZ.V1_IDS[i]);
+    if (unedited) state.questionnaire = PZ.DEFAULT_PROMPTS.map((x) => ({ ...x }));
+    else PZ.DEFAULT_PROMPTS.forEach((p) => { if (!ids.includes(p.id)) state.questionnaire.push({ ...p }); });
+    state.questionnaireVersion = 2;
+  }
   if (state.settings.personalPct == null) state.settings.personalPct = 20;
   if (state.settings.questionnaireOpen == null) state.settings.questionnaireOpen = true;
   if (!state.personalUsed) state.personalUsed = [];

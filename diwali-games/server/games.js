@@ -214,7 +214,8 @@ const kbc = {
     // Never ask the hot-seat guest a personal question about themselves.
     for (let k = 0; k < qs.length; k++) {
       const q = qs[(hot.seat + k) % qs.length];
-      if (!q.about || q.about !== hot.pid) return q;
+      const who = q.involves || (q.about ? [q.about] : []);
+      if (!who.includes(hot.pid)) return q;
     }
     return qs[hot.seat % qs.length];
   },
