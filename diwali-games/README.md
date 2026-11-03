@@ -42,31 +42,36 @@ Guests enter their name, choose an avatar and enter their phone number, then ver
 - **With SMS (Twilio):** set the env vars below and guests receive a 6-digit code by text.
 - **Without SMS (default):** a 4-digit code appears on the host console under *Verification codes*, and you read it out to the guest. It costs nothing and needs no setup, which suits a house party.
 
-## Run it
+## Live site
+
+**https://diwali-game-night.vercel.app**: players `/play`, host `/host`, TV `/tv`.
+
+- **Hosting:** Vercel serves `public/`. All `/api/*` routes go to one serverless function (`api/main.js`).
+- **State:** the whole game is one JSON row in Supabase (`supabase/schema.sql`), saved with a version check so simultaneous answers never overwrite each other.
+- **Real-time:** each save broadcasts the new version on a Supabase Realtime channel, and every screen refetches its own view. If the realtime connection drops, screens poll every few seconds.
+- **Timers:** questions and votes end at fixed deadlines. Every request applies any deadline that has passed, and screens send a "tick" when a countdown hits zero.
+
+Vercel environment variables: `SUPABASE_URL`, `SUPABASE_KEY` (publishable key), `DGN_SECRET` (must match the `dgn_secret` row), `HOST_PIN`, plus the optional `TWILIO_*` variables below.
+
+## Run it locally
 
 Requires Node 18+.
 
 ```bash
 cd diwali-games
 npm install
-HOST_PIN=2468 npm start
+HOST_PIN=2468 npm start      # http://localhost:3000, state saved in ./data, screens poll
 ```
 
-The server prints the URLs and the host PIN. If you don't set `HOST_PIN`, it generates one and prints it.
-
-### Hosting options
-
-1. **Home Wi-Fi (simplest):** run it on a laptop connected to the TV. Guests on the same Wi-Fi open `http://<laptop-ip>:3000/play`. The TV's lobby shows a QR code for whatever address the TV page was opened with, so open `/tv` using the laptop's IP, not `localhost`.
-2. **Public URL from your laptop:** `npx cloudflared tunnel --url http://localhost:3000` (or ngrok) gives you an https link guests can use on mobile data.
-3. **Cloud:** any Node host that supports WebSockets (Render, Railway, Fly.io). Start command `npm start`, root directory `diwali-games`. State is saved to `data/state.json`. On hosts with an ephemeral disk, point `DATA_DIR` at a persistent volume if you need it to survive restarts.
+Without the `SUPABASE_*` variables, the local server keeps state in `data/state.json`. Open `/tv` with the laptop's IP address (not `localhost`) so the QR code works for guests on the same Wi-Fi.
 
 ### Environment variables
 
 | Variable | Purpose |
 | --- | --- |
-| `PORT` | Port to listen on (default 3000) |
 | `HOST_PIN` | PIN for the host console |
-| `DATA_DIR` | Where `state.json` is stored (default `./data`) |
+| `SUPABASE_URL`, `SUPABASE_KEY`, `DGN_SECRET` | Use Supabase for state and realtime (hosted mode) |
+| `PORT`, `DATA_DIR` | Local server port and data folder |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | Enable real SMS codes |
 | `TWILIO_FROM` *or* `TWILIO_MESSAGING_SERVICE_SID` | Sender for the SMS |
 
@@ -81,8 +86,11 @@ The server prints the URLs and the host PIN. If you don't set `HOST_PIN`, it gen
 ## Project layout
 
 ```
-server/index.js    HTTP + Socket.IO, auth, host actions
-server/state.js    players, teams, ledger, power-ups, persistence
+api/main.js        Vercel function entry (all /api routes)
+server/core.js     request pipeline, auth, host & player actions, views
+server/stores.js   Supabase store (hosted) and file store (local)
+server/index.js    local dev server
+server/state.js    players, teams, ledger, power-ups
 server/games.js    game engines (quiz, jeopardy, kbc, hookstep, custom)
 server/content.js  sample questions, clues and songs
 server/sms.js      Twilio SMS (optional)
