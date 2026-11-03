@@ -113,6 +113,7 @@
           <div><div class="step">Open on your phone</div><div class="url">${esc(url.replace(/^https?:\/\//, ''))}</div>
           <div class="step" style="margin-top:.8vw">Games tonight: ${S.games.map((g) => esc(g.emoji)).join(' ')}</div></div>
         </div>
+        ${S.questionnaire && S.questionnaire.open ? `<div class="q-note">📝 <b>${S.questionnaire.done}</b> of ${ps.length} guests have filled in “About me”. Some answers become game questions tonight 👀</div>` : ''}
       </div>
       <div>
         <div class="count-big">${ps.length} ${ps.length === 1 ? 'player' : 'players'} joined ✨</div>
@@ -169,7 +170,7 @@
     if (L.phase === 'intro') return [intro(L, `${L.total} questions · ${L.mode === 'team' ? 'teams score the average of their members' : 'faster answers score more'} · answer on your phone!`), 'q-intro'];
     if (L.phase === 'final') return [intro({ ...L, emoji: '🎉' }, 'Round complete! Leaderboard coming up…'), 'q-final'];
     const q = L.question;
-    const head = `<div class="ghead"><span class="pill gold">Q ${L.qIndex + 1} / ${L.total}</span><span class="pill">${esc(L.title)}</span>
+    const head = `<div class="ghead"><span class="pill gold">Q ${L.qIndex + 1} / ${L.total}</span><span class="pill">${esc(L.title)}</span>${q && q.personal ? '<span class="pill personal">✨ About our guests</span>' : ''}
       ${L.phase === 'question' ? `<span class="count" data-count="${L.deadline}" data-tick="1"></span>` : ''}</div>`;
     const qcard = `<div class="qcard">${q.clue ? `<div class="clue">${esc(q.clue)}</div>` : ''}${q.image ? `<img class="qimg" src="${esc(q.image)}" alt=""/>` : ''}<div class="q">${esc(q.q)}</div></div>`;
 
@@ -273,7 +274,7 @@
     const levelShown = h.questionLevel;
     const key = `hot-${h.pid}-${levelShown}-${h.qPhase}${h.qPhase === 'over' ? (h.status === 'won' ? '-won' : '-wrong') : ''}${h.qPhase === 'reveal' ? '-reveal' : ''}`;
     return [`<div class="gframe">${head}<div class="kbc"><div class="kbc-main">
-      <div class="kbc-hot">${av(p)} ${esc(p ? p.name : '')} in the hot seat · Question ${levelShown + 1} for ${fmt(L.ladder[levelShown].points)}</div>
+      <div class="kbc-hot">${av(p)} ${esc(p ? p.name : '')} in the hot seat · Question ${levelShown + 1} for ${fmt(L.ladder[levelShown].points)}${q.personal ? ' · <span class="pill personal">✨ About our guests</span>' : ''}</div>
       <div class="kbc-q">${esc(q.q)}</div>${opts}${banner}${phone}
       </div><div class="kbc-side">${lifelines}${pollHtml && h.qPhase === 'question' ? pollHtml : ladderHtml(L, h.qPhase === 'over' ? -1 : levelShown, h.level)}</div></div></div>`, key];
   }

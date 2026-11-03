@@ -9,6 +9,7 @@ const { engines, tick, nextDeadline } = require('./games');
 const { templates } = require('./content');
 const { smsEnabled, sendSms } = require('./sms');
 const { parseYouTube } = require('./youtube');
+const P = require('./personalize');
 
 const st = () => S.state;
 let ONLINE = new Set();
@@ -31,7 +32,8 @@ function normalizePhone(cc, number) {
 function liveView(viewer) {
   const live = st().live;
   if (!live) return null;
-  const game = st().games.find((g) => g.id === live.gameId);
+  const found = st().games.find((g) => g.id === live.gameId);
+  const game = found && playGame(found);
   if (!game) return null;
   return { gameId: game.id, type: game.type, title: game.title, emoji: game.emoji, mode: game.mode, ...engines[game.type].view(live, game, viewer) };
 }
@@ -49,6 +51,7 @@ function playerView(p, base) {
       doublePending: p.doublePending, doubleActive: Boolean(st().live && p.doubleGameId === st().live.gameId),
       history: st().ledger.filter((e) => e.playerId === p.id).slice(-15).reverse(),
     },
+    questionnaire: { open: Boolean(st().settings.questionnaireOpen), prompts: st().questionnaire.map(({ id, text, ph }) => ({ id, text, ph })), answers: p.answers || {} },
     live: liveView({ player: p }),
   };
 }
@@ -67,6 +70,10 @@ function hostView(base) {
     pending: Object.entries(s.pending).filter(([, v]) => v.expires > Date.now()).map(([phone, v]) => ({ phone: maskPhone(phone), name: v.name, code: v.via === 'sms' ? null : v.code, via: v.via, at: v.at })),
     playersDetail: Object.values(s.players).map((p) => ({ id: p.id, phone: maskPhone(p.phone), powerups: p.powerups, doublePending: p.doublePending, doubleGameId: p.doubleGameId })),
     powerupDefs: S.POWERUPS,
+    questionnaire: s.questionnaire,
+    answers: Object.values(s.players).map((p) => ({ id: p.id, answers: p.answers || {} })),
+    personalPreview: P.preview(s, 6),
+    personalCount: s.live ? s.live.personalCount || 0 : 0,
   };
 }
 const maskPhone = (ph) => (ph ? ph.slice(0, 3) + ' ••• ' + ph.slice(-4) : '');
@@ -78,6 +85,12 @@ const gameById = (gid) => {
   return g;
 };
 
+// The game as it is being played: standard content with the personalised questions mixed in.
+function playGame(g) {
+  const live = st().live;
+  return live && live.gameId === g.id && live.content ? { ...g, content: live.content } : g;
+}
+
 function startGame(gid) {
   const s = st();
   if (s.live) throw new Error('Another game is live — end it first.');
@@ -88,9 +101,11 @@ function startGame(gid) {
     if (p.doublePending) { p.doubleGameId = gid; p.doublePending = false; }
   }
   game.status = 'live';
-  s.live = { gameId: gid, ...engines[game.type].init(game) };
+  const { content, count } = P.personalize(game, s);
+  s.live = { gameId: gid, ...engines[game.type].init(game), content, personalCount: count };
   s.tv.view = 'game';
-  S.announce({ emoji: game.emoji, title: game.title, text: game.mode === 'team' ? 'Team game — huddle up!' : 'Every player for themselves!', kind: 'start', ms: 4500 });
+  const base = game.mode === 'team' ? 'Team game — huddle up!' : 'Every player for themselves!';
+  S.announce({ emoji: game.emoji, title: game.title, text: count ? `${base} ✨ ${count} ${count === 1 ? 'question is' : 'questions are'} about YOU!` : base, kind: 'start', ms: 5000 });
 }
 
 function endGame() {
@@ -115,8 +130,9 @@ function autoMedia() {
   const s = st();
   const live = s.live;
   if (!live) return null;
-  const game = s.games.find((g) => g.id === live.gameId);
-  if (!game) return null;
+  const found = s.games.find((g) => g.id === live.gameId);
+  if (!found) return null;
+  const game = playGame(found);
   const c = game.content || {};
   const mk = (item, key, show, label) => {
     const yt = item && parseYouTube(item.youtube, item.clip);
@@ -133,8 +149,7 @@ function autoMedia() {
     if (['ff', 'ff-result'].includes(live.phase) && live.ff) return mk((c.fastestFinger || [])[live.ff.qi], `ff${live.ff.qi}`, live.phase === 'ff-result', 'Fastest Finger First');
     const h = live.hot;
     if (live.phase === 'hot' && h && h.qPhase !== 'over') {
-      const lvl = c.ladder[h.qLevel];
-      const q = lvl.questions[h.seat % lvl.questions.length];
+      const q = engines.kbc.currentQ(game, h);
       return mk(q, `hot${h.seat}-${h.qLevel}`, h.qPhase === 'reveal', `KBC · Q${h.qLevel + 1}`);
     }
   }
@@ -194,7 +209,7 @@ function hostAction(a) {
   const s = st();
   switch (a.type) {
     case 'settings': {
-      const allowed = ['eventName', 'powerupsEnabled', 'stealAmount', 'swapCap', 'powerupsPerPlayer'];
+      const allowed = ['eventName', 'powerupsEnabled', 'stealAmount', 'swapCap', 'powerupsPerPlayer', 'personalPct', 'questionnaireOpen'];
       for (const k of allowed) if (a[k] !== undefined) s.settings[k] = typeof s.settings[k] === 'number' ? Number(a[k]) || 0 : a[k];
       break;
     }
@@ -207,7 +222,7 @@ function hostAction(a) {
     case 'resetGame': { const g = gameById(a.gameId); if (g.status === 'live') endGame(); g.status = 'pending'; break; }
     case 'game': {
       if (!s.live) throw new Error('No game is live.');
-      const game = gameById(s.live.gameId);
+      const game = playGame(gameById(s.live.gameId));
       engines[game.type].host(s.live, game, a.action, { online: ONLINE });
       break;
     }
@@ -223,6 +238,13 @@ function hostAction(a) {
     }
     case 'undo': s.ledger = s.ledger.filter((e) => e.id !== a.entryId); break;
     case 'media': mediaAction(a); break;
+    case 'questionnaire': {
+      const prompts = (a.prompts || []).map((q) => ({ ...q, id: String(q.id || S.id(6)).slice(0, 24), text: String(q.text || '').trim().slice(0, 80), ph: String(q.ph || '').slice(0, 60) })).filter((q) => q.text);
+      if (!prompts.length) throw new Error('Keep at least one question.');
+      s.questionnaire = prompts;
+      break;
+    }
+    case 'clearAnswer': { const p = s.players[a.playerId]; if (p && p.answers) delete p.answers[a.promptId]; break; }
     case 'tv': if (['lobby', 'game', 'leaderboard', 'podium', 'teams'].includes(a.view)) s.tv.view = a.view; break;
     case 'announce': S.announce({ emoji: a.emoji || '📣', title: String(a.title || 'Announcement').slice(0, 40), text: String(a.text || '').slice(0, 140), ms: 8000 }); break;
     case 'dismiss': s.tv.announce = null; break;
@@ -231,6 +253,7 @@ function hostAction(a) {
       if (a.title) g.title = String(a.title).slice(0, 40);
       if (a.emoji) g.emoji = String(a.emoji).slice(0, 8);
       if (a.mode && g.status !== 'live') g.mode = a.mode === 'team' ? 'team' : 'individual';
+      if (a.personalize !== undefined) g.personalize = Boolean(a.personalize);
       if (a.content !== undefined) {
         if (g.status === 'live') throw new Error('End the game before editing its content.');
         const c = typeof a.content === 'string' ? JSON.parse(a.content) : a.content;
@@ -279,16 +302,21 @@ function playerAction(p, a) {
   if (a.type === 'powerup') {
     let liveCtx = null;
     if (s.live) {
-      const game = gameById(s.live.gameId);
+      const game = playGame(gameById(s.live.gameId));
       const eng = engines[game.type];
       if (eng.hint) liveCtx = { canHint: (pl) => eng.hint.can(s.live, pl), applyHint: (pl) => eng.hint.apply(s.live, game, pl) };
     }
     S.usePowerup(p, a.powerupId, a.targetId, liveCtx);
+  } else if (a.type === 'answers') {
+    if (!s.settings.questionnaireOpen) throw new Error('The questionnaire is closed.');
+    const ids = new Set(s.questionnaire.map((q) => q.id));
+    p.answers = p.answers || {};
+    for (const [k, v] of Object.entries(a.answers || {})) if (ids.has(k)) p.answers[k] = P.cleanAnswer(v);
   } else if (a.type === 'avatar') {
     if (S.AVATARS.includes(a.avatar)) p.avatar = a.avatar;
   } else if (a.type === 'game') {
     if (!s.live) throw new Error('No game is live right now.');
-    const game = gameById(s.live.gameId);
+    const game = playGame(gameById(s.live.gameId));
     engines[game.type].player(s.live, game, p, a.action, { online: ONLINE });
   }
 }

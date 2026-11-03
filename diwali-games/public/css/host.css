@@ -84,3 +84,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .yt-ok { color: #15803d; font-weight: 700; }
 .yt-bad { color: #dc2626; font-weight: 700; }
 .qe .btn.small { padding: 6px 10px; }
+
+.ans-row { border-bottom: 1px solid var(--line); padding: 8px 0; }
+.ans-row summary { display: flex; justify-content: space-between; align-items: center; cursor: pointer; list-style: none; }
+.ans-row summary::-webkit-details-marker { display: none; }

@@ -45,6 +45,8 @@ function freshState() {
       eventName: 'Diwali Game Night',
       powerupsEnabled: true,
       powerupsPerPlayer: 2,
+      personalPct: 20,
+      questionnaireOpen: true,
       stealAmount: 150,
       swapCap: 300,
     },
@@ -59,6 +61,8 @@ function freshState() {
     tv: { view: 'lobby', announce: null, compareGameId: null },
     feed: [],
     pending: {},
+    questionnaire: require('./personalize').DEFAULT_PROMPTS.map((x) => ({ ...x })),
+    personalUsed: [],
   };
 }
 
@@ -67,6 +71,11 @@ let state = null;
 function setState(s) {
   state = s;
   if (process.env.HOST_PIN) state.hostPin = process.env.HOST_PIN;
+  // Fill in fields added after a saved game was created.
+  if (!state.questionnaire) state.questionnaire = require('./personalize').DEFAULT_PROMPTS.map((x) => ({ ...x }));
+  if (state.settings.personalPct == null) state.settings.personalPct = 20;
+  if (state.settings.questionnaireOpen == null) state.settings.questionnaireOpen = true;
+  if (!state.personalUsed) state.personalUsed = [];
   return state;
 }
 
@@ -96,6 +105,7 @@ function createPlayer({ name, phone, avatar }) {
     teamId: null,
     doublePending: false,
     doubleGameId: null,
+    answers: {},
   };
   state.players[p.id] = p;
   // Late joiners slot into the smallest team.
@@ -339,6 +349,10 @@ function basePublic(onlineSet) {
     games: gamesList(),
     tv: state.tv,
     feed: state.feed.slice(0, 12),
+    questionnaire: {
+      open: Boolean(state.settings.questionnaireOpen),
+      done: Object.values(state.players).filter((p) => Object.values(p.answers || {}).filter(Boolean).length >= Math.min(3, (state.questionnaire || []).length)).length,
+    },
     snapshot: state.tv.compareGameId ? state.rankSnapshots[state.tv.compareGameId] || null : null,
   };
 }

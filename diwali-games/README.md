@@ -35,6 +35,17 @@ Every question, clue and song has a **🎵 YouTube link** field. Paste a link wi
 
 Click **Tap to enable sound & music** on the TV once, because browsers block audio until someone clicks on the page.
 
+## Personalised questions ("About me")
+
+1. After joining, each guest sees a short **About me** questionnaire on their phone: favourite movie, dream holiday, Diwali sweet, a song that gets them dancing, a hidden talent and more. You can edit the list in **✏️ Questions → ✨ Personalised questions**.
+2. When you **start** a game, about **20%** of its questions (adjustable from 0–50%) are swapped for questions built from those answers. The rest come from your standard set, and your saved questions are never changed.
+   - **Quiz games:** for example "Whose dream holiday destination is Bali?" (options are guest names) or "What is Priya's favourite movie?" (options are other guests' answers). Guess the Movie prefers movie answers.
+   - **Jeopardy:** one category becomes **✨ Know Your Guests**.
+   - **KBC:** about 20% of Fastest Finger questions and ladder levels. The person in the hot seat is never asked about themselves.
+   - **Hook Step:** guests' favourite dance songs join the song list.
+3. Personal questions show **✨ About our guests** on the TV, and the game-start announcement says how many there are. Each guest is featured at most once per game, spread across everyone. The same answer isn't reused in a later game unless the pool runs out.
+4. **Players → 📝 "About me" answers** lets you read every answer and delete anything you don't want on the TV. Untick **✨ Personalize** on any game to keep it 100% standard.
+
 ## Scoring, rankings & power-ups
 
 - Every point goes into a ledger. You can **undo** any entry from *Scores & Settings*, and award or deduct points for any player or team at any time.

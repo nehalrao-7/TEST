@@ -23,7 +23,7 @@ const speedPoints = (at, opensAt, deadline) => {
   const frac = Math.min(1, Math.max(0, (at - opensAt) / (deadline - opensAt)));
   return Math.round((100 + 100 * (1 - frac)) / 5) * 5; // 100–200 per correct answer
 };
-const publicQ = (q) => ({ q: q.q, options: q.options, clue: q.clue || null, image: q.image || null, time: q.time || 20 });
+const publicQ = (q) => ({ q: q.q, options: q.options, clue: q.clue || null, image: q.image || null, time: q.time || 20, personal: Boolean(q.personal) });
 
 // ======================= QUIZ (Kahoot / Guess the Movie) =======================
 const quiz = {
@@ -210,8 +210,13 @@ const jeopardy = {
 const kbc = {
   init: () => ({ phase: 'idle', seatCount: 0, ffIndex: -1, ff: null, hot: null, history: [] }),
   currentQ: (game, hot) => {
-    const lvl = game.content.ladder[hot.qLevel];
-    return lvl.questions[hot.seat % lvl.questions.length];
+    const qs = game.content.ladder[hot.qLevel].questions;
+    // Never ask the hot-seat guest a personal question about themselves.
+    for (let k = 0; k < qs.length; k++) {
+      const q = qs[(hot.seat + k) % qs.length];
+      if (!q.about || q.about !== hot.pid) return q;
+    }
+    return qs[hot.seat % qs.length];
   },
   safeAmount(game, levelReached) {
     let amt = 0;
@@ -504,7 +509,8 @@ function tick(state) {
   if (state.tv.announce && state.tv.announce.until < t - 1000) state.tv.announce = null;
   const live = state.live;
   if (!live) return;
-  const game = state.games.find((g) => g.id === live.gameId);
+  const base = state.games.find((g) => g.id === live.gameId);
+  const game = base && live.content ? { ...base, content: live.content } : base;
   if (!game) return;
   if (game.type === 'quiz' && live.phase === 'question' && t > live.deadline + 300) quiz.reveal(live, game);
   if (game.type === 'kbc') {

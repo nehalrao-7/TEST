@@ -70,7 +70,7 @@
       </div>`;
     } else {
       const fn = { quiz: quizCtl, jeopardy: jeoCtl, kbc: kbcCtl, hookstep: hookCtl, custom: () => '<p class="muted">Award points with the panel on the right. End the game when you are done.</p>' }[L.type];
-      left = `<div class="card"><h3>${esc(L.emoji)} ${esc(L.title)} <span class="chip live">LIVE</span><span class="chip">${L.mode}</span>
+      left = `<div class="card"><h3>${esc(L.emoji)} ${esc(L.title)} <span class="chip live">LIVE</span><span class="chip">${L.mode}</span>${S.personalCount ? `<span class="chip gold">✨ ${S.personalCount} personalised</span>` : ''}
         <button class="btn red small" style="margin-left:auto" data-a="end">🏁 End game → leaderboard</button></h3>${fn(L)}</div>`;
     }
     return `<div class="hgrid"><div>${left}${tvCard()}</div><div>${pendingCard()}${awardCard()}${feedCard()}</div></div>`;
@@ -124,7 +124,7 @@
     const online = S.players.filter((p) => p.online).length;
     let body = `<p class="muted">Phase: <b>${L.phase}</b> · Question ${Math.max(0, L.qIndex + 1)} / ${L.total}</p>`;
     if (L.question) {
-      body += `<div class="qbox">${L.question.clue ? `<div style="font-size:28px">${esc(L.question.clue)}</div>` : ''}<div class="q">${esc(L.question.q)}</div><ol type="A">${L.question.options.map((o, i) => `<li class="${i === L.answerKey ? 'ok' : ''}">${esc(o)}${i === L.answerKey ? ' ✓' : ''}</li>`).join('')}</ol></div>`;
+      body += `<div class="qbox">${L.question.personal ? '<span class="chip gold">✨ From guests\' answers</span>' : ''}${L.question.clue ? `<div style="font-size:28px">${esc(L.question.clue)}</div>` : ''}<div class="q">${esc(L.question.q)}</div><ol type="A">${L.question.options.map((o, i) => `<li class="${i === L.answerKey ? 'ok' : ''}">${esc(o)}${i === L.answerKey ? ' ✓' : ''}</li>`).join('')}</ol></div>`;
     }
     if (L.phase === 'question') {
       const ans = Object.keys(L.answersBy || {});
@@ -189,7 +189,7 @@
         <div class="btn-row"><button class="btn big" data-g="ff">⚡ Next Fastest Finger</button><button class="btn ghost" data-g="idle">KBC lobby</button></div>${seatSel}`;
     }
     return `<p>🪑 <b>${pname(h.pid)}</b> · Q${h.questionLevel + 1} for <b>${fmt(L.ladder[h.questionLevel].points)}</b> · safe ${fmt(h.safe)}</p>
-      <div class="qbox"><div class="q">${esc(q.q)}</div><ol type="A">${q.options.map((o, i) => `<li class="${i === h.answerKey ? 'ok' : ''}" style="${h.removed.includes(i) ? 'text-decoration:line-through;opacity:.4' : ''}">${esc(o)}${i === h.answerKey ? ' ✓' : ''}</li>`).join('')}</ol></div>${ctl}${hist}`;
+      <div class="qbox">${q.personal ? '<span class="chip gold">✨ From guests\' answers</span>' : ''}<div class="q">${esc(q.q)}</div><ol type="A">${q.options.map((o, i) => `<li class="${i === h.answerKey ? 'ok' : ''}" style="${h.removed.includes(i) ? 'text-decoration:line-through;opacity:.4' : ''}">${esc(o)}${i === h.answerKey ? ' ✓' : ''}</li>`).join('')}</ol></div>${ctl}${hist}`;
   }
 
   // ---------- hook step ----------
@@ -285,7 +285,19 @@
         ${S.teams.length ? '<button class="btn small gold" style="margin-top:10px" data-a="tv" data-v="teams">📺 Show teams on TV</button>' : ''}
       </div>
       <div class="card"><h3>🎁 Power-ups</h3><p class="small muted">${Object.values(S.powerupDefs).map((d) => `${d.emoji} <b>${esc(d.name)}</b>: ${esc(d.desc)}`).join('<br/>')}</p>
-        <button class="btn small" data-a="redealAll">Re-deal everyone's power-ups</button></div></div></div>`;
+        <button class="btn small" data-a="redealAll">Re-deal everyone's power-ups</button></div></div></div>${answersCard()}`;
+  }
+
+  function answersCard() {
+    const prompts = S.questionnaire;
+    const rows = S.players.map((p) => {
+      const a = (S.answers.find((x) => x.id === p.id) || { answers: {} }).answers;
+      const n = prompts.filter((q) => a[q.id]).length;
+      return `<details class="ans-row"><summary><span>${esc(p.avatar)} <b>${esc(p.name)}</b></span><span class="chip ${n ? 'done' : ''}">${n}/${prompts.length} answered</span></summary>
+        ${n ? prompts.filter((q) => a[q.id]).map((q) => `<div class="kv"><span><span class="small muted">${esc(q.text)}</span><br/>${esc(a[q.id])}</span><button class="btn small ghost" data-a="clearAnswer" data-id="${p.id}" data-q="${q.id}" title="Delete this answer">🗑</button></div>`).join('') : '<p class="small muted">No answers yet.</p>'}</details>`;
+    }).join('');
+    return `<div class="card" style="margin-top:14px"><h3>📝 "About me" answers <span class="chip ${S.settings.questionnaireOpen ? 'done' : ''}">${S.settings.questionnaireOpen ? 'open' : 'closed'}</span></h3>
+      <p class="small muted" style="margin-top:0">These become personalised game questions (see ✏️ Questions → ✨ Personalised questions). Delete anything you don't want shown on the TV.</p>${rows || '<p class="muted">No guests yet.</p>'}</div>`;
   }
 
   // ================= SCORES TAB =================
@@ -344,6 +356,7 @@
         if (op === 'dj') { ui.djUrl = ''; const inp = app.querySelector('[data-ui=djUrl]'); if (inp) inp.value = ''; }
         break;
       }
+      case 'clearAnswer': act({ type: 'clearAnswer', playerId: id, promptId: b.dataset.q }); break;
       case 'copy': navigator.clipboard && navigator.clipboard.writeText(b.dataset.u).then(() => App.toast('Copied!')); break;
       case 'award': {
         if (!ui.awardTarget) return App.toast('Pick a player or team first', true);

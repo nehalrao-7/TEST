@@ -203,3 +203,7 @@ body.offline::after { content: 'Reconnecting…'; position: fixed; top: 1vw; lef
 .eq i:nth-child(2) { animation-delay: 0.2s; } .eq i:nth-child(3) { animation-delay: 0.4s; } .eq i:nth-child(4) { animation-delay: 0.1s; }
 @keyframes eq { 0%, 100% { height: 25%; } 50% { height: 100%; } }
 .music-chip.blocked { background: #b91c1c; animation: pulse 1s infinite; }
+
+.pill.personal { background: linear-gradient(135deg, var(--magenta), var(--saffron)); color: #fff; animation: pulse 1.6s infinite; }
+.q-note { margin-top: 1.4vw; font-size: 1.4vw; background: rgba(255,255,255,0.1); border-radius: 1vw; padding: 0.8vw 1.2vw; }
+.q-note b { color: var(--gold); }

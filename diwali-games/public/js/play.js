@@ -124,6 +124,10 @@
       }
     }
     lastScore = S.me.score;
+    if (!S.live && S.questionnaire.open && !answeredCount() && !store.get('dgn_q_prompted_' + S.me.id) && !modal.innerHTML) {
+      store.set('dgn_q_prompted_' + S.me.id, '1');
+      setTimeout(openQuestionnaire, 1200);
+    }
     // Jump to the play tab when a new game starts
     if (S.live && (!prevLive || prevLive.gameId !== S.live.gameId)) { tab = 'play'; nav.querySelectorAll('[data-tab]').forEach((x) => x.classList.toggle('on', x.dataset.tab === 'play')); }
     render();
@@ -161,7 +165,7 @@
     const G = S.live;
     if (!G) {
       const next = S.games.find((g) => g.status === 'pending');
-      return `<div class="card panel"><div class="waiting"><div class="em">🪔</div><h2>${next ? `Up next: ${esc(next.emoji)} ${esc(next.title)}` : 'Hang tight!'}</h2>
+      return `${aboutCard()}<div class="card panel"><div class="waiting"><div class="em">🪔</div><h2>${next ? `Up next: ${esc(next.emoji)} ${esc(next.title)}` : 'Hang tight!'}</h2>
         <p class="muted">Keep your eyes on the TV. While you wait, peek at your <b>secret power-ups</b> 🎁 — don't let anyone see!</p>
         <button class="btn gold" data-goto="power">🎁 My power-ups</button></div></div>${feedCard()}`;
     }
@@ -270,6 +274,35 @@
 
   function customP(G) { return waitTv(G.emoji, esc(G.title), esc(G.description) || 'The host is keeping score — watch the TV!'); }
 
+  // ---------- "About me" questionnaire ----------
+  const answeredCount = () => Object.values(S.questionnaire.answers || {}).filter(Boolean).length;
+  function aboutCard() {
+    const Q = S.questionnaire;
+    if (!Q.open) return '';
+    const n = answeredCount(), total = Q.prompts.length;
+    return `<div class="card about-card" style="margin-bottom:12px"><div class="row"><div style="font-size:40px">📝</div><div class="grow">
+      <h3 style="margin:0">${n ? 'Thanks for sharing!' : 'Tell us about you'}</h3>
+      <p class="small muted" style="margin:4px 0 0">${n ? `${n} of ${total} answered. Some of tonight's questions will be about you 👀` : 'Answer a few fun questions. Some of them turn into game questions tonight ✨'}</p></div></div>
+      <button class="btn ${n ? 'ghost' : ''} block" style="margin-top:12px" data-act="about">${n ? 'Edit my answers' : 'Start (2 minutes) →'}</button></div>`;
+  }
+  function openQuestionnaire() {
+    const Q = S.questionnaire;
+    const draft = { ...(Q.answers || {}) };
+    modal.innerHTML = `<div class="modal"><div class="sheet about-sheet"><h3>📝 About you</h3>
+      <p class="muted small" style="margin-top:4px">Answer as many as you like (skip any). Your answers become some of tonight's game questions, so the whole party gets to guess! Keep it fun 🙂</p>
+      <form id="qf" class="stack">${Q.prompts.map((q, i) => `<div><label class="field">${i + 1}. ${esc(q.text)}</label>
+        <input type="text" maxlength="70" data-qid="${q.id}" value="${esc(draft[q.id] || '')}" placeholder="${esc(q.ph || '')}"/></div>`).join('')}
+        <div class="row"><button type="button" class="btn ghost grow" data-m="no">Later</button><button class="btn grow" type="submit">Save my answers ✨</button></div></form></div></div>`;
+    const f = modal.querySelector('#qf');
+    modal.querySelector('[data-m=no]').onclick = () => { modal.innerHTML = ''; };
+    f.onsubmit = (e) => {
+      e.preventDefault();
+      const answers = {};
+      f.querySelectorAll('[data-qid]').forEach((inp) => { answers[inp.dataset.qid] = inp.value; });
+      send({ type: 'answers', answers }, () => { modal.innerHTML = ''; App.confetti(0.6); App.toast('Saved! Watch out for questions about you 👀'); });
+    };
+  }
+
   function feedCard() {
     if (!S.feed.length) return '';
     return `<div class="card" style="margin-top:12px"><h3>📣 Latest</h3>${S.feed.slice(0, 6).map((f) => `<div class="hist-row"><span>${esc(f.emoji || '✨')} ${esc(f.text)}</span></div>`).join('')}</div>`;
@@ -298,6 +331,7 @@
     const teams = S.teams.length ? `<div class="card" style="margin-bottom:12px"><h3>Teams</h3>${[...S.teams].sort((a, b) => b.total - a.total).map((t) => `<div class="rank-row ${t.id === me.teamId ? 'me' : ''}"><span class="avatar" style="--c:${t.color}">${esc(t.emoji)}</span>${esc(t.name)}<span class="sc">${fmt(t.total)}</span></div>`).join('')}</div>` : '';
     return `${teams}<div class="card" style="margin-bottom:12px"><h3>🏆 Leaderboard</h3>${S.players.map((p) => `<div class="rank-row ${p.id === me.id ? 'me' : ''}"><span class="rk">${p.rank}</span>${av(p)}<span>${esc(p.name)}</span><span class="sc">${fmt(p.score)}</span></div>`).join('')}</div>
       <div class="card"><h3>📜 My points</h3>${me.history.length ? me.history.map((h) => `<div class="hist-row"><span>${esc(h.reason)}</span><b class="${h.amount > 0 ? 'pos' : 'neg'}">${h.amount > 0 ? '+' : ''}${h.amount}</b></div>`).join('') : '<p class="muted">No points yet — the night is young!</p>'}
+      ${S.questionnaire.open ? '<button class="btn ghost small" style="margin-top:12px" data-act="about">📝 Edit my "About me" answers</button>' : ''}
       <button class="btn ghost small" style="margin-top:12px" data-act="logout">Log out of this device</button></div>`;
   }
 
@@ -360,6 +394,7 @@
       const q = S.live.hot.question;
       confirmSheet(`<div class="center"><h3>Lock kiya jaaye?</h3><p style="font-size:20px"><b>${letters[i]}. ${esc(q.options[i])}</b></p></div>`, '🔒 Lock it', () => game({ type: 'lock', choice: i }));
     } else if (act === 'walk') confirmSheet(`<h3>Walk away?</h3><p class="muted">You'll keep the points you've secured so far.</p>`, '🚶 Walk away', () => game({ type: 'walk' }));
+    else if (act === 'about') openQuestionnaire();
     else if (act === 'logout') confirmSheet(`<h3>Log out?</h3><p class="muted">Your points are safe — log in again with the same number.</p>`, 'Log out', () => { store.del('dgn_token'); location.reload(); });
   });
 

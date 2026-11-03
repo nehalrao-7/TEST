@@ -5,6 +5,7 @@
   function createEditor({ send, toast, rerender }) {
     const drafts = {}; // gid -> { title, emoji, mode, content, dirty }
     const collapsed = new Set();
+    let qDraft = { prompts: [], dirty: false };
     let S = null;
 
     const clone = (x) => JSON.parse(JSON.stringify(x));
@@ -12,8 +13,9 @@
       S = state;
       const ids = new Set(S.gamesFull.map((g) => g.id));
       for (const g of S.gamesFull) {
-        if (!drafts[g.id] || !drafts[g.id].dirty) drafts[g.id] = { title: g.title, emoji: g.emoji, mode: g.mode, content: clone(g.content), dirty: false };
+        if (!drafts[g.id] || !drafts[g.id].dirty) drafts[g.id] = { title: g.title, emoji: g.emoji, mode: g.mode, personalize: g.personalize !== false, content: clone(g.content), dirty: false };
       }
+      if (!qDraft.dirty) qDraft = { prompts: clone(S.questionnaire), dirty: false };
       for (const k of Object.keys(drafts)) if (!ids.has(k)) delete drafts[k];
     }
 
@@ -166,6 +168,30 @@
       return c;
     }
 
+    // ---------- personalisation & questionnaire ----------
+    function personalCard() {
+      const st = S.settings;
+      const pv = S.personalPreview || { total: 0, sample: [] };
+      const done = S.answers.filter((a) => Object.values(a.answers).filter(Boolean).length).length;
+      const prompts = qDraft.prompts;
+      return `<section class="card ed-sec" id="ed-personal">
+        <div class="ed-head"><h3 style="margin:0">✨ Personalised questions</h3><span class="grow"></span>
+          <label class="toggle small"><input type="checkbox" data-eg="__s" data-ep="questionnaireOpen" data-ek="bool" ${st.questionnaireOpen ? 'checked' : ''}/> Questionnaire open on phones</label>
+          <span class="qe-l">Share of each game</span><select data-eg="__s" data-ep="personalPct" data-ek="num" style="width:auto">${[0, 10, 20, 25, 30, 40, 50].map((n) => `<option value="${n}" ${Number(st.personalPct) === n ? 'selected' : ''}>${n}%</option>`).join('')}</select></div>
+        <p class="small muted">Guests answer the questions below on their phones (it pops up after they join). When you <b>start</b> a game with ✨ Personalize ticked, about ${st.personalPct}% of its questions are swapped for questions built from their answers, like <i>"Whose dream holiday is Bali?"</i> or <i>"What is Priya's favourite movie?"</i>. The other questions come from your standard set, and your saved questions are never changed. Guess the Movie prefers movie answers. Jeopardy gets a "✨ Know Your Guests" category. KBC never asks the person in the hot seat about themselves. Hook Step adds guests' favourite dance songs.</p>
+        <div class="row"><span class="chip ${done ? 'done' : ''}">${done} of ${S.players.length} guests answered</span><span class="chip gold">${pv.total} personal questions available</span></div>
+        ${pv.sample.length ? `<div class="sec-title">Sample of what guests will see</div>${pv.sample.map((q) => `<div class="kv"><span>${esc(q.q)} <span class="small muted">(${q.options.map((o, i) => i === q.answer ? `<b>${esc(o)}</b>` : esc(o)).join(' · ')})</span></span><span class="small muted">about ${esc(q.about)}</span></div>`).join('')}` : '<p class="small muted">Questions will appear here once a few guests have answered (you need 2+ guests).</p>'}
+        <div class="sec-title">Questionnaire (what guests are asked)</div>
+        ${prompts.map((q, i) => `<div class="qe-row"><b class="qe-n">${i + 1}</b>
+          <input type="text" class="grow" data-eg="__q" data-ep="prompts.${i}.text" data-ek="text" value="${esc(q.text)}" placeholder="Question for guests"/>
+          <input type="text" data-eg="__q" data-ep="prompts.${i}.ph" data-ek="text" value="${esc(q.ph || '')}" placeholder="Example answer" style="flex:0 1 220px"/>
+          ${btn('pqDel', '🗑', `data-i="${i}"`)}</div>`).join('')}
+        <div class="row" style="margin-top:10px">${btn('pqAdd', '+ Add question', '', 'teal small')}<span class="grow"></span>
+          ${qDraft.dirty ? '<span class="chip gold">Unsaved</span>' : ''}${btn('pqSave', '💾 Save questionnaire', qDraft.dirty ? '' : 'disabled', 'small')}</div>
+        <p class="small muted">Tip: open-ended "favourite…" questions work best. Answers are used as-is in game questions, and you can delete any answer in the Players tab.</p>
+      </section>`;
+    }
+
     // ---------- page ----------
     function html(state) {
       sync(state);
@@ -182,6 +208,7 @@
             <input type="text" data-eg="${g.id}" data-ep="@emoji" data-ek="text" value="${esc(d.emoji)}" style="width:56px;text-align:center"/>
             <input type="text" data-eg="${g.id}" data-ep="@title" data-ek="text" value="${esc(d.title)}" class="grow ed-title"/>
             <select data-eg="${g.id}" data-ep="@mode" data-ek="text" style="width:auto" ${live ? 'disabled' : ''}><option value="individual" ${d.mode === 'individual' ? 'selected' : ''}>👤 Solo</option><option value="team" ${d.mode === 'team' ? 'selected' : ''}>👥 Teams</option></select>
+            ${g.type !== 'custom' ? `<label class="toggle small" title="Swap some questions for ones built from guests' answers"><input type="checkbox" data-eg="${g.id}" data-ep="@personalize" data-ek="bool" ${d.personalize ? 'checked' : ''}/> ✨ Personalize</label>` : ''}
             ${live ? '<span class="chip live">LIVE — end it to save</span>' : ''}
             ${d.dirty ? '<span class="chip gold">Unsaved</span>' : '<span class="chip done">Saved</span>'}
             ${btn('revert', 'Undo changes', `data-eg="${g.id}" ${d.dirty ? '' : 'disabled'}`)}
@@ -194,13 +221,19 @@
           ${btn('expandAll', 'Expand all')} ${btn('collapseAll', 'Collapse all')}
           ${btn('saveAll', `💾 Save all${dirty.length ? ` (${dirty.length})` : ''}`, dirty.length ? '' : 'disabled', 'small')}</div>
         <p class="small muted" style="margin:8px 0">Click the circle next to an option to mark it correct. Add a YouTube link with a timestamp (like <code>https://youtu.be/xyz?t=1m15s</code>) to any question, clue or song and it plays on the TV from that point. "Play for" stops it after that many seconds. Questions play the audio only (so the video doesn't give the answer away), and the video appears when the answer is revealed. Tick "show video" to show it from the start.</p>
-        <div class="ed-nav">${nav}</div></div>${sections}`;
+        <div class="ed-nav">${nav}</div></div>${personalCard()}${sections}`;
     }
 
     // ---------- events ----------
     function onInput(e) {
       const t = e.target;
       if (!t.dataset || !t.dataset.eg || !t.dataset.ep) return false;
+      if (t.dataset.eg === '__s') {
+        const v = t.dataset.ek === 'bool' ? t.checked : Number(t.value);
+        send({ type: 'settings', [t.dataset.ep]: v }, (r) => { if (r && r.error) toast(r.error, true); else toast('Saved ✓'); });
+        return true;
+      }
+      if (t.dataset.eg === '__q') { setAt(qDraft, t.dataset.ep, t.value); qDraft.dirty = true; return true; }
       const d = drafts[t.dataset.eg];
       if (!d) return true;
       let v = t.dataset.ek === 'bool' ? t.checked : t.value;
@@ -223,7 +256,7 @@
       const d = drafts[gid];
       let content;
       try { content = cleanContent(g.type, d.content); } catch (err) { toast(`${d.title}: ${err.message}`, true); return false; }
-      return new Promise((res) => send({ type: 'editGame', gameId: gid, title: d.title, emoji: d.emoji, mode: d.mode, content }, (r) => {
+      return new Promise((res) => send({ type: 'editGame', gameId: gid, title: d.title, emoji: d.emoji, mode: d.mode, personalize: d.personalize, content }, (r) => {
         if (r && r.error) { toast(`${d.title}: ${r.error}`, true); res(false); return; }
         d.dirty = false;
         d.content = content;
@@ -239,6 +272,11 @@
       const list = d && b.dataset.list ? getAt(d.content, b.dataset.list) : null;
       const i = Number(b.dataset.i);
       switch (b.dataset.ea) {
+        case 'pqAdd': qDraft.prompts.push({ id: 'q' + Math.random().toString(36).slice(2, 8), text: '', ph: '', tag: 'fun' }); qDraft.dirty = true; break;
+        case 'pqDel': if (!confirm('Remove this question? Answers to it will no longer be used.')) return true; qDraft.prompts.splice(i, 1); qDraft.dirty = true; break;
+        case 'pqSave': send({ type: 'questionnaire', prompts: qDraft.prompts.filter((q) => (q.text || '').trim()) }, (r) => {
+          if (r && r.error) toast(r.error, true); else { qDraft.dirty = false; toast('Questionnaire saved ✓'); rerender(true); }
+        }); return true;
         case 'toggle': collapsed.has(gid) ? collapsed.delete(gid) : collapsed.add(gid); break;
         case 'expandAll': collapsed.clear(); break;
         case 'collapseAll': S.gamesFull.forEach((g) => collapsed.add(g.id)); break;
@@ -259,7 +297,7 @@
         }
         case 'revert': {
           const g = S.gamesFull.find((x) => x.id === gid);
-          drafts[gid] = { title: g.title, emoji: g.emoji, mode: g.mode, content: clone(g.content), dirty: false };
+          drafts[gid] = { title: g.title, emoji: g.emoji, mode: g.mode, personalize: g.personalize !== false, content: clone(g.content), dirty: false };
           break;
         }
         case 'save': save(gid).then((ok) => { if (ok) toast(`Saved ${d.title} ✓`); rerender(true); }); return true;
@@ -274,7 +312,7 @@
       return true;
     }
 
-    const isDirty = () => Object.values(drafts).some((d) => d.dirty);
+    const isDirty = () => qDraft.dirty || Object.values(drafts).some((d) => d.dirty);
     return { html, onInput, onClick, isDirty };
   }
 
