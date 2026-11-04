@@ -6,7 +6,7 @@
   <title>Diwali Game Night — TV</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪔</text></svg>" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Rozha+One&family=Mukta:wght@400;600;700;800&family=Kalam:wght@400;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/app.css" />
   <link rel="stylesheet" href="/css/tv.css" />
 </head>
@@ -18,8 +18,12 @@
       <div id="miniTop" class="mini-top"></div>
     </header>
     <main id="stage" class="stage"></main>
-    <footer class="ticker"><div id="ticker" class="ticker-inner"></div></footer>
+    <footer class="tv-foot">
+      <div class="diya-row" id="diyaRow"></div>
+      <div class="ticker"><div id="ticker" class="ticker-inner"></div></div>
+    </footer>
   </div>
+  <div id="arrival" class="arrival hidden"></div>
   <div id="announce" class="announce hidden"></div>
   <div id="mediaBox" class="media-box audio"><div id="ytPlayer"></div><div id="mediaLabel" class="media-label"></div></div>
   <div id="musicChip" class="music-chip hidden"><span class="eq"><i></i><i></i><i></i><i></i></span><span id="musicText">Now playing</span></div>

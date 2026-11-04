@@ -58,6 +58,7 @@ function freshState() {
     live: null,
     ledger: [],
     rankSnapshots: {},
+    stats: {},
     tv: { view: 'lobby', announce: null, compareGameId: null },
     feed: [],
     pending: {},
@@ -89,6 +90,7 @@ function setState(s) {
   if (state.settings.personalPct == null) state.settings.personalPct = 20;
   if (state.settings.questionnaireOpen == null) state.settings.questionnaireOpen = true;
   if (!state.personalUsed) state.personalUsed = [];
+  if (!state.stats) state.stats = {};
   return state;
 }
 
@@ -225,6 +227,12 @@ function entityInfo(key) {
   return p ? { key, kind: 'player', name: p.name, emoji: p.avatar, color: p.color } : null;
 }
 
+// ---------- per-player stats (for streaks, awards and the "My Night" card) ----------
+function stat(pid) {
+  state.stats = state.stats || {};
+  return (state.stats[pid] = state.stats[pid] || { answered: 0, correct: 0, fastest: 0, bestStreak: 0, steals: 0, blocks: 0, powerups: 0, buzzWins: 0, hookBest: 0, kbcBest: 0, ffWins: 0 });
+}
+
 // ---------- announcements ----------
 
 function announce(a) {
@@ -245,6 +253,7 @@ function usePowerup(player, puId, targetId, liveCtx) {
   const tryShield = (victim) => {
     const sh = victim.powerups.find((x) => x.type === 'shield' && !x.used);
     if (!sh) return false;
+    stat(victim.id).blocks++;
     sh.used = true;
     sh.usedAt = Date.now();
     return true;
@@ -272,6 +281,7 @@ function usePowerup(player, puId, targetId, liveCtx) {
       }
       const amt = Math.max(0, Math.min(state.settings.stealAmount, s[victim.id]));
       if (amt > 0) {
+        stat(player.id).steals++;
         award(victim.id, -amt, `Robbed by ${player.name} 🦹`, null, { kind: 'powerup' });
         award(player.id, amt, `Chor Bazaar on ${victim.name}`, null, { kind: 'powerup', noDouble: true });
       }
@@ -313,6 +323,7 @@ function usePowerup(player, puId, targetId, liveCtx) {
   }
   pu.used = true;
   pu.usedAt = Date.now();
+  stat(player.id).powerups++;
 }
 
 // ---------- views ----------
@@ -374,7 +385,7 @@ module.exports = {
   get state() { return state; },
   setState, freshState, id, shuffle,
   AVATARS, POWERUPS, TEAM_PRESETS,
-  createPlayer, dealPowerups, makeTeams, teamMembers, scores, ranking,
+  stat, createPlayer, dealPowerups, makeTeams, teamMembers, scores, ranking,
   award, awardEntity, parseEntity, entityKeyFor, entityInfo,
   announce, pushFeed, usePowerup, basePublic, teamsView,
 };

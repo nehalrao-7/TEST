@@ -30,6 +30,7 @@
   }
 
   function start(token) {
+    App.sparkles(14);
     app.innerHTML = `<div class="htop"><div class="logo"><span class="diya">🪔</span><b>Host <span>Console</span></b></div><div class="htabs" id="tabs"></div></div><div id="main"></div>`;
     sock = App.connect('host', token, (s) => { S = s; render(); }, () => { store.del('dgn_host'); sock.disconnect(); loginView(); });
   }
@@ -78,8 +79,11 @@
 
   function tvCard() {
     const v = S.tv.view;
-    const views = [['lobby', '🏠 Lobby / QR'], ['game', '🎮 Game'], ['leaderboard', '🏆 Leaderboard'], ['teams', '🎲 Teams'], ['podium', '🥇 Podium']];
+    const views = [['lobby', '🏠 Lobby / QR'], ['game', '🎮 Game'], ['leaderboard', '🏆 Standings'], ['teams', '🎲 Teams'], ['awards', '🎖️ Awards'], ['podium', '🥇 Podium']];
     return `<div class="card"><h3>📺 TV display</h3><div class="btn-row">${views.map(([k, l]) => `<button class="btn small ${v === k ? '' : 'ghost'}" data-a="tv" data-v="${k}">${l}</button>`).join('')}</div>
+      ${v === 'awards' ? `<div class="sec-title">Diwali Awards ceremony</div><div class="awards-ctl"><button class="btn small ghost" data-a="award-step" data-d="-1">◀ Back</button>
+        <span class="chip gold">${(S.tv.awardIndex || 0) === 0 ? 'Intro' : (S.tv.awardIndex || 0) > (S.awardsCount || 0) ? 'Champion 🪔' : `Award ${S.tv.awardIndex} of ${S.awardsCount}`}</span>
+        <button class="btn small" data-a="award-step" data-d="1">Next award ▶</button><span class="small muted">Each award plays a drumroll, then reveals the winner. End on the champion, then Podium.</span></div>` : ''}
       <div class="sec-title">Big announcement</div>
       <div class="row"><input type="text" data-ui="annTitle" placeholder="Title (e.g. Dinner break!)" value="${esc(ui.annTitle)}" class="grow" style="flex:1 1 160px"/><input type="text" data-ui="annText" placeholder="Message" value="${esc(ui.annText)}" style="flex:2 1 200px"/><button class="btn small gold" data-a="announce">📣 Show</button></div>
       ${mediaHtml()}
@@ -347,6 +351,7 @@
       case 'start': act({ type: 'startGame', gameId: id }); break;
       case 'end': if (confirm('End this game and show the leaderboard?')) act({ type: 'endGame' }); break;
       case 'tv': act({ type: 'tv', view: b.dataset.v }); break;
+      case 'award-step': act({ type: 'award-step', dir: Number(b.dataset.d) }); break;
       case 'announce': if (!ui.annTitle && !ui.annText) return App.toast('Write a title or message', true);
         act({ type: 'announce', title: ui.annTitle || '📣', text: ui.annText }, 'On the TV!'); ui.annTitle = ''; ui.annText = ''; app.querySelectorAll('[data-ui=annTitle],[data-ui=annText]').forEach((x) => { x.value = ''; }); break;
       case 'media': {

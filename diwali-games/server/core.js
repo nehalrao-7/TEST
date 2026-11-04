@@ -13,6 +13,7 @@ const P = require('./personalize');
 
 const st = () => S.state;
 let ONLINE = new Set();
+const LOCAL_REACTS = [];
 const token = () => crypto.randomBytes(24).toString('base64url');
 const findPlayerByToken = (t) => t && Object.values(st().players).find((p) => p.tokens.includes(t));
 const isHostToken = (t) => t && st().hostTokens.includes(t);
@@ -50,6 +51,8 @@ function playerView(p, base) {
       powerups: p.powerups.map((x) => ({ ...x, ...S.POWERUPS[x.type] })),
       doublePending: p.doublePending, doubleActive: Boolean(st().live && p.doubleGameId === st().live.gameId),
       history: st().ledger.filter((e) => e.playerId === p.id).slice(-15).reverse(),
+      stats: S.stat(p.id),
+      awards: computeAwards().filter((a) => a.winners.some((w) => w.id === p.id)).map(({ emoji, title, value }) => ({ emoji, title, value })),
     },
     questionnaire: { open: Boolean(st().settings.questionnaireOpen), prompts: st().questionnaire.map(({ id, text, ph, type, options, section }) => ({ id, text, ph, type: type || 'text', options, section: section || 'you' })), answers: p.answers || {} },
     live: liveView({ player: p }),
@@ -120,6 +123,43 @@ function endGame() {
   S.announce({ emoji: '🏁', title: `${game.title} complete!`, text: top ? `${top.name} leads the party with ${top.score} points` : '', kind: 'end', ms: 4500 });
 }
 
+
+// ---------------- Diwali Awards (end-of-night ceremony) ----------------
+function computeAwards() {
+  const s = st();
+  const players = Object.values(s.players);
+  const stat = (id) => (s.stats || {})[id] || {};
+  const top = (fn, min = 1) => {
+    let best = null, ids = [];
+    for (const p of players) {
+      const v = fn(p);
+      if (v == null || v < min) continue;
+      if (best === null || v > best) { best = v; ids = [p.id]; } else if (v === best) ids.push(p.id);
+    }
+    return best === null || ids.length > 3 ? null : { ids, value: best };
+  };
+  // Comeback: places climbed since the first snapshot taken after points were on the board.
+  const ranking = S.ranking();
+  const snaps = Object.values(s.rankSnapshots || {});
+  const base = snaps.find((sn) => sn.some((x) => x.score > 0));
+  const comeback = base ? top((p) => { const b = base.find((x) => x.id === p.id); const now = ranking.find((x) => x.id === p.id); return b && now ? b.rank - now.rank : null; }, 2) : null;
+  const pct = (p) => (stat(p.id).answered >= 5 ? Math.round((100 * stat(p.id).correct) / stat(p.id).answered) : null);
+  const list = [
+    { id: 'bijli', emoji: '⚡', title: 'Bijli Fingers', desc: 'Fastest correct answer, again and again', r: top((p) => stat(p.id).fastest), fmt: (v) => `${v}× fastest on the buzzer` },
+    { id: 'sharp', emoji: '🎯', title: 'Teer-Andaaz', desc: 'The sharpest accuracy of the night', r: top(pct, 50), fmt: (v) => `${v}% correct` },
+    { id: 'fire', emoji: '🔥', title: 'Anaar on Fire', desc: 'Longest answer streak', r: top((p) => stat(p.id).bestStreak, 3), fmt: (v) => `${v} right in a row` },
+    { id: 'chor', emoji: '🦹', title: 'Master Chor', desc: 'Pickpocketed the most points', r: top((p) => stat(p.id).steals), fmt: (v) => `${v} successful heist${v > 1 ? 's' : ''}` },
+    { id: 'kavach', emoji: '🛡️', title: 'Raksha Kavach', desc: 'Survived an attack, untouched', r: top((p) => stat(p.id).blocks), fmt: (v) => `${v} attack${v > 1 ? 's' : ''} blocked` },
+    { id: 'buzz', emoji: '🔔', title: 'Buzzer Baadshah', desc: 'Won the most Jeopardy clues', r: top((p) => stat(p.id).buzzWins, 2), fmt: (v) => `${v} clues won` },
+    { id: 'dance', emoji: '💃', title: 'Hook Step Hero', desc: 'Highest-rated performance', r: top((p) => stat(p.id).hookBest), fmt: (v) => `${v} points on the dance floor` },
+    { id: 'crore', emoji: '💰', title: 'Crorepati', desc: 'Biggest win in the hot seat', r: top((p) => stat(p.id).kbcBest), fmt: (v) => `${v.toLocaleString('en-IN')} points from the hot seat` },
+    { id: 'comeback', emoji: '📈', title: 'Comeback Champ', desc: 'Climbed the most places', r: comeback, fmt: (v) => `up ${v} places` },
+  ];
+  return list.filter((a) => a.r).map((a) => ({
+    id: a.id, emoji: a.emoji, title: a.title, desc: a.desc, value: a.fmt(a.r.value),
+    winners: a.r.ids.map((id) => { const p = s.players[id]; return { id, name: p.name, avatar: p.avatar, color: p.color }; }),
+  }));
+}
 
 // ---------------- music / video on the TV ----------------
 
@@ -248,7 +288,13 @@ function hostAction(a) {
       break;
     }
     case 'clearAnswer': { const p = s.players[a.playerId]; if (p && p.answers) delete p.answers[a.promptId]; break; }
-    case 'tv': if (['lobby', 'game', 'leaderboard', 'podium', 'teams'].includes(a.view)) s.tv.view = a.view; break;
+    case 'tv': if (['lobby', 'game', 'leaderboard', 'podium', 'teams', 'awards'].includes(a.view)) { s.tv.view = a.view; if (a.view === 'awards') s.tv.awardIndex = 0; } break;
+    case 'award-step': {
+      const n = computeAwards().length;
+      s.tv.view = 'awards';
+      s.tv.awardIndex = Math.max(0, Math.min(n + 1, (s.tv.awardIndex || 0) + (a.dir < 0 ? -1 : 1))); // 0 = intro, 1..n awards, n+1 champion
+      break;
+    }
     case 'announce': S.announce({ emoji: a.emoji || '📣', title: String(a.title || 'Announcement').slice(0, 40), text: String(a.text || '').slice(0, 140), ms: 8000 }); break;
     case 'dismiss': s.tv.announce = null; break;
     case 'editGame': {
@@ -292,7 +338,7 @@ function hostAction(a) {
       break;
     }
     case 'clearPending': s.pending = {}; break;
-    case 'resetScores': s.ledger = []; s.rankSnapshots = {}; s.live = null; s.games.forEach((g) => { g.status = 'pending'; });
+    case 'resetScores': s.ledger = []; s.rankSnapshots = {}; s.stats = {}; s.personalUsed = []; s.live = null; s.games.forEach((g) => { g.status = 'pending'; });
       Object.values(s.players).forEach((p) => { p.doubleGameId = null; p.doublePending = false; p.powerups = S.dealPowerups(s.settings.powerupsPerPlayer); });
       s.tv = { view: 'lobby', announce: null, compareGameId: null }; s.feed = []; break;
     case 'resetAll': { const fresh = S.freshState(); fresh.hostTokens = s.hostTokens; S.setState(fresh); break; }
@@ -374,14 +420,15 @@ function baseFor() {
 function viewFor(role, tok) {
   if (role === 'host') {
     if (!isHostToken(tok)) throw new HttpError(401, 'Please log in again.');
-    return { ...hostView(baseFor()), media: currentMedia() };
+    return { ...hostView(baseFor()), media: currentMedia(), awardsCount: computeAwards().length };
   }
   if (role === 'player') {
     const p = findPlayerByToken(tok);
     if (!p) throw new HttpError(401, 'Please log in again.');
     return playerView(p, baseFor());
   }
-  return { ...baseFor(), role: 'tv', live: liveView({ tv: true }), media: currentMedia() };
+  const tvExtra = st().tv.view === 'awards' ? { awards: computeAwards() } : {};
+  return { ...baseFor(), role: 'tv', live: liveView({ tv: true }), media: currentMedia(), ...tvExtra, reactions: LOCAL_REACTS.length ? LOCAL_REACTS : undefined };
 }
 
 async function handle(store, method, path, body = {}, query = {}) {
@@ -399,6 +446,12 @@ async function handle(store, method, path, body = {}, query = {}) {
     }
     if (method !== 'POST') return { status: 405, json: { error: 'Method not allowed' } };
 
+    if (path === 'react') {
+      // Local mode only — hosted mode sends reactions peer-to-peer over Supabase Realtime.
+      const r = { at: Date.now(), id: String(body.id || Math.random()).slice(0, 20), emoji: String(body.emoji || '').slice(0, 8), name: String(body.name || '').slice(0, 20) };
+      if (r.emoji) { LOCAL_REACTS.push(r); if (LOCAL_REACTS.length > 30) LOCAL_REACTS.shift(); }
+      return { json: { ok: true } };
+    }
     if (path === 'view' || path === 'tick') {
       const { result, version } = await run(store, () => viewFor(body.role, body.token));
       if (result.role === 'player' && store.seen) await store.seen(result.me.id).catch(() => {});

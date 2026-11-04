@@ -20,7 +20,7 @@
   const revealed = new Set(JSON.parse(store.get('dgn_revealed') || '[]'));
 
   // =================== LOGIN ===================
-  const COUNTRIES = [['1', '🇺🇸 +1'], ['91', '🇮🇳 +91'], ['44', '🇬🇧 +44'], ['61', '🇦🇺 +61'], ['971', '🇦🇪 +971'], ['65', '🇸🇬 +65'], ['64', '🇳🇿 +64'], ['49', '🇩🇪 +49'], ['353', '🇮🇪 +353'], ['27', '🇿🇦 +27']];
+  const COUNTRIES = [['1', '🇨🇦 🇺🇸 +1'], ['91', '🇮🇳 +91'], ['44', '🇬🇧 +44'], ['61', '🇦🇺 +61'], ['971', '🇦🇪 +971'], ['65', '🇸🇬 +65'], ['64', '🇳🇿 +64'], ['49', '🇩🇪 +49'], ['353', '🇮🇪 +353'], ['27', '🇿🇦 +27']];
   const L = { step: 'phone', name: '', avatar: '🪔', cc: store.get('dgn_cc') || '1', phone: '', via: null, returning: false, avatars: ['🪔', '🎆', '🐘', '🦚', '🐯', '🌺', '🪷', '🍬', '🎇', '🥭', '🌶️', '🦁', '🐒', '👑', '🪁', '🍵', '🌙', '⭐'], eventName: 'Diwali Game Night' };
 
   async function startLogin() {
@@ -33,7 +33,7 @@
     const title = esc(L.eventName).replace(/(\S+\s+\S+)$/, '<span>$1</span>');
     if (L.step === 'phone') {
       app.innerHTML = `<div class="login">
-        <div class="hero"><div class="em">🪔</div><h1>${title}</h1><p>Join the party · win the night</p></div>
+        <div class="hero"><div class="em">${App.diya(true, 92)}</div><h1>${title}</h1><p>Join the party · win the night ✨</p></div>
         <form class="card stack" id="f1">
           <div><label class="field">Your name</label><input type="text" id="name" maxlength="20" placeholder="e.g. Priya" value="${esc(L.name)}" autocomplete="given-name" /></div>
           <div><label class="field">Pick your avatar</label><div class="avatars">${L.avatars.map((a) => `<button type="button" data-av="${a}" class="${a === L.avatar ? 'on' : ''}">${a}</button>`).join('')}</div></div>
@@ -88,6 +88,13 @@
   function start(token) {
     app.innerHTML = `<div id="hdr"></div><div id="dbl"></div><div id="body"></div>`;
     nav.classList.remove('hidden');
+    if (!document.querySelector('.react-bar')) {
+      const bar = document.createElement('div');
+      bar.className = 'react-bar';
+      bar.innerHTML = REACTS.map((e) => `<button data-react="${e}" aria-label="Send ${e} to the TV">${e}</button>`).join('');
+      document.body.appendChild(bar);
+      bar.addEventListener('click', (e) => { const b = e.target.closest('[data-react]'); if (b) sendReaction(b.dataset.react, b); });
+    }
     sock = App.connect('player', token, (s) => { onState(s); }, (msg) => {
       store.del('dgn_token');
       if (sock) sock.disconnect();
@@ -105,6 +112,23 @@
     render();
   });
 
+  // ---------- reactions: tap an emoji, it floats up on the TV ----------
+  const REACTS = ['🔥', '😂', '👏', '😱', '💃', '🪔'];
+  let lastReact = 0;
+  function sendReaction(emoji, btn) {
+    if (!S || Date.now() - lastReact < 600) return;
+    lastReact = Date.now();
+    App.react(emoji, { name: S.me.name, avatar: S.me.avatar });
+    App.vibrate(15);
+    if (btn) { btn.classList.remove('sent'); void btn.offsetWidth; btn.classList.add('sent'); }
+    const f = document.createElement('div');
+    f.className = 'react-local';
+    f.textContent = emoji;
+    f.style.left = (btn ? btn.getBoundingClientRect().left + 8 : innerWidth / 2) + 'px';
+    document.body.appendChild(f);
+    setTimeout(() => f.remove(), 1200);
+  }
+
   function onState(s) {
     const prevLive = S && S.live;
     S = s;
@@ -115,7 +139,9 @@
       const fresh = hist.filter((h) => !seenLedger.has(h.id)).reverse();
       fresh.forEach((h) => seenLedger.add(h.id));
       const total = fresh.reduce((a, h) => a + h.amount, 0);
-      if (fresh.length) {
+      // During a quiz reveal the result screen already celebrates the points.
+      const quiet = S.live && S.live.type === 'quiz' && S.live.phase === 'reveal';
+      if (fresh.length && quiet) { /* shown on the result screen */ } else if (fresh.length) {
         floatPoints(total);
         const robbed = fresh.find((h) => h.amount < 0);
         if (robbed) App.toast(`${robbed.reason}: ${robbed.amount}`, true);
@@ -148,8 +174,8 @@
     if (!S) return;
     const me = S.me;
     const t = me.teamId && teamOf(me.teamId);
-    App.patch(document.getElementById('hdr'), `<div class="me-bar">${av(me)}<div><div class="nm">${esc(me.name)}</div>${t ? `<span class="team-chip" style="background:${t.color}">${esc(t.emoji)} ${esc(t.name)}</span>` : ''}</div>
-      <div class="score"><b>${fmt(me.score)}</b><span>Rank #${me.rank} of ${S.players.length}</span></div></div>`);
+    App.patch(document.getElementById('hdr'), `<div class="me-bar">${av(me)}<div class="who"><div class="nm">${esc(me.name)}</div>${t ? `<span class="team-chip" style="background:${t.color}">${esc(t.emoji)} ${esc(t.name)}</span>` : `<span class="rank-chip">#${me.rank} of ${S.players.length}</span>`}</div>
+      <div class="score"><b>${fmt(me.score)}</b><span>${t ? `#${me.rank} · ` : ''}points</span></div></div>`);
     App.patch(document.getElementById('dbl'), me.doubleActive ? `<div class="double-badge">💥 Double Dhamaka active — all points ×2 this game!</div>` : me.doublePending ? `<div class="double-badge">💥 Double Dhamaka armed for the next game</div>` : '');
     const unused = me.powerups.filter((p) => !p.used && !revealed.has(p.id)).length;
     const dot = document.getElementById('puDot');
@@ -158,6 +184,14 @@
     if (tab === 'play') App.patch(body, playTab());
     else if (tab === 'power') App.patch(body, powerTab());
     else App.patch(body, ranksTab());
+    body.querySelectorAll('[data-countup]:not([data-done])').forEach((el) => {
+      el.dataset.done = '1';
+      App.countUp(el, Number(el.dataset.countup), 900);
+      const flash = el.closest('.result-flash');
+      if (flash && flash.classList.contains('good')) { App.fireworks(0.6); App.vibrate([40, 40, 80]); }
+    });
+    const bad = body.querySelector('.result-flash.bad:not([data-done])');
+    if (bad) { bad.dataset.done = '1'; App.vibrate([120]); }
   }
 
   // ---------- Play tab ----------
@@ -165,14 +199,21 @@
     const G = S.live;
     if (!G) {
       const next = S.games.find((g) => g.status === 'pending');
-      return `${aboutCard()}<div class="card panel"><div class="waiting"><div class="em">🪔</div><h2>${next ? `Up next: ${esc(next.emoji)} ${esc(next.title)}` : 'Hang tight!'}</h2>
-        <p class="muted">Keep your eyes on the TV. While you wait, peek at your <b>secret power-ups</b> 🎁 — don't let anyone see!</p>
-        <button class="btn gold" data-goto="power">🎁 My power-ups</button></div></div>${feedCard()}`;
+      if (['awards', 'podium'].includes(S.tv.view)) return myNightCard() + feedCard();
+      return `${aboutCard()}<div class="card panel tapper"><div class="up-next">${next ? `Up next · ${esc(next.emoji)} ${esc(next.title)}` : 'Hang tight · the host is setting up'}</div>
+        <button class="big-diya" data-act="tap-diya" aria-label="Light the diya">${App.diya(true, 150)}</button>
+        <p class="hand tap-hint">Tap the diya to send sparks to the TV ✨</p>
+        <button class="btn gold" data-goto="power">🎁 Peek at my secret power-ups</button></div>${feedCard()}`;
     }
     const fn = { quiz: quizP, jeopardy: jeoP, kbc: kbcP, hookstep: hookP, custom: customP }[G.type];
     return `<div class="card panel slide-up"><div class="title"><span style="font-size:26px">${esc(G.emoji)}</span><h3>${esc(G.title)}</h3><span class="chip ${G.mode === 'team' ? 'gold' : ''}" style="margin-left:auto">${G.mode === 'team' ? 'Team' : 'Solo'}</span></div>${fn(G)}</div>`;
   }
 
+  const rankBefore = { q: null, rank: null };
+  const LOCK_LINES = ['Diya lit! Waiting for the slowpokes…', 'Bas, ab dekhte hain… 👀', 'Confidence level: Shah Rukh arms wide 🙌', 'Locked. No take-backs!', 'Ab bhagwan bharose 🙏', 'Fingers crossed, toes too…'];
+  const RIGHT_LINES = ['Sahi jawab!', 'Ekdum first class!', 'Shabash!', 'Kya baat hai!', 'Waah! Bilkul sahi!', 'Too good!'];
+  const RIGHT_EMO = ['🎉', '🪔', '🎆', '✨', '🥳', '💯'];
+  const WRONG_LINES = ['Arre yaar!', 'Oops, galat ho gaya!', 'So close… not really 😅', 'Koi baat nahi!', 'Next one is yours!'];
   const waitTv = (em, h, p) => `<div class="waiting"><div class="em">${em}</div><h2>${h}</h2>${p ? `<p class="muted">${p}</p>` : ''}</div>`;
   const timer = (s, e) => `<div class="timer" data-start="${s}" data-end="${e}" style="margin-bottom:12px"><i></i></div>`;
 
@@ -183,17 +224,26 @@
     const m = G.mine;
     if (G.phase === 'question') {
       if (App.now() < G.opensAt) { setTimeout(render, G.opensAt - App.now() + 30); return waitTv('⏳', `Question ${G.qIndex + 1}`, 'Read it on the TV…'); }
-      if (m.answered) return `${timer(G.opensAt, G.deadline)}${waitTv('🔒', 'Locked in!', `You picked <b>${letters[m.choice]}</b>. Fingers crossed…`)}`;
+      if (rankBefore.q !== G.qIndex) { rankBefore.q = G.qIndex; rankBefore.rank = S.me.rank; }
+      if (m.answered) return `${timer(G.opensAt, G.deadline)}<div class="locked-in"><div class="pick-tile opt o${m.choice}"><span class="k">${App.shapes[m.choice]}</span>${esc(q.options[m.choice])}</div>
+        <div class="lock-msg">${App.diya(true, 64)}<div><b>Locked in${m.order ? ` · #${m.order}` : ''}${m.order === 1 ? ' ⚡' : ''}</b><span class="hand">${LOCK_LINES[(G.qIndex + (m.order || 0)) % LOCK_LINES.length]}</span></div></div>
+        ${m.streak >= 2 ? `<div class="streak-chip">🔥 ${m.streak} in a row — keep it going!</div>` : ''}</div>`;
       const hint = S.me.powerups.find((p) => p.type === 'hint' && !p.used);
       return `${timer(G.opensAt, G.deadline)}${q.clue ? `<div class="clue-sm">${esc(q.clue)}</div>` : ''}<div class="qtext">${esc(q.q)}</div>
-        <div class="opts">${q.options.map((o, i) => `<button class="opt o${i} ${m.hint && m.hint.includes(i) ? 'gone' : ''}" data-act="answer" data-i="${i}"><span class="k">${letters[i]}</span>${esc(o)}</button>`).join('')}</div>
+        <div class="opts">${q.options.map((o, i) => `<button class="opt o${i} ${m.hint && m.hint.includes(i) ? 'gone' : ''}" data-act="answer" data-i="${i}"><span class="k">${App.shapes[i]}</span>${esc(o)}</button>`).join('')}</div>
         ${hint && !m.hint && S.powerupsEnabled ? `<button class="btn ghost block" style="margin-top:12px" data-act="use-pu" data-id="${hint.id}">✨ Use Phuljhari Hint (remove 2 wrong)</button>` : ''}`;
     }
     const r = G.result;
     const right = m.choice === r.answer;
-    if (m.choice == null) return waitTv('😴', 'No answer', `Correct answer: <b>${letters[r.answer]}. ${esc(q.options[r.answer])}</b>`);
-    return `<div class="big-state ${right ? 'good' : 'bad'}"><div class="em">${right ? '🎉' : '💔'}</div><h2>${right ? 'Correct!' : 'Not quite!'}</h2>
-      <p>${right ? (G.mode === 'team' ? `You scored ${m.points} · your team earns <b>+${r.perTeam[S.me.teamId] || 0}</b> each (team average)` : `<b>+${m.points}</b> points`) : `Answer: <b>${letters[r.answer]}. ${esc(q.options[r.answer])}</b>`}</p></div>`;
+    const ansTile = `<div class="pick-tile opt o${r.answer} small-tile"><span class="k">${App.shapes[r.answer]}</span>${esc(q.options[r.answer])}</div>`;
+    const moved = rankBefore.q === G.qIndex && rankBefore.rank ? rankBefore.rank - S.me.rank : 0;
+    const rankLine = `<div class="rank-line">You're <b>#${S.me.rank}</b>${moved > 0 ? ` <span class="up">▲${moved}</span>` : moved < 0 ? ` <span class="down">▼${-moved}</span>` : ''} of ${S.players.length}</div>`;
+    if (m.choice == null) return `<div class="result-flash meh"><div class="em">😴</div><h2>Arre, no answer!</h2><p>The answer was</p>${ansTile}${rankLine}</div>`;
+    const earned = G.mode === 'team' ? r.perTeam[S.me.teamId] || 0 : m.points;
+    return `<div class="result-flash ${right ? 'good' : 'bad'}"><div class="em">${right ? RIGHT_EMO[G.qIndex % RIGHT_EMO.length] : '😅'}</div>
+      <h2>${right ? RIGHT_LINES[G.qIndex % RIGHT_LINES.length] : WRONG_LINES[G.qIndex % WRONG_LINES.length]}</h2>
+      ${right ? `<div class="pts-big">+<span data-countup="${earned + (m.bonus || 0)}">0</span></div>${G.mode === 'team' ? `<p class="small">You scored ${m.points} · team average awarded to everyone</p>` : ''}` : `<p>The answer was</p>${ansTile}`}
+      ${m.streak >= 2 ? `<div class="streak-chip">🔥 ${m.streak} in a row${m.bonus ? ` · +${m.bonus} bonus` : ''}</div>` : ''}${rankLine}</div>`;
   }
 
   function jeoP(G) {
@@ -353,14 +403,40 @@
   // ---------- Ranks tab ----------
   function ranksTab() {
     const me = S.me;
+    const night = myNightCard();
     const teams = S.teams.length ? `<div class="card" style="margin-bottom:12px"><h3>Teams</h3>${[...S.teams].sort((a, b) => b.total - a.total).map((t) => `<div class="rank-row ${t.id === me.teamId ? 'me' : ''}"><span class="avatar" style="--c:${t.color}">${esc(t.emoji)}</span>${esc(t.name)}<span class="sc">${fmt(t.total)}</span></div>`).join('')}</div>` : '';
-    return `${teams}<div class="card" style="margin-bottom:12px"><h3>🏆 Leaderboard</h3>${S.players.map((p) => `<div class="rank-row ${p.id === me.id ? 'me' : ''}"><span class="rk">${p.rank}</span>${av(p)}<span>${esc(p.name)}</span><span class="sc">${fmt(p.score)}</span></div>`).join('')}</div>
+    return `${night}${teams}<div class="card" style="margin-bottom:12px"><h3>🏆 Leaderboard</h3>${S.players.map((p) => `<div class="rank-row ${p.id === me.id ? 'me' : ''}"><span class="rk">${p.rank}</span>${av(p)}<span>${esc(p.name)}</span><span class="sc">${fmt(p.score)}</span></div>`).join('')}</div>
       <div class="card"><h3>📜 My points</h3>${me.history.length ? me.history.map((h) => `<div class="hist-row"><span>${esc(h.reason)}</span><b class="${h.amount > 0 ? 'pos' : 'neg'}">${h.amount > 0 ? '+' : ''}${h.amount}</b></div>`).join('') : '<p class="muted">No points yet — the night is young!</p>'}
       ${S.questionnaire.open ? '<button class="btn ghost small" style="margin-top:12px" data-act="about">📝 Edit my "About me" answers</button>' : ''}
       <button class="btn ghost small" style="margin-top:12px" data-act="logout">Log out of this device</button></div>`;
   }
 
   // ---------- actions ----------
+  // ---------- "My Diwali Night" keepsake card ----------
+  function myNightCard() {
+    const me = S.me, st = me.stats || {};
+    const acc = st.answered ? Math.round((100 * st.correct) / st.answered) : null;
+    const used = me.powerups.filter((p) => p.used).length;
+    const medal = me.rank === 1 ? '🥇' : me.rank === 2 ? '🥈' : me.rank === 3 ? '🥉' : '🪔';
+    const year = new Date().getFullYear();
+    return `<div class="night-card">
+      <div class="nc-top"><span class="hand">${esc(S.eventName)} · ${year}</span></div>
+      <div class="nc-avatar">${av(me)}</div>
+      <h2>${esc(me.name)}'s Diwali Night</h2>
+      <div class="nc-rank">${medal} Finished <b>#${me.rank}</b> of ${S.players.length} · <b>${fmt(me.score)}</b> pts</div>
+      <div class="nc-stats">
+        <div><b>${st.correct || 0}</b><span>right answers</span></div>
+        <div><b>${acc != null ? acc + '%' : '—'}</b><span>accuracy</span></div>
+        <div><b>${st.bestStreak || 0}🔥</b><span>best streak</span></div>
+        <div><b>${st.fastest || 0}⚡</b><span>fastest finger</span></div>
+        <div><b>${used}🎁</b><span>power-ups used</span></div>
+        <div><b>${st.steals || 0}🦹</b><span>heists</span></div>
+      </div>
+      ${me.awards && me.awards.length ? `<div class="nc-awards">${me.awards.map((a) => `<span>${esc(a.emoji)} ${esc(a.title)}</span>`).join('')}</div>` : ''}
+      <div class="nc-foot">Shubh Deepavali ✨ <span class="small">screenshot & share!</span></div>
+    </div>`;
+  }
+
   function send(action, cb) {
     sock.emit('player', action, (r) => { if (r && r.error) App.toast(r.error, true); else if (cb) cb(); });
   }
@@ -409,6 +485,10 @@
         App.confetti(0.3);
         render();
       }
+    } else if (act === 'tap-diya') {
+      el.classList.remove('flare'); void el.offsetWidth; el.classList.add('flare');
+      App.vibrate(20);
+      sendReaction('🪔');
     } else if (act === 'answer') { game({ type: 'answer', choice: i }); if (navigator.vibrate) navigator.vibrate(30); }
     else if (act === 'ff') game({ type: 'ffAnswer', choice: i });
     else if (act === 'buzz') { game({ type: 'buzz' }); if (navigator.vibrate) navigator.vibrate(80); }

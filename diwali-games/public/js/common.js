@@ -19,6 +19,12 @@
           const wait = v.nextDeadline - App.now() + (role === 'player' ? 600 + Math.random() * 900 : 0);
           deadlineTimer = setTimeout(() => refresh('tick'), Math.max(50, Math.min(wait, 120000)));
         }
+        // Local mode (no realtime): reactions arrive with the TV view.
+        if (Array.isArray(v.reactions)) {
+          App._seenReacts = App._seenReacts || new Set();
+          App._since = App._since || App.now() - 3000;
+          v.reactions.forEach((r) => { if (!App._seenReacts.has(r.id) && r.at > App._since) { App._seenReacts.add(r.id); App._emitReact(r); } });
+        }
         onState(v);
       };
       const authFail = (msg) => { stopped = true; onAuthError && onAuthError(msg); };
@@ -47,9 +53,9 @@
         const rt = meta.realtime;
         if (rt && window.supabase) {
           const client = window.supabase.createClient(rt.url, rt.key);
-          client.channel(rt.channel).on('broadcast', { event: 'state' }, ({ payload }) => {
+          App._channel = client.channel(rt.channel).on('broadcast', { event: 'state' }, ({ payload }) => {
             if (!payload || payload.v > version) soon();
-          }).subscribe();
+          }).on('broadcast', { event: 'react' }, ({ payload }) => { if (payload && payload.emoji) App._emitReact(payload); }).subscribe();
           setInterval(refresh, role === 'player' ? 8000 : 5000);
         } else {
           setInterval(refresh, 1200);
@@ -118,20 +124,63 @@
       return data;
     },
 
+    // Drifting embers + the marigold toran across the top.
     sparkles(n = 40) {
+      if (!document.querySelector('.toran') && !document.body.classList.contains('no-toran')) {
+        const t = document.createElement('div');
+        t.className = 'toran';
+        document.body.prepend(t);
+      }
       const box = document.createElement('div');
       box.className = 'sparkles';
       for (let i = 0; i < n; i++) {
         const s = document.createElement('i');
         s.style.left = Math.random() * 100 + '%';
-        s.style.top = Math.random() * 100 + '%';
-        s.style.animationDelay = (Math.random() * 3).toFixed(2) + 's';
-        s.style.animationDuration = (2 + Math.random() * 3).toFixed(2) + 's';
-        if (Math.random() < 0.3) s.style.background = '#ff4f9a';
+        s.style.animationDelay = (Math.random() * 14).toFixed(2) + 's';
+        s.style.animationDuration = (9 + Math.random() * 10).toFixed(2) + 's';
+        s.style.setProperty('--dx', (Math.random() * 80 - 40).toFixed(0) + 'px');
+        if (Math.random() < 0.3) s.style.background = '#ff8a3c';
         box.appendChild(s);
       }
       document.body.prepend(box);
     },
+
+    // Option shapes: diya · lotus · star · moon (colour-blind friendly, matches TV & phone)
+    shapes: [
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12.5h19c-1 4.8-4.8 7.5-9.5 7.5s-8.5-2.7-9.5-7.5z"/><path d="M12 2.2c2.8 3.3 3.1 6.4 0 8.6-3.1-2.2-2.8-5.3 0-8.6z"/></svg>',
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5c2.2 2.6 2.8 6 0 10.5-2.8-4.5-2.2-7.9 0-10.5z"/><path d="M3.5 8.5c3.3.4 5.9 2.6 7.6 6.6-3.9.6-6.9-1.4-7.6-6.6zM20.5 8.5c-.7 5.2-3.7 7.2-7.6 6.6 1.7-4 4.3-6.2 7.6-6.6z"/><path d="M2.5 16.5h19c-1.9 2.8-5.6 4.2-9.5 4.2s-7.6-1.4-9.5-4.2z"/></svg>',
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5l2.6 4.3 4.9-1.1-1.1 4.9 4.3 2.6-4.3 2.6 1.1 4.9-4.9-1.1L12 22.5l-2.6-4.4-4.9 1.1 1.1-4.9L1.3 12l4.3-2.6-1.1-4.9 4.9 1.1z"/></svg>',
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.2 2.5a9.6 9.6 0 1 0 6.3 16.6A8 8 0 0 1 15.2 2.5z"/></svg>',
+    ],
+    shapeNames: ['Diya', 'Lotus', 'Star', 'Moon'],
+
+    // A brass diya with a living flame. lit=false shows an unlit lamp.
+    diya(lit = true, size = 48) {
+      return `<svg class="diya-svg ${lit ? '' : 'unlit'}" width="${size}" height="${size}" ${size !== 48 ? `style="width:${size}px;height:${size}px"` : ''} viewBox="0 0 64 64" aria-hidden="true">
+        <ellipse class="glow" cx="32" cy="24" rx="20" ry="20" fill="url(#dg)"/>
+        <defs><radialGradient id="dg"><stop offset="0" stop-color="#ffc93c" stop-opacity=".9"/><stop offset="1" stop-color="#f7931e" stop-opacity="0"/></radialGradient>
+        <linearGradient id="db" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2d38a"/><stop offset=".55" stop-color="#c9973f"/><stop offset="1" stop-color="#8a6324"/></linearGradient></defs>
+        <path d="M6 36 Q32 62 58 36 Q46 42 32 42 Q18 42 6 36Z" fill="url(#db)"/>
+        <path d="M6 36 Q32 30 58 36 Q46 42 32 42 Q18 42 6 36Z" fill="#8a6324"/>
+        <path d="M50 35 Q60 30 61 25 Q56 31 48 33Z" fill="url(#db)"/>
+        <g class="flame"><path d="M32 8 C40 20 39 30 32 33 C25 30 24 20 32 8Z" fill="#f7931e"/><path d="M32 16 C36 23 36 29 32 31 C28 29 28 23 32 16Z" fill="#ffe9a8"/></g>
+      </svg>`;
+    },
+
+    // Count a number up inside an element (scores, points).
+    countUp(el, to, ms = 900, from = 0) {
+      if (!el) return;
+      const t0 = performance.now();
+      const step = (t) => {
+        const f = Math.min(1, (t - t0) / ms);
+        const e = 1 - Math.pow(1 - f, 3);
+        el.textContent = Math.round(from + (to - from) * e).toLocaleString('en-IN');
+        if (f < 1) requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    },
+
+    vibrate(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch { /* ignore */ } },
 
     // Timer elements: <div class="timer" data-start=ms data-end=ms><i></i></div>, <span data-count=ms>
     tickTimers() {
@@ -152,43 +201,66 @@
       requestAnimationFrame(App.tickTimers);
     },
 
-    // ---------- confetti ----------
-    confetti(power = 1) {
+    // ---------- fireworks (anar + rockets) ----------
+    confetti(power = 1) { App.fireworks(power); },
+    fireworks(power = 1) {
       let c = document.getElementById('confetti');
       if (!c) { c = document.createElement('canvas'); c.id = 'confetti'; document.body.appendChild(c); }
       const ctx = c.getContext('2d');
-      c.width = innerWidth * devicePixelRatio; c.height = innerHeight * devicePixelRatio;
-      ctx.scale(devicePixelRatio, devicePixelRatio);
-      const colors = ['#ff7a00', '#ffb300', '#ffd54a', '#e6007e', '#ff4f9a', '#00b3a4', '#7c3aed', '#ffffff'];
-      const parts = [];
-      const bursts = Math.round(3 * power);
-      for (let b = 0; b < bursts; b++) {
-        const x = innerWidth * (0.2 + Math.random() * 0.6), y = innerHeight * (0.25 + Math.random() * 0.3);
-        for (let i = 0; i < 70; i++) {
-          const a = Math.random() * Math.PI * 2, v = 3 + Math.random() * 8;
-          parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 3, life: 90 + Math.random() * 60, c: colors[(Math.random() * colors.length) | 0], s: 3 + Math.random() * 5, r: Math.random() * 6, delay: b * 12 });
-        }
+      const W = innerWidth, H = innerHeight, dpr = devicePixelRatio || 1;
+      if (c.width !== W * dpr) { c.width = W * dpr; c.height = H * dpr; }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const palette = [['#ffc93c', '#fff3c4'], ['#f7931e', '#ffd28a'], ['#e8577f', '#ffd1e0'], ['#2ec4b6', '#c8fff8'], ['#fff3dc', '#ffffff'], ['#d7263d', '#ffb3bd']];
+      App._fw = App._fw || { parts: [], running: false };
+      const P = App._fw.parts;
+      const rockets = Math.max(1, Math.round(3 * power));
+      for (let r = 0; r < rockets; r++) {
+        const x = W * (0.15 + Math.random() * 0.7), ty = H * (0.15 + Math.random() * 0.3);
+        P.push({ rocket: true, x, y: H + 10, vx: (Math.random() - 0.5) * 1.5, vy: -(Math.sqrt(2 * 0.12 * (H - ty)) ), delay: r * 14, col: palette[(Math.random() * palette.length) | 0] });
       }
+      // ground fountain (anar) for bigger moments
+      if (power >= 1) for (let i = 0; i < 90 * power; i++) {
+        P.push({ x: W / 2 + (Math.random() - 0.5) * 40, y: H, vx: (Math.random() - 0.5) * 4, vy: -(6 + Math.random() * 7), life: 70 + Math.random() * 40, max: 110, size: 1.8, col: palette[(Math.random() * 2) | 0], delay: (Math.random() * 40) | 0, g: 0.14 });
+      }
+      if (App._fw.running) return;
+      App._fw.running = true;
       const step = () => {
-        ctx.clearRect(0, 0, innerWidth, innerHeight);
-        let alive = 0;
-        for (const p of parts) {
-          if (p.delay > 0) { p.delay--; alive++; continue; }
-          if (p.life <= 0) continue;
-          alive++;
-          p.life--; p.x += p.vx; p.y += p.vy; p.vy += 0.18; p.vx *= 0.985; p.r += 0.2;
-          ctx.globalAlpha = Math.min(1, p.life / 40);
-          ctx.fillStyle = p.c;
-          ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
-          ctx.fillRect(-p.s / 2, -p.s / 2, p.s, p.s * 0.6);
-          ctx.restore();
+        ctx.globalCompositeOperation = 'destination-out';
+        ctx.fillStyle = 'rgba(0,0,0,0.28)';
+        ctx.fillRect(0, 0, W, H);
+        ctx.globalCompositeOperation = 'lighter';
+        for (let i = P.length - 1; i >= 0; i--) {
+          const p = P[i];
+          if (p.delay > 0) { p.delay--; continue; }
+          if (p.rocket) {
+            p.x += p.vx; p.y += p.vy; p.vy += 0.12;
+            ctx.fillStyle = '#ffd28a'; ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, 6.28); ctx.fill();
+            if (p.vy >= -0.5) {
+              const n = 70 + ((Math.random() * 40) | 0), ring = Math.random() < 0.5;
+              for (let k = 0; k < n; k++) {
+                const a = (k / n) * Math.PI * 2, v = ring ? 4.2 : 1 + Math.random() * 4.5;
+                P.push({ x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 60 + Math.random() * 40, max: 100, size: 2.2, col: p.col, g: 0.06, twinkle: Math.random() < 0.35 });
+              }
+              P.splice(i, 1);
+            }
+            continue;
+          }
+          p.x += p.vx; p.y += p.vy; p.vx *= 0.985; p.vy = p.vy * 0.985 + p.g; p.life--;
+          if (p.life <= 0) { P.splice(i, 1); continue; }
+          const f = p.life / p.max;
+          if (p.twinkle && Math.random() < 0.3) continue;
+          ctx.globalAlpha = Math.min(1, f * 1.4);
+          ctx.fillStyle = f > 0.6 ? p.col[1] : p.col[0];
+          ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (0.6 + f * 0.6), 0, 6.28); ctx.fill();
         }
-        if (alive) requestAnimationFrame(step); else ctx.clearRect(0, 0, innerWidth, innerHeight);
+        ctx.globalAlpha = 1;
+        if (P.length) requestAnimationFrame(step);
+        else { ctx.globalCompositeOperation = 'source-over'; ctx.clearRect(0, 0, W, H); App._fw.running = false; }
       };
-      step();
+      requestAnimationFrame(step);
     },
 
-    // ---------- sounds (WebAudio, no files) ----------
+    // ---------- sounds (WebAudio, no files) — tuned to raag Bhupali (Sa Re Ga Pa Dha) ----------
     audio: null,
     soundOn: false,
     enableSound() {
@@ -201,26 +273,56 @@
     sfx(name) {
       if (!this.soundOn || !this.audio) return;
       const ac = this.audio, t0 = ac.currentTime;
-      const tone = (freq, start, dur, type = 'sine', vol = 0.2) => {
+      const tone = (freq, start, dur, type = 'sine', vol = 0.2, bend = 0) => {
         const o = ac.createOscillator(), g = ac.createGain();
-        o.type = type; o.frequency.value = freq;
+        o.type = type; o.frequency.setValueAtTime(freq, t0 + start);
+        if (bend) o.frequency.exponentialRampToValueAtTime(freq * bend, t0 + start + dur);
         g.gain.setValueAtTime(0, t0 + start);
-        g.gain.linearRampToValueAtTime(vol, t0 + start + 0.02);
+        g.gain.linearRampToValueAtTime(vol, t0 + start + 0.015);
         g.gain.exponentialRampToValueAtTime(0.001, t0 + start + dur);
         o.connect(g); g.connect(ac.destination);
         o.start(t0 + start); o.stop(t0 + start + dur + 0.05);
       };
+      const pluck = (f, s, v = 0.18) => { tone(f, s, 0.5, 'triangle', v); tone(f * 2, s, 0.25, 'sine', v * 0.35); };
+      const S = [261.6, 293.7, 329.6, 392, 440, 523.3, 587.3, 659.3, 784, 880];
       const seqs = {
-        tick: () => tone(880, 0, 0.08, 'square', 0.06),
-        buzz: () => { tone(220, 0, 0.35, 'sawtooth', 0.15); tone(330, 0, 0.35, 'square', 0.08); },
-        reveal: () => [523, 659, 784].forEach((f, i) => tone(f, i * 0.09, 0.3, 'triangle', 0.18)),
-        fanfare: () => [523, 659, 784, 1047, 784, 1047].forEach((f, i) => tone(f, i * 0.12, 0.35, 'triangle', 0.2)),
-        whoosh: () => tone(300, 0, 0.4, 'sawtooth', 0.05),
-        power: () => [392, 523, 784, 1047].forEach((f, i) => tone(f, i * 0.07, 0.25, 'square', 0.1)),
-        wrong: () => { tone(200, 0, 0.3, 'sawtooth', 0.12); tone(150, 0.25, 0.4, 'sawtooth', 0.12); },
-        join: () => [660, 990].forEach((f, i) => tone(f, i * 0.08, 0.2, 'sine', 0.15)),
+        tick: () => tone(1046, 0, 0.06, 'square', 0.05),
+        buzz: () => { tone(196, 0, 0.35, 'sawtooth', 0.14); tone(293, 0, 0.35, 'square', 0.06); },
+        reveal: () => [0, 2, 4, 7].forEach((n, i) => pluck(S[n], i * 0.08)),
+        fanfare: () => [0, 2, 3, 4, 5, 7, 9].forEach((n, i) => pluck(S[n], i * 0.1, 0.2)),
+        whoosh: () => tone(220, 0, 0.45, 'sawtooth', 0.04, 3),
+        power: () => [4, 7, 9, 7, 9].forEach((n, i) => tone(S[n], i * 0.07, 0.2, 'square', 0.08)),
+        wrong: () => { tone(220, 0, 0.28, 'sawtooth', 0.12, 0.7); tone(165, 0.22, 0.45, 'sawtooth', 0.12, 0.7); },
+        join: () => [5, 7].forEach((n, i) => pluck(S[n], i * 0.09)),
+        arrive: () => [0, 1, 2, 4, 5].forEach((n, i) => pluck(S[n] * 2, i * 0.06, 0.12)),
+        drumroll: () => { for (let i = 0; i < 18; i++) tone(90 + Math.random() * 30, i * 0.055, 0.08, 'triangle', 0.12 + i * 0.006); },
+        whoo: () => tone(500, 0, 0.6, 'sine', 0.08, 2.4),
+        pop: () => tone(880, 0, 0.08, 'sine', 0.1, 1.6),
+        ding: () => { pluck(S[7], 0, 0.2); pluck(S[9], 0.12, 0.2); },
       };
       (seqs[name] || seqs.tick)();
+    },
+
+    // ---------- emoji reactions (Supabase Realtime broadcast, or /api/react locally) ----------
+    reactHandlers: [],
+    onReact(fn) { this.reactHandlers.push(fn); },
+    _emitReact(r) { this.reactHandlers.forEach((fn) => fn(r)); },
+    react(emoji, from) {
+      const r = { emoji, name: from && from.name, avatar: from && from.avatar, id: Math.random().toString(36).slice(2) };
+      if (this._channel) this._channel.send({ type: 'broadcast', event: 'react', payload: r });
+      else fetch('/api/react', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(r) }).catch(() => {});
+      this._emitReact(r);
+    },
+    showReaction(r) {
+      let layer = document.querySelector('.react-layer');
+      if (!layer) { layer = document.createElement('div'); layer.className = 'react-layer'; document.body.appendChild(layer); }
+      const el = document.createElement('div');
+      el.className = 'react';
+      el.style.left = (8 + Math.random() * 84) + '%';
+      el.style.setProperty('--dx', (Math.random() * 120 - 60).toFixed(0) + 'px');
+      el.innerHTML = `<span class="e">${App.esc(r.emoji)}</span>${r.name ? `<span class="n">${App.esc(r.name)}</span>` : ''}`;
+      layer.appendChild(el);
+      setTimeout(() => el.remove(), 3800);
     },
 
     fmt(n) { return Number(n || 0).toLocaleString('en-IN'); },

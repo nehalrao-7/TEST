@@ -72,7 +72,25 @@ const quiz = {
       .sort((a, b) => a[1].at - b[1].at)
       .slice(0, 5)
       .map(([pid, a]) => ({ id: pid, ms: a.at - live.opensAt, points: perPlayer[pid] }));
-    live.result = { answer: q.answer, counts: countBy(live.answers, q.options.length), perPlayer, perTeam, fastest };
+    // Streaks (Kahoot-style): 3+ correct in a row earns a bonus.
+    live.streaks = live.streaks || {};
+    const streakBonus = {};
+    for (const p of Object.values(S.state.players)) {
+      const a = live.answers[p.id];
+      if (!a) { live.streaks[p.id] = 0; continue; }
+      const st = S.stat(p.id);
+      st.answered++;
+      if (a.choice === q.answer) {
+        st.correct++;
+        live.streaks[p.id] = (live.streaks[p.id] || 0) + 1;
+        st.bestStreak = Math.max(st.bestStreak, live.streaks[p.id]);
+        if (live.streaks[p.id] >= 3) { streakBonus[p.id] = 50; S.award(p.id, 50, `🔥 ${live.streaks[p.id]} in a row`, game.id); }
+      } else live.streaks[p.id] = 0;
+    }
+    if (fastest[0]) S.stat(fastest[0].id).fastest++;
+    const order = Object.entries(live.answers).sort((a, b) => a[1].at - b[1].at).map(([pid]) => pid);
+    live.result = { answer: q.answer, counts: countBy(live.answers, q.options.length), perPlayer, perTeam, fastest, streaks: { ...live.streaks }, streakBonus,
+      byChoice: q.options.map((_, i) => order.filter((pid) => live.answers[pid].choice === i)) };
     live.phase = 'reveal';
   },
 
@@ -108,12 +126,16 @@ const quiz = {
       question: q && live.phase !== 'intro' ? publicQ(q) : null,
       opensAt: live.opensAt, deadline: live.deadline,
       answered: Object.keys(live.answers).length,
+      answeredIds: Object.keys(live.answers),
       result: live.phase === 'reveal' ? live.result : null,
     };
     if (viewer.player) {
       const a = live.answers[viewer.player.id];
-      v.mine = { answered: Boolean(a), choice: a ? a.choice : null, hint: live.hints[viewer.player.id] || null,
-        points: live.result ? live.result.perPlayer[viewer.player.id] || 0 : null };
+      const order = a ? Object.values(live.answers).filter((x) => x.at < a.at).length + 1 : null;
+      v.mine = { answered: Boolean(a), choice: a ? a.choice : null, hint: live.hints[viewer.player.id] || null, order,
+        points: live.result ? live.result.perPlayer[viewer.player.id] || 0 : null,
+        streak: (live.streaks || {})[viewer.player.id] || 0,
+        bonus: live.result && live.result.streakBonus ? live.result.streakBonus[viewer.player.id] || 0 : 0 };
     }
     if (viewer.host && q) v.answerKey = q.answer;
     if (viewer.host) v.answersBy = Object.fromEntries(Object.entries(live.answers).map(([k, x]) => [k, x.choice]));
@@ -145,6 +167,8 @@ const jeopardy = {
         if (!live.active || live.phase !== 'clue') return;
         const clue = jeopardy.clue(game, live.cur);
         S.awardEntity(live.active, clue.value, `${game.title}: ${game.content.categories[live.cur.c].name} ${clue.value}`, game.id);
+        const buzzer = live.buzzes.find((b) => b.key === live.active);
+        if (buzzer) S.stat(buzzer.pid).buzzWins++;
         live.used[`${live.cur.c}-${live.cur.i}`] = { by: live.active, value: clue.value };
         live.last = { key: live.active, correct: true, value: clue.value };
         live.phase = 'answer';
@@ -231,6 +255,7 @@ const kbc = {
     hot.winnings = winnings;
     hot.qPhase = 'over';
     if (winnings > 0) S.award(hot.pid, winnings, `${game.title} hot seat`, game.id);
+    S.stat(hot.pid).kbcBest = Math.max(S.stat(hot.pid).kbcBest, winnings);
     const p = S.state.players[hot.pid];
     live.history.push({ pid: hot.pid, winnings, level: hot.level, outcome });
     const lines = { won: `${p.name} conquered the whole ladder — ${winnings} points! 🏆`, walked: `${p.name} walks away with ${winnings} points.`, wrong: `${p.name} leaves the hot seat with ${winnings} points.` };
@@ -248,6 +273,7 @@ const kbc = {
     const correct = Object.entries(live.ff.answers).filter(([, a]) => a.choice === q.answer).sort((a, b) => a[1].at - b[1].at);
     live.ff.ranking = correct.map(([pid, a]) => ({ id: pid, ms: a.at - live.ff.opensAt }));
     live.ff.winner = correct.length ? correct[0][0] : null;
+    if (live.ff.winner) S.stat(live.ff.winner).ffWins++;
     live.ff.counts = countBy(live.ff.answers, q.options.length);
     live.phase = 'ff-result';
   },
@@ -364,7 +390,7 @@ const kbc = {
     const v = { phase: live.phase, ladder, history: live.history };
     if (live.ff && (live.phase === 'ff' || live.phase === 'ff-result')) {
       const q = game.content.fastestFinger[live.ff.qi];
-      v.ff = { question: publicQ(q), opensAt: live.ff.opensAt, deadline: live.ff.deadline, answered: Object.keys(live.ff.answers).length,
+      v.ff = { question: publicQ(q), opensAt: live.ff.opensAt, deadline: live.ff.deadline, answered: Object.keys(live.ff.answers).length, answeredIds: Object.keys(live.ff.answers),
         result: live.phase === 'ff-result' ? { answer: q.answer, winner: live.ff.winner, ranking: live.ff.ranking, counts: live.ff.counts } : null };
       if (viewer.player) {
         const a = live.ff.answers[viewer.player.id];
@@ -441,6 +467,8 @@ const hookstep = {
         const points = Math.round(avg * 100 / 5) * 5 + judge;
         const song = songs[live.perf.songIndex];
         S.awardEntity(live.perf.performer, points, `${game.title}: ${song ? song.title.split(' — ')[0] : 'performance'}`, game.id);
+        const pe = S.parseEntity(live.perf.performer);
+        (pe.kind === 'team' ? S.teamMembers(pe.id).map((m) => m.id) : [pe.id]).forEach((pid) => { S.stat(pid).hookBest = Math.max(S.stat(pid).hookBest, points); });
         const result = { performer: live.perf.performer, songIndex: live.perf.songIndex, avg: Math.round(avg * 10) / 10, votes: votes.length, judge, points };
         live.results.push(result);
         live.last = result;

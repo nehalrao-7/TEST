@@ -8,6 +8,18 @@ A live, multiplayer party-game system for 12–16 guests: players use their phon
 | Host console | `/host` | You, on a laptop, tablet or phone (PIN protected) |
 | TV display | `/tv` | The big screen (cast or HDMI a browser tab) |
 
+## The experience (design notes)
+
+**The look.** Warm kohl-black night, marigold and haldi, sindoor and rani pink, peacock teal and mango-leaf green, with brass instead of flat gold. Panels are cream "invitation card" paper with brass borders and rangoli corners. A marigold toran garland hangs across every screen, and real flickering diyas sit along the bottom of the TV. Type pairs Rozha One (Bollywood-poster display), Mukta and the handwritten Kalam.
+
+**Borrowed from the best party games:**
+- **You see yourself on the TV (Jackbox):** every guest's diya lights up when they lock in an answer, arrivals get a grand entrance, and phones can send emoji reactions that float up the TV.
+- **Colour + shape answers (Kahoot):** diya, lotus, star and moon, matching on TV and phone so colour-blind guests aren't lost. 🔥 Answer streaks of 3 or more earn a +50 bonus.
+- **Game-show tension:** reveals are staged with a drumroll ("Sahi jawab hai…"), wrong answers dropping out one by one, then the right one bursting into fireworks with the faces of everyone who picked it.
+- **Rubber-band drama (Mario Kart):** the standings animate, with rows sliding from their old places to their new ones while scores count up, and the night's biggest climber called out.
+- **Phone payoff:** the whole phone turns leaf-green ("Shabash!") or sindoor red ("Arre yaar!") with your points, streak and rank change.
+- **Something to remember:** an end-of-night **Diwali Awards** ceremony (TV → 🎖️ Awards, then *Next award*): Bijli Fingers, Teer-Andaaz, Anaar on Fire, Master Chor, Raksha Kavach, Buzzer Baadshah, Hook Step Hero, Crorepati, Comeback Champ, ending with the Light of the Party. Every guest also gets a **"My Diwali Night" card** on their phone to screenshot and share.
+
 ## Games included
 
 | Game | Type | Default mode | How it plays |
