@@ -17,6 +17,8 @@ const st = () => S.state;
 let ONLINE = new Set();
 const LOCAL_REACTS = [];
 const token = () => crypto.randomBytes(24).toString('base64url');
+// OPEN_ACCESS=true skips the host PIN and the phone code (for rehearsals). Turn it off for the party.
+const OPEN = /^(1|true|yes|on)$/i.test(process.env.OPEN_ACCESS || '');
 const findPlayerByToken = (t) => t && Object.values(st().players).find((p) => p.tokens.includes(t));
 const isHostToken = (t) => t && st().hostTokens.includes(t);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -467,7 +469,7 @@ async function handle(store, method, path, body = {}, query = {}) {
     }
     if (path === 'meta') {
       const { result } = await run(store, () => st().settings.eventName);
-      return { json: { eventName: result, avatars: S.AVATARS, smsEnabled, realtime: store.realtime || null } };
+      return { json: { eventName: result, avatars: S.AVATARS, smsEnabled, realtime: store.realtime || null, openAccess: OPEN } };
     }
     if (method !== 'POST') return { status: 405, json: { error: 'Method not allowed' } };
 
@@ -500,12 +502,34 @@ async function handle(store, method, path, body = {}, query = {}) {
 
     if (path === 'host/login') {
       const { result } = await run(store, () => {
-        if (String(body.pin || '').trim() !== st().hostPin) throw new HttpError(401, 'Wrong host PIN.');
+        if (!OPEN && String(body.pin || '').trim() !== st().hostPin) throw new HttpError(401, 'Wrong host PIN.');
         const t = token();
         st().hostTokens = [...st().hostTokens.slice(-9), t];
         return t;
       });
       return { json: { token: result } };
+    }
+
+    if (path === 'otp/request' && OPEN) {
+      // Open access: join with just a name. Identity = phone if given, else this device.
+      const name = String(body.name || '').trim().slice(0, 20);
+      const dev = String(body.deviceId || '').replace(/[^\w-]/g, '').slice(0, 40);
+      const ident = normalizePhone(body.cc, body.phone) || (dev ? 'dev:' + dev : null);
+      if (!ident) throw new HttpError(400, 'Please refresh and try again.');
+      const { result } = await run(store, () => {
+        let p = Object.values(st().players).find((x) => x.phone === ident);
+        const returning = Boolean(p);
+        if (!p) {
+          if (!name) throw new HttpError(400, 'Please tell us your name.');
+          if (Object.values(st().players).some((x) => x.name.toLowerCase() === name.toLowerCase())) throw new HttpError(400, 'That name is taken — add an initial or a nickname!');
+          p = S.createPlayer({ name, phone: ident, avatar: body.avatar });
+          S.pushFeed({ emoji: p.avatar, text: `${p.name} joined the party!` });
+        }
+        const t = token();
+        p.tokens = [...p.tokens.slice(-4), t];
+        return { token: t, returning, name: p.name };
+      });
+      return { json: { ok: true, via: 'open', ...result } };
     }
 
     if (path === 'otp/request') {

@@ -112,6 +112,7 @@ Without the `SUPABASE_*` variables, the local server keeps state in `data/state.
 | Variable | Purpose |
 | --- | --- |
 | `HOST_PIN` | PIN for the host console |
+| `OPEN_ACCESS` | `true` skips the host PIN and the phone code: players join with just a name (for rehearsals; remove it for the party) |
 | `SUPABASE_URL`, `SUPABASE_KEY`, `DGN_SECRET` | Use Supabase for state and realtime (hosted mode) |
 | `PORT`, `DATA_DIR` | Local server port and data folder |
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | Enable real SMS codes |

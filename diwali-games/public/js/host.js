@@ -15,7 +15,16 @@
   const ui = { awardTarget: '', awardReason: '', awardAmount: '100', performer: '', song: '', judge: '100', seat: '', teamCount: '3', newType: 'quiz', newTitle: '', newMode: 'individual', annTitle: '', annText: '' };
 
   // ---------- login ----------
-  function loginView() {
+  // Open access (OPEN_ACCESS=true on the server): no PIN needed — log straight in.
+  let triedOpen = false;
+  async function loginView() {
+    if (!triedOpen) {
+      triedOpen = true;
+      try {
+        const m = await (await fetch('/api/meta')).json();
+        if (m.openAccess) { const r = await App.post('/api/host/login', { pin: '' }); store.set('dgn_host', r.token); start(r.token); return; }
+      } catch { /* fall through to the PIN form */ }
+    }
     app.innerHTML = `<div class="login-card card stack">
       <div class="center"><div style="font-size:52px">🪔</div><h2 style="font-size:28px">Host console</h2><p class="muted">Enter the host PIN (printed in the server log, or set with HOST_PIN).</p></div>
       <form id="lf" class="stack"><input type="password" id="pin" inputmode="numeric" placeholder="Host PIN" autocomplete="current-password" /><button class="btn big block">Enter</button></form></div>`;
@@ -417,5 +426,6 @@
   });
 
   const tok = store.get('dgn_host');
-  if (tok) start(tok); else loginView();
+  if (tok) start(tok);
+  else loginView();
 })();

@@ -24,7 +24,7 @@
   const L = { step: 'phone', name: '', avatar: '🪔', cc: store.get('dgn_cc') || '1', phone: '', via: null, returning: false, avatars: ['🪔', '🎆', '🐘', '🦚', '🐯', '🌺', '🪷', '🍬', '🎇', '🥭', '🌶️', '🦁', '🐒', '👑', '🪁', '🍵', '🌙', '⭐'], eventName: 'Diwali Game Night' };
 
   async function startLogin() {
-    try { const m = await (await fetch('/api/meta')).json(); L.avatars = m.avatars; L.eventName = m.eventName; } catch { /* defaults */ }
+    try { const m = await (await fetch('/api/meta')).json(); L.avatars = m.avatars; L.eventName = m.eventName; L.open = Boolean(m.openAccess); } catch { /* defaults */ }
     renderLogin();
   }
 
@@ -37,11 +37,11 @@
         <form class="card stack" id="f1">
           <div><label class="field">Your name</label><input type="text" id="name" maxlength="20" placeholder="e.g. Priya" value="${esc(L.name)}" autocomplete="given-name" /></div>
           <div><label class="field">Pick your avatar</label><div class="avatars">${L.avatars.map((a) => `<button type="button" data-av="${a}" class="${a === L.avatar ? 'on' : ''}">${a}</button>`).join('')}</div></div>
-          <div><label class="field">Phone number</label><div class="phone-row">
+          ${L.open ? '' : `<div><label class="field">Phone number</label><div class="phone-row">
             <select id="cc">${COUNTRIES.map(([c, l]) => `<option value="${c}" ${c === L.cc ? 'selected' : ''}>${l}</option>`).join('')}</select>
             <input type="tel" id="phone" inputmode="tel" placeholder="Phone number" value="${esc(L.phone)}" autocomplete="tel-national" /></div>
-            <div class="small muted" style="margin-top:6px">Returning on a new device? Just use the same number.</div></div>
-          <button class="btn big block" type="submit">Send my code ✨</button>
+            <div class="small muted" style="margin-top:6px">Returning on a new device? Just use the same number.</div></div>`}
+          <button class="btn big block" type="submit">${L.open ? "Let's play 🎉" : 'Send my code ✨'}</button>
         </form>
         <div class="center small" style="color:#fff;opacity:.6">Host? <a href="/host" style="color:var(--gold)">Open the host console</a></div>
       </div>`;
@@ -49,13 +49,17 @@
       app.querySelector('#f1').onsubmit = async (e) => {
         e.preventDefault();
         L.name = app.querySelector('#name').value.trim();
-        L.cc = app.querySelector('#cc').value;
-        L.phone = app.querySelector('#phone').value.trim();
+        const ccEl = app.querySelector('#cc'), phEl = app.querySelector('#phone');
+        L.cc = ccEl ? ccEl.value : L.cc;
+        L.phone = phEl ? phEl.value.trim() : '';
         store.set('dgn_cc', L.cc);
         const btn = e.submitter || app.querySelector('button[type=submit]');
         btn.disabled = true;
         try {
-          const r = await App.post('/api/otp/request', { name: L.name, cc: L.cc, phone: L.phone, avatar: L.avatar });
+          let deviceId = store.get('dgn_device');
+          if (!deviceId) { deviceId = Math.random().toString(36).slice(2) + Date.now().toString(36); store.set('dgn_device', deviceId); }
+          const r = await App.post('/api/otp/request', { name: L.name, cc: L.cc, phone: L.phone, avatar: L.avatar, deviceId });
+          if (r.token) { store.set('dgn_token', r.token); App.confetti(1); start(r.token); return; }
           L.via = r.via; L.returning = r.returning; L.name = r.name; L.step = 'code';
           renderLogin();
         } catch (err) { App.toast(err.message, true); btn.disabled = false; }
