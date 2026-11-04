@@ -54,9 +54,26 @@ const DEFAULT_PROMPTS = [
     who: 'The group has voted! Who is most likely to show up late to garba?', clue: 'Voted most likely to show up late to garba' },
   { id: 'voteOutfit', section: 'vote', type: 'vote', tag: 'garba', text: 'Best Navratri outfits, every single year',
     who: 'The group has voted! Who has the best Navratri outfits every year?', clue: 'Voted best Navratri outfits, every single year' },
+  { id: 'voteDressed', section: 'vote', type: 'vote', tag: 'group', text: 'Best dressed tonight',
+    who: 'The group has voted! Who is the best dressed tonight?', clue: 'Voted best dressed tonight' },
+  { id: 'voteNakhre', section: 'vote', type: 'vote', tag: 'group', text: 'Most nakhre 💅',
+    who: 'The group has voted! Who has the most nakhre?', clue: 'Voted the guest with the most nakhre' },
+  { id: 'voteReady', section: 'vote', type: 'vote', tag: 'group', text: 'Takes the longest to get ready',
+    who: 'The group has voted! Who takes the longest to get ready?', clue: 'Voted the one who takes the longest to get ready' },
+  { id: 'voteFoodie', section: 'vote', type: 'vote', tag: 'food', text: 'Biggest foodie (first one at the snacks table)',
+    who: 'The group has voted! Who is the biggest foodie?', clue: 'Voted the biggest foodie, first at the snacks table' },
+  { id: 'voteChat', section: 'vote', type: 'vote', tag: 'group', text: 'Loudest in the group chat',
+    who: 'The group has voted! Who is the loudest in the group chat?', clue: 'Voted the loudest in the group chat' },
+  { id: 'voteSelfie', section: 'vote', type: 'vote', tag: 'group', text: 'Most likely to stop the garba for a selfie',
+    who: 'The group has voted! Who is most likely to stop the garba for a selfie?', clue: 'Voted most likely to stop the garba for a selfie' },
 ];
 // Prompt ids from the first version, used to upgrade an unedited saved questionnaire.
 const V1_IDS = ['movie', 'rewatch', 'star', 'holiday', 'trip', 'sweet', 'comfort', 'dance', 'talent', 'fact'];
+// Questionnaire version each default question was introduced in (for upgrading saved games).
+const ADDED_IN = Object.fromEntries([
+  ...['garbaSong', 'garbaEvent', 'garbaMove', 'garbaOrDandiya', 'partner', 'bestie', 'dandiyaPartner', 'callFirst', 'voteDancer', 'voteLast', 'voteLate', 'voteOutfit'].map((id) => [id, 2]),
+  ...['voteDressed', 'voteNakhre', 'voteReady', 'voteFoodie', 'voteChat', 'voteSelfie'].map((id) => [id, 3]),
+]);
 
 const TAG_CLUE = { movie: '🎬 ✨ 🕵️', holiday: '🏝️ ✨ 🕵️', food: '🍬 ✨ 🕵️', music: '💃 ✨ 🕵️', fun: '🤫 ✨ 🕵️', garba: '🪔 💃 ✨', group: '👯 ✨ 🕵️' };
 
@@ -250,4 +267,4 @@ function preview(state, n = 8) {
   return { total: pool.length, sample: pick(pool, n).map((i) => ({ q: i.q, options: i.options, answer: i.answer, about: i.involves && i.involves.length > 1 ? i.involves.map((id) => (state.players[id] || {}).name).join(' & ') : i.aboutName })) };
 }
 
-module.exports = { DEFAULT_PROMPTS, V1_IDS, personalize, preview, cleanAnswer, buildPool };
+module.exports = { DEFAULT_PROMPTS, V1_IDS, ADDED_IN, personalize, preview, cleanAnswer, buildPool };

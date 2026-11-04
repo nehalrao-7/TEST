@@ -62,7 +62,7 @@ function freshState() {
     feed: [],
     pending: {},
     questionnaire: require('./personalize').DEFAULT_PROMPTS.map((x) => ({ ...x })),
-    questionnaireVersion: 2,
+    questionnaireVersion: 3,
     personalUsed: [],
   };
 }
@@ -75,13 +75,16 @@ function setState(s) {
   // Fill in fields added after a saved game was created.
   const PZ = require('./personalize');
   if (!state.questionnaire) state.questionnaire = PZ.DEFAULT_PROMPTS.map((x) => ({ ...x }));
-  if ((state.questionnaireVersion || 1) < 2) {
-    // v2 adds garba + "about the group" questions. Replace an unedited v1 list; otherwise append.
+  const QV = 3;
+  if ((state.questionnaireVersion || 1) < QV) {
+    // v2 added garba + "about the group" questions, v3 more group votes. Replace an unedited v1
+    // list; otherwise append only the questions that are new since the saved version.
     const ids = state.questionnaire.map((q) => q.id);
     const unedited = ids.length === PZ.V1_IDS.length && ids.every((id, i) => id === PZ.V1_IDS[i]);
+    const from = state.questionnaireVersion || 1;
     if (unedited) state.questionnaire = PZ.DEFAULT_PROMPTS.map((x) => ({ ...x }));
-    else PZ.DEFAULT_PROMPTS.forEach((p) => { if (!ids.includes(p.id)) state.questionnaire.push({ ...p }); });
-    state.questionnaireVersion = 2;
+    else PZ.DEFAULT_PROMPTS.filter((p) => (PZ.ADDED_IN[p.id] || 1) > from && !ids.includes(p.id)).forEach((p) => state.questionnaire.push({ ...p }));
+    state.questionnaireVersion = QV;
   }
   if (state.settings.personalPct == null) state.settings.personalPct = 20;
   if (state.settings.questionnaireOpen == null) state.settings.questionnaireOpen = true;
