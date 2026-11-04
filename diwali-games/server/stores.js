@@ -24,6 +24,14 @@ function supabaseStore() {
     async load() { return rpc('dgn_load', {}); },
     async save(version, data) { return rpc('dgn_save', { p_version: version, p_data: data }); },
     async seen(playerId) { await rpc('dgn_seen', { p_player: playerId }); },
+    // Server-side reactions (demo bots) go out on the same Realtime channel as phone reactions.
+    async broadcast(reacts) {
+      await fetch(`${url}/realtime/v1/api/broadcast`, {
+        method: 'POST',
+        headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: reacts.map((r) => ({ topic: 'dgn', event: 'react', payload: r, private: false })) }),
+      });
+    },
   };
 }
 

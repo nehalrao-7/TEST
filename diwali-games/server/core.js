@@ -10,6 +10,7 @@ const { templates } = require('./content');
 const { smsEnabled, sendSms } = require('./sms');
 const { parseYouTube } = require('./youtube');
 const P = require('./personalize');
+const Bots = require('./bots');
 
 const st = () => S.state;
 let ONLINE = new Set();
@@ -71,12 +72,13 @@ function hostView(base) {
     smsEnabled,
     ledger: s.ledger.slice(-150).reverse(),
     pending: Object.entries(s.pending).filter(([, v]) => v.expires > Date.now()).map(([phone, v]) => ({ phone: maskPhone(phone), name: v.name, code: v.via === 'sms' ? null : v.code, via: v.via, at: v.at })),
-    playersDetail: Object.values(s.players).map((p) => ({ id: p.id, phone: maskPhone(p.phone), powerups: p.powerups, doublePending: p.doublePending, doubleGameId: p.doubleGameId })),
+    playersDetail: Object.values(s.players).map((p) => ({ id: p.id, bot: Boolean(p.bot), phone: p.bot ? '🤖 demo bot' : maskPhone(p.phone), powerups: p.powerups, doublePending: p.doublePending, doubleGameId: p.doubleGameId })),
     powerupDefs: S.POWERUPS,
     questionnaire: s.questionnaire,
     answers: Object.values(s.players).map((p) => ({ id: p.id, answers: p.answers || {} })),
     personalPreview: P.preview(s, 6),
     personalCount: s.live ? s.live.personalCount || 0 : 0,
+    demo: s.demo && s.demo.on ? { bots: Object.values(s.players).filter((p) => p.bot).length } : null,
   };
 }
 const maskPhone = (ph) => (ph ? ph.slice(0, 3) + ' ••• ' + ph.slice(-4) : '');
@@ -278,6 +280,13 @@ function hostAction(a) {
     }
     case 'undo': s.ledger = s.ledger.filter((e) => e.id !== a.entryId); break;
     case 'media': mediaAction(a); break;
+    case 'demoStart': Bots.create(s, Math.max(2, Math.min(14, Number(a.count) || 8))); break;
+    case 'demoEnd': {
+      Bots.remove(s);
+      hostAction({ type: 'resetScores' });
+      S.announce({ emoji: '🪔', title: 'Demo over!', text: 'Scores reset. The real party starts now ✨', ms: 5000 });
+      break;
+    }
     case 'questionnaire': {
       const types = ['text', 'pick', 'vote', 'choice'];
       const prompts = (a.prompts || []).map((q) => ({ ...q, id: String(q.id || S.id(6)).slice(0, 24), text: String(q.text || '').trim().slice(0, 100), ph: String(q.ph || '').slice(0, 60),
@@ -393,9 +402,12 @@ function run(store, mutate) {
       const loaded = await store.load();
       const fresh = !loaded.data;
       S.setState(fresh ? S.freshState() : loaded.data);
-      ONLINE = new Set(loaded.online || []);
+      // Demo bots count as online so "everyone answered" waits for them too.
+      ONLINE = new Set([...(loaded.online || []), ...Object.values(st().players).filter((p) => p.bot).map((p) => p.id)]);
       const before = fresh ? null : JSON.stringify(st());
+      Bots.takeReacts();
       tick(st());
+      Bots.tick(st(), { engines, playGame, online: ONLINE, usePowerup: S.usePowerup });
       const afterTick = JSON.stringify(st());
       let result;
       let error = null;
@@ -406,6 +418,11 @@ function run(store, mutate) {
         const v = await store.save(loaded.version, st());
         if (v == null) { await sleep(20 + Math.random() * 60 * (attempt + 1)); continue; }
         version = v;
+      }
+      const reacts = Bots.takeReacts();
+      if (reacts.length) {
+        if (store.broadcast) store.broadcast(reacts).catch(() => {});
+        else { LOCAL_REACTS.push(...reacts); LOCAL_REACTS.splice(0, Math.max(0, LOCAL_REACTS.length - 30)); }
       }
       if (error) throw error;
       return { result, version };

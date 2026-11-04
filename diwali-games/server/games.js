@@ -564,6 +564,7 @@ function nextDeadline(state) {
     if (live.phase === 'voting') c.push(live.until + 100);
     if (live.phase === 'spin') c.push(live.spinUntil + 100);
   }
+  if (state.demo && state.demo.plan && state.demo.plan.acts.length) c.push(state.demo.plan.acts[0].at + 50);
   const future = c.filter((x) => x > now() - 5000);
   return future.length ? Math.min(...future) : null;
 }

@@ -97,3 +97,6 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .jgrid button { background: linear-gradient(180deg, #ffd56a, var(--marigold)); color: var(--kohl); }
 .qe-n { background: var(--rani); }
 .awards-ctl { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+.demo-off, .demo-on { margin-bottom: 0; }
+.demo-on { background: linear-gradient(135deg, #fff0d4, #ffe3ef); }

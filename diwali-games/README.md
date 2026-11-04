@@ -117,6 +117,16 @@ Without the `SUPABASE_*` variables, the local server keeps state in `data/state.
 | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN` | Enable real SMS codes |
 | `TWILIO_FROM` *or* `TWILIO_MESSAGING_SERVICE_SID` | Sender for the SMS |
 
+## Practice run with bots
+
+**Host → 🎮 Live → 🤖 Start demo** adds 6–12 bot guests, fills in their questionnaire (couples, best friends, group votes, garba answers) and makes teams. Bots:
+- answer quiz questions over 1–14 seconds, with different accuracy per bot
+- play Fastest Finger, and play the KBC hot seat if you seat one
+- vote in the audience poll, buzz in Jeopardy and rate Hook Step dances
+- use power-ups between games and send emoji reactions
+
+Join as a player in another tab or on your phone and run the games from the host tab. **End demo & reset for the party** removes the bots and resets every score, game and power-up. Real guests stay logged in.
+
 ## Party-night checklist
 
 1. Start the server, then open `/tv` on the TV and click **Tap to enable sound**.

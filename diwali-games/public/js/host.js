@@ -74,7 +74,20 @@
       left = `<div class="card"><h3>${esc(L.emoji)} ${esc(L.title)} <span class="chip live">LIVE</span><span class="chip">${L.mode}</span>${S.personalCount ? `<span class="chip gold">✨ ${S.personalCount} personalised</span>` : ''}
         <button class="btn red small" style="margin-left:auto" data-a="end">🏁 End game → leaderboard</button></h3>${fn(L)}</div>`;
     }
-    return `<div class="hgrid"><div>${left}${tvCard()}</div><div>${pendingCard()}${awardCard()}${feedCard()}</div></div>`;
+    return `<div class="hgrid"><div>${demoCard()}${left}${tvCard()}</div><div>${pendingCard()}${awardCard()}${feedCard()}</div></div>`;
+  }
+
+  function demoCard() {
+    if (S.demo) {
+      return `<div class="card demo-on"><div class="row"><span style="font-size:30px">🤖</span><div class="grow"><b>Demo mode: ${S.demo.bots} bots are playing along</b>
+        <div class="small muted">They answer, buzz, vote, rate dances, use power-ups and send reactions. Run any game from the list below.</div></div>
+        <button class="btn red small" data-a="demoEnd">End demo & reset for the party</button></div></div>`;
+    }
+    if (S.games.some((g) => g.status === 'live')) return '';
+    return `<div class="card demo-off"><div class="row"><span style="font-size:30px">🤖</span><div class="grow"><b>Try a practice run with bots</b>
+      <div class="small muted">Adds bot guests with questionnaire answers (couples, best friends, group votes) and teams. Join as a player in another tab or on your phone, then run the games from here. One click removes them afterwards.</div></div>
+      <select data-ui="demoCount" style="width:auto">${[6, 8, 10, 12].map((n) => opt(n, `${n} bots`, ui.demoCount || 8)).join('')}</select>
+      <button class="btn rani" data-a="demoStart">🤖 Start demo</button></div></div>`;
   }
 
   function tvCard() {
@@ -274,7 +287,7 @@
     const teamOpts = (sel) => `<option value="">—</option>${S.teams.map((t) => opt(t.id, `${esc(t.emoji)} ${esc(t.name)}`, sel)).join('')}`;
     const rows = S.players.map((p) => {
       const d = detail[p.id] || { powerups: [] };
-      return `<tr><td>${p.rank}</td><td><span class="avatar" style="--c:${p.color};width:30px;height:30px;font-size:17px">${esc(p.avatar)}</span> <b>${esc(p.name)}</b> ${p.online ? '<span class="chip done">online</span>' : '<span class="chip">offline</span>'}</td>
+      return `<tr><td>${p.rank}</td><td><span class="avatar" style="--c:${p.color};width:30px;height:30px;font-size:17px">${esc(p.avatar)}</span> <b>${esc(p.name)}</b> ${d.bot ? '<span class="chip gold">🤖 bot</span>' : p.online ? '<span class="chip done">online</span>' : '<span class="chip">offline</span>'}</td>
         <td class="small muted">${esc(d.phone)}</td>
         <td>${S.teams.length ? `<select data-a="setTeam" data-id="${p.id}">${teamOpts(p.teamId)}</select>` : '—'}</td>
         <td><b>${fmt(p.score)}</b></td>
@@ -350,6 +363,8 @@
     switch (b.dataset.a) {
       case 'start': act({ type: 'startGame', gameId: id }); break;
       case 'end': if (confirm('End this game and show the leaderboard?')) act({ type: 'endGame' }); break;
+      case 'demoStart': act({ type: 'demoStart', count: Number(ui.demoCount || 8) }, 'Bots joined! 🤖'); break;
+      case 'demoEnd': if (confirm('Remove all bots and reset every score, game and power-up? Real guests stay logged in.')) act({ type: 'demoEnd' }, 'Demo over: everything reset ✨'); break;
       case 'tv': act({ type: 'tv', view: b.dataset.v }); break;
       case 'award-step': act({ type: 'award-step', dir: Number(b.dataset.d) }); break;
       case 'announce': if (!ui.annTitle && !ui.annText) return App.toast('Write a title or message', true);
