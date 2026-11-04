@@ -71,7 +71,7 @@
       </div>`;
     } else {
       const fn = { quiz: quizCtl, jeopardy: jeoCtl, kbc: kbcCtl, hookstep: hookCtl, custom: () => '<p class="muted">Award points with the panel on the right. End the game when you are done.</p>' }[L.type];
-      left = `<div class="card"><h3>${esc(L.emoji)} ${esc(L.title)} <span class="chip live">LIVE</span><span class="chip">${L.mode}</span>${S.personalCount ? `<span class="chip gold">✨ ${S.personalCount} personalised</span>` : ''}
+      left = `<div class="card"><h3>${esc(L.emoji)} ${esc(L.title)} <span class="chip live">LIVE</span><span class="chip">${L.mode}</span>${L.practice ? '<span class="chip">🧪 practice questions</span>' : ''}${S.personalCount ? `<span class="chip gold">✨ ${S.personalCount} personalised</span>` : ''}
         <button class="btn red small" style="margin-left:auto" data-a="end">🏁 End game → leaderboard</button></h3>${fn(L)}</div>`;
     }
     return `<div class="hgrid"><div>${demoCard()}${left}${tvCard()}</div><div>${pendingCard()}${awardCard()}${feedCard()}</div></div>`;
@@ -81,13 +81,19 @@
     if (S.demo) {
       return `<div class="card demo-on"><div class="row"><span style="font-size:30px">🤖</span><div class="grow"><b>Demo mode: ${S.demo.bots} bots are playing along</b>
         <div class="small muted">They answer, buzz, vote, rate dances, use power-ups and send reactions. Run any game from the list below.</div></div>
-        <button class="btn red small" data-a="demoEnd">End demo & reset for the party</button></div></div>`;
+        <button class="btn red small" data-a="demoEnd">End demo & reset for the party</button></div>${practiceRow()}</div>`;
     }
     if (S.games.some((g) => g.status === 'live')) return '';
     return `<div class="card demo-off"><div class="row"><span style="font-size:30px">🤖</span><div class="grow"><b>Try a practice run with bots</b>
       <div class="small muted">Adds bot guests with questionnaire answers (couples, best friends, group votes) and teams. Join as a player in another tab or on your phone, then run the games from here. One click removes them afterwards.</div></div>
       <select data-ui="demoCount" style="width:auto">${[6, 8, 10, 12].map((n) => opt(n, `${n} bots`, ui.demoCount || 8)).join('')}</select>
-      <button class="btn rani" data-a="demoStart">🤖 Start demo</button></div></div>`;
+      <button class="btn rani" data-a="demoStart">🤖 Start demo</button></div>${practiceRow()}</div>`;
+  }
+
+  function practiceRow() {
+    const on = S.settings.practice;
+    return `<div class="practice-row ${on ? 'on' : ''}"><span>🧪 <b>Practice questions ${on ? 'ON' : 'off'}</b> · <span class="small">${on ? 'Games use a super-easy stand-in set. Your real questions stay hidden, so practising with guests spoils nothing.' : 'Turns on automatically with the demo, or switch it on to practise with guests without bots.'}</span></span>
+      <button class="btn small ${on ? 'ghost' : 'teal'}" data-a="practice" data-v="${on ? '0' : '1'}">${on ? 'Use real questions' : 'Turn on'}</button></div>`;
   }
 
   function tvCard() {
@@ -363,6 +369,7 @@
     switch (b.dataset.a) {
       case 'start': act({ type: 'startGame', gameId: id }); break;
       case 'end': if (confirm('End this game and show the leaderboard?')) act({ type: 'endGame' }); break;
+      case 'practice': act({ type: 'settings', practice: b.dataset.v === '1' }, b.dataset.v === '1' ? 'Practice questions on 🧪' : 'Real questions are back'); break;
       case 'demoStart': act({ type: 'demoStart', count: Number(ui.demoCount || 8) }, 'Bots joined! 🤖'); break;
       case 'demoEnd': if (confirm('Remove all bots and reset every score, game and power-up? Real guests stay logged in.')) act({ type: 'demoEnd' }, 'Demo over: everything reset ✨'); break;
       case 'tv': act({ type: 'tv', view: b.dataset.v }); break;

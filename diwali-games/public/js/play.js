@@ -206,7 +206,7 @@
         <button class="btn gold" data-goto="power">🎁 Peek at my secret power-ups</button></div>${feedCard()}`;
     }
     const fn = { quiz: quizP, jeopardy: jeoP, kbc: kbcP, hookstep: hookP, custom: customP }[G.type];
-    return `<div class="card panel slide-up"><div class="title"><span style="font-size:26px">${esc(G.emoji)}</span><h3>${esc(G.title)}</h3><span class="chip ${G.mode === 'team' ? 'gold' : ''}" style="margin-left:auto">${G.mode === 'team' ? 'Team' : 'Solo'}</span></div>${fn(G)}</div>`;
+    return `<div class="card panel slide-up"><div class="title"><span style="font-size:26px">${esc(G.emoji)}</span><h3>${esc(G.title)}</h3>${G.practice ? '<span class="chip" style="margin-left:auto">🧪 Practice</span>' : ''}<span class="chip ${G.mode === 'team' ? 'gold' : ''}" style="${G.practice ? '' : 'margin-left:auto'}">${G.mode === 'team' ? 'Team' : 'Solo'}</span></div>${fn(G)}</div>`;
   }
 
   const rankBefore = { q: null, rank: null };

@@ -11,6 +11,7 @@ const { smsEnabled, sendSms } = require('./sms');
 const { parseYouTube } = require('./youtube');
 const P = require('./personalize');
 const Bots = require('./bots');
+const { practiceContent } = require('./practice');
 
 const st = () => S.state;
 let ONLINE = new Set();
@@ -37,7 +38,7 @@ function liveView(viewer) {
   const found = st().games.find((g) => g.id === live.gameId);
   const game = found && playGame(found);
   if (!game) return null;
-  return { gameId: game.id, type: game.type, title: game.title, emoji: game.emoji, mode: game.mode, ...engines[game.type].view(live, game, viewer) };
+  return { gameId: game.id, type: game.type, title: game.title, emoji: game.emoji, mode: game.mode, practice: Boolean(live.practice), ...engines[game.type].view(live, game, viewer) };
 }
 
 function playerView(p, base) {
@@ -106,8 +107,14 @@ function startGame(gid) {
     if (p.doublePending) { p.doubleGameId = gid; p.doublePending = false; }
   }
   game.status = 'live';
-  const { content, count } = P.personalize(game, s);
-  s.live = { gameId: gid, ...engines[game.type].init(game), content, personalCount: count };
+  // Practice mode: easy stand-in questions so the real set stays unseen; personal questions
+  // only use the bots' answers, so real guests' answers aren't revealed either.
+  let content, count;
+  if (s.settings.practice) {
+    const bots = Object.fromEntries(Object.entries(s.players).filter(([, p]) => p.bot));
+    ({ content, count } = P.personalize({ ...game, content: practiceContent(game) }, { ...s, players: bots, personalUsed: [] }));
+  } else ({ content, count } = P.personalize(game, s));
+  s.live = { gameId: gid, ...engines[game.type].init(game), content, personalCount: count, practice: Boolean(s.settings.practice) };
   s.tv.view = 'game';
   const base = game.mode === 'team' ? 'Team game — huddle up!' : 'Every player for themselves!';
   S.announce({ emoji: game.emoji, title: game.title, text: count ? `${base} ✨ ${count} ${count === 1 ? 'question is' : 'questions are'} about YOU!` : base, kind: 'start', ms: 5000 });
@@ -251,7 +258,7 @@ function hostAction(a) {
   const s = st();
   switch (a.type) {
     case 'settings': {
-      const allowed = ['eventName', 'powerupsEnabled', 'stealAmount', 'swapCap', 'powerupsPerPlayer', 'personalPct', 'questionnaireOpen'];
+      const allowed = ['eventName', 'powerupsEnabled', 'stealAmount', 'swapCap', 'powerupsPerPlayer', 'personalPct', 'questionnaireOpen', 'practice'];
       for (const k of allowed) if (a[k] !== undefined) s.settings[k] = typeof s.settings[k] === 'number' ? Number(a[k]) || 0 : a[k];
       break;
     }
@@ -280,9 +287,10 @@ function hostAction(a) {
     }
     case 'undo': s.ledger = s.ledger.filter((e) => e.id !== a.entryId); break;
     case 'media': mediaAction(a); break;
-    case 'demoStart': Bots.create(s, Math.max(2, Math.min(14, Number(a.count) || 8))); break;
+    case 'demoStart': Bots.create(s, Math.max(2, Math.min(14, Number(a.count) || 8))); s.settings.practice = true; break;
     case 'demoEnd': {
       Bots.remove(s);
+      s.settings.practice = false;
       hostAction({ type: 'resetScores' });
       S.announce({ emoji: '🪔', title: 'Demo over!', text: 'Scores reset. The real party starts now ✨', ms: 5000 });
       break;

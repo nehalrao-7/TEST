@@ -68,7 +68,7 @@
   function render() {
     document.title = `${S.eventName} — TV`;
     App.patch($('eventName'), S.eventName.split(' ').length > 2 ? esc(S.eventName).replace(/(\S+\s+\S+)$/, '<span>$1</span>') : esc(S.eventName));
-    App.patch($('nowPlaying'), S.live ? `<span class="plaque">${esc(S.live.emoji)} ${esc(S.live.title)} · ${S.live.mode === 'team' ? 'Teams' : 'Solo'}</span>` : '');
+    App.patch($('nowPlaying'), S.live ? `<span class="plaque">${esc(S.live.emoji)} ${esc(S.live.title)} · ${S.live.mode === 'team' ? 'Teams' : 'Solo'}${S.live.practice ? ' · 🧪 Practice' : ''}</span>` : '');
     App.patch($('miniTop'), S.players.slice(0, 3).filter((p) => p.score > 0).map((p, i) => `<div class="m">${['🥇', '🥈', '🥉'][i]} ${av(p)} ${esc(p.name)} · ${fmt(p.score)}</div>`).join(''));
     App.patch($('ticker'), S.feed.length ? S.feed.map((f) => `<span>${esc(f.emoji || '✨')} ${esc(f.text)}</span>`).join('') : `<span>🪔 Shubh Deepavali! Join at <b>${esc(joinUrl())}</b></span><span>✨ Every guest gets secret power-ups…</span><span>📱 Send reactions from your phone — they float up right here!</span>`);
     detectArrivals();

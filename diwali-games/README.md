@@ -125,6 +125,8 @@ Without the `SUPABASE_*` variables, the local server keeps state in `data/state.
 - vote in the audience poll, buzz in Jeopardy and rate Hook Step dances
 - use power-ups between games and send emoji reactions
 
+Starting the demo also switches on **🧪 practice questions**: a super-easy stand-in set (Lion King emoji clues, 2 + 2, Jeopardy on colours and animals, a 4-level KBC). Personal questions use only the bots' answers, so you can practise with real guests without spoiling the actual questions. You can also turn practice questions on without bots, from the same card.
+
 Join as a player in another tab or on your phone and run the games from the host tab. **End demo & reset for the party** removes the bots and resets every score, game and power-up. Real guests stay logged in.
 
 ## Party-night checklist
