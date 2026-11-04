@@ -136,7 +136,14 @@ function endGame() {
 
 
 // ---------------- Diwali Awards (end-of-night ceremony) ----------------
+const AWARD_POINTS = 200;
+// During the ceremony the award list is frozen, so the +200s it hands out can't reshuffle it.
 function computeAwards() {
+  const s = st();
+  if (s.awardsFrozen) return s.awardsFrozen;
+  return computeAwardsLive();
+}
+function computeAwardsLive() {
   const s = st();
   const players = Object.values(s.players);
   const stat = (id) => (s.stats || {})[id] || {};
@@ -307,11 +314,22 @@ function hostAction(a) {
       break;
     }
     case 'clearAnswer': { const p = s.players[a.playerId]; if (p && p.answers) delete p.answers[a.promptId]; break; }
-    case 'tv': if (['lobby', 'game', 'leaderboard', 'podium', 'teams', 'awards'].includes(a.view)) { s.tv.view = a.view; if (a.view === 'awards') s.tv.awardIndex = 0; } break;
+    case 'tv': if (['lobby', 'game', 'leaderboard', 'podium', 'teams', 'awards'].includes(a.view)) {
+      if (a.view === 'awards' && s.tv.view !== 'awards') { s.tv.awardIndex = 0; if (!s.awardsFrozen) s.awardsFrozen = computeAwardsLive(); }
+      s.tv.view = a.view;
+    } break;
     case 'award-step': {
-      const n = computeAwards().length;
+      if (!s.awardsFrozen) s.awardsFrozen = computeAwardsLive();
+      const list = s.awardsFrozen;
       s.tv.view = 'awards';
-      s.tv.awardIndex = Math.max(0, Math.min(n + 1, (s.tv.awardIndex || 0) + (a.dir < 0 ? -1 : 1))); // 0 = intro, 1..n awards, n+1 champion
+      s.tv.awardIndex = Math.max(0, Math.min(list.length + 1, (s.tv.awardIndex || 0) + (a.dir < 0 ? -1 : 1))); // 0 = intro, 1..n awards, n+1 champion
+      // Awards are worth points (Mario Party bonus stars): the standings can flip during the ceremony.
+      const aw = list[s.tv.awardIndex - 1];
+      s.awardsGiven = s.awardsGiven || {};
+      if (aw && !s.awardsGiven[aw.id]) {
+        s.awardsGiven[aw.id] = true;
+        aw.winners.forEach((w) => S.award(w.id, AWARD_POINTS, `🏆 ${aw.title}`, null, { kind: 'award', noDouble: true }));
+      }
       break;
     }
     case 'announce': S.announce({ emoji: a.emoji || '📣', title: String(a.title || 'Announcement').slice(0, 40), text: String(a.text || '').slice(0, 140), ms: 8000 }); break;
@@ -357,7 +375,7 @@ function hostAction(a) {
       break;
     }
     case 'clearPending': s.pending = {}; break;
-    case 'resetScores': s.ledger = []; s.rankSnapshots = {}; s.stats = {}; s.personalUsed = []; s.live = null; s.games.forEach((g) => { g.status = 'pending'; });
+    case 'resetScores': s.ledger = []; s.rankSnapshots = {}; s.stats = {}; s.personalUsed = []; s.awardsFrozen = null; s.awardsGiven = {}; s.live = null; s.games.forEach((g) => { g.status = 'pending'; });
       Object.values(s.players).forEach((p) => { p.doubleGameId = null; p.doublePending = false; p.powerups = S.dealPowerups(s.settings.powerupsPerPlayer); });
       s.tv = { view: 'lobby', announce: null, compareGameId: null }; s.feed = []; break;
     case 'resetAll': { const fresh = S.freshState(); fresh.hostTokens = s.hostTokens; S.setState(fresh); break; }
@@ -454,7 +472,7 @@ function viewFor(role, tok) {
     if (!p) throw new HttpError(401, 'Please log in again.');
     return playerView(p, baseFor());
   }
-  const tvExtra = st().tv.view === 'awards' ? { awards: computeAwards() } : {};
+  const tvExtra = st().tv.view === 'awards' ? { awards: computeAwards(), awardPoints: AWARD_POINTS } : {};
   return { ...baseFor(), role: 'tv', live: liveView({ tv: true }), media: currentMedia(), ...tvExtra, reactions: LOCAL_REACTS.length ? LOCAL_REACTS : undefined };
 }
 
@@ -473,6 +491,15 @@ async function handle(store, method, path, body = {}, query = {}) {
     }
     if (method !== 'POST') return { status: 405, json: { error: 'Method not allowed' } };
 
+    if (path === 'applause') {
+      // The TV's microphone reports how loud the crowd cheered for a Hook Step dance.
+      await run(store, () => {
+        const live = st().live;
+        const game = live && st().games.find((g) => g.id === live.gameId);
+        if (game && game.type === 'hookstep') engines.hookstep.applause(live, String(body.id || ''), body.level);
+      });
+      return { json: { ok: true } };
+    }
     if (path === 'react') {
       // Local mode only — hosted mode sends reactions peer-to-peer over Supabase Realtime.
       const r = { at: Date.now(), id: String(body.id || Math.random()).slice(0, 20), emoji: String(body.emoji || '').slice(0, 8), name: String(body.name || '').slice(0, 20) };

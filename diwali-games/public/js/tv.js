@@ -254,7 +254,7 @@
     return [`<div class="awards"><div class="award-card paper"><div class="kicker">award ${i} of ${list.length}</div><div class="medal">${esc(a.emoji)}</div>
       <h1>${esc(a.title)}</h1><div class="desc">${esc(a.desc)}</div><div class="drumline">and it goes to… 🥁</div>
       <div class="winners">${a.winners.map((w) => `<div class="winner">${av(w)}<b>${esc(w.name)}</b></div>`).join('')}</div>
-      <div class="value">${esc(a.value)}</div>${dots}</div></div>`, 'award-' + a.id];
+      <div class="value">${esc(a.value)}${S.awardPoints ? ` · <b>+${S.awardPoints} points</b>` : ''}</div>${dots}</div></div>`, 'award-' + a.id];
   }
 
   // ---------------- games ----------------
@@ -273,7 +273,7 @@
     if (L.phase === 'intro') return [intro(L, 'Answer on your phone — match the colour and the shape!', [`${L.total} questions`, L.mode === 'team' ? '👥 teams score their average' : '⚡ faster = more points', '🔥 3 in a row = streak bonus']), 'q-intro'];
     if (L.phase === 'final') return [intro({ ...L, emoji: '🎆' }, 'Round complete! The standings are coming up…'), 'q-final'];
     const q = L.question;
-    const head = `<div class="ghead"><span class="pill gold">Q ${L.qIndex + 1} / ${L.total}</span><span class="pill">${esc(L.title)}</span>${q && q.personal ? '<span class="pill personal">✨ About our guests</span>' : ''}
+    const head = `<div class="ghead"><span class="pill gold">Q ${L.qIndex + 1} / ${L.total}</span><span class="pill">${esc(L.title)}</span>${L.doubleDiya ? '<span class="pill personal">✨ Double Diya · ×2 points</span>' : ''}${q && q.personal ? '<span class="pill personal">✨ About our guests</span>' : ''}
       ${L.phase === 'question' && App.now() >= L.opensAt ? medalCount(L.deadline, L.opensAt) : ''}</div>`;
     const qcard = `<div class="qcard paper">${q.clue ? `<div class="clue">${esc(q.clue)}</div>` : ''}${q.image ? `<img class="qimg" src="${esc(q.image)}" alt=""/>` : ''}<div class="q">${esc(q.q)}</div></div>`;
 
@@ -281,7 +281,7 @@
       const waiting = App.now() < L.opensAt;
       if (waiting) setTimeout(render, L.opensAt - App.now() + 30);
       const opts = waiting
-        ? `<div class="countdown-big" data-count="${L.opensAt}"></div>`
+        ? `${L.doubleDiya ? '<div class="dd-banner">✨ Double Diya — the final question is worth double! ✨</div>' : ''}<div class="countdown-big" data-count="${L.opensAt}"></div>`
         : `<div class="opts">${q.options.map((o, i) => `<div class="opt o${i}">${shapeK(i)}${esc(o)}</div>`).join('')}</div>`;
       return [`<div class="gframe">${head}${waiting ? '' : timerBar(L.opensAt, L.deadline)}${qcard}${opts}${lockins(L.answeredIds)}</div>`, `q-${L.qIndex}${waiting ? '-w' : ''}`];
     }
@@ -308,34 +308,50 @@
   }
 
   function jeopardyScene(L) {
-    const head = `<div class="ghead"><span class="pill gold">🧠 ${esc(L.title)}</span><span class="pill">${L.mode === 'team' ? 'Teams' : 'Solo'} · buzz on your phone</span></div>`;
+    const ctl = L.control;
+    const head = `<div class="ghead"><span class="pill gold">🧠 ${esc(L.title)}</span>${ctl ? `<span class="pill control" style="--tc:${ctl.color}">${esc(ctl.emoji)} ${esc(ctl.name)} ${L.phase === 'board' ? 'picks next' : 'in control'}</span>` : ''}</div>`;
     if (L.phase === 'board') {
       const cats = L.categories;
       const rows = Math.max(...cats.map((c) => c.clues.length));
-      let cells = cats.map((c) => `<div class="jcat">${esc(c.name)}</div>`).join('');
+      let cells = cats.map((c, ci) => `<div class="jcat" style="animation-delay:${ci * 0.06}s">${esc(c.name)}</div>`).join('');
       for (let i = 0; i < rows; i++) {
-        cells += cats.map((c) => {
+        cells += cats.map((c, ci) => {
           const cl = c.clues[i];
           if (!cl) return '<div></div>';
           if (cl.used) { const e = cl.by && L.entities[cl.by]; return `<div class="jcell used">${e ? esc(e.emoji) : '—'}</div>`; }
-          return `<div class="jcell">${cl.value}</div>`;
+          return `<div class="jcell" style="animation-delay:${0.2 + (i * cats.length + ci) * 0.025}s">${cl.value}</div>`;
         }).join('');
       }
       return [`<div class="gframe">${head}<div class="jboard" style="grid-template-columns:repeat(${cats.length},1fr);grid-template-rows:auto repeat(${rows},1fr)">${cells}</div></div>`, 'j-board'];
     }
     const c = L.clue;
+    if (L.phase === 'dd') {
+      return [`<div class="gframe">${head}<div class="dd-stage"><div class="dd-gem">💎</div><h1>Daily Double!</h1><p>${ctl ? `${esc(ctl.emoji)} ${esc(ctl.name)}` : 'The team in control'} — how much will you wager?</p><div class="dd-cat">${esc(c.category)}</div></div></div>`, `j-dd-${L.cur.c}-${L.cur.i}`];
+    }
     const queue = L.buzzes.map((b) => `<div class="lrow ${L.active && L.active.key === b.key ? 'active' : ''} ${L.locked.includes(b.key) ? 'locked' : ''}"><span class="avatar" style="--c:${b.color}">${esc(b.emoji)}</span>${esc(b.name)}${b.kind === 'team' ? ` <span class="small" style="opacity:.7">(${esc(b.buzzerName)})</span>` : ''}<span class="pts">${(b.ms / 1000).toFixed(2)}s</span></div>`).join('');
     const answer = L.phase === 'answer';
     const correct = answer && L.last && L.last.correct;
     if (L.active && !answer && prev.buzzKey !== L.active.key) App.sfx('buzz');
     prev.buzzKey = L.active ? L.active.key : null;
-    const side = `<div class="list-card bq"><h3>🔔 Buzzers</h3>${L.buzzOpen && !L.buzzes.length ? '<div class="buzz-now">BUZZ NOW!</div>' : ''}${queue}
-      ${answer && correct ? `<div class="buzz-now" style="animation:none;margin-top:1vw">+${L.last.value} to ${esc(L.last.info.name)}!</div>` : ''}</div>`;
-    return [`<div class="gframe">${head}<div class="jclue"><div class="qcard paper"><div class="cat">${esc(c.category)} · ${c.value}</div><div class="q">${esc(c.q)}</div>${answer ? `<div class="ans pop">✨ ${esc(c.a)}</div>` : ''}</div>${side}</div></div>`, `j-clue-${L.cur.c}-${L.cur.i}${answer ? (correct ? '-answer-correct' : '-answer') : ''}`];
+    let status;
+    if (L.dd) status = `<div class="buzz-state dd">💎 ${esc(ctl ? ctl.name : '')} · wager ${fmt(L.wager)}</div>`;
+    else if (answer) status = correct ? `<div class="buzz-state win">+${fmt(L.last.value)} to ${esc(L.last.info.name)}!</div>` : '';
+    else if (!L.buzzOpen) status = `<div class="buzz-state armed">🔒 Buzzers armed<small>listen to the host…</small></div>`;
+    else if (!L.buzzes.length) status = `<div class="buzz-state open">🔔 BUZZ NOW!</div>`;
+    else status = '';
+    const side = `<div class="list-card bq"><h3>🔔 Buzzers</h3>${status}${queue}</div>`;
+    return [`<div class="gframe">${head}<div class="jclue"><div class="qcard paper ${L.buzzOpen && !answer ? 'live' : ''}"><div class="cat">${esc(c.category)} · ${fmt(c.value)}${L.dd ? ' · 💎 Daily Double' : ''}</div><div class="q">${esc(c.q)}</div>${answer ? `<div class="ans pop">✨ ${esc(c.a)}</div>` : ''}</div>${side}</div></div>`, `j-clue-${L.cur.c}-${L.cur.i}${answer ? (correct ? '-answer-correct' : '-answer') : ''}`];
   }
 
   function ladderHtml(L, curLevel, doneUpTo) {
     return `<div class="ladder">${L.ladder.map((l, i) => `<div class="lv ${l.safe ? 'safe' : ''} ${i === curLevel ? 'cur' : ''} ${i < doneUpTo ? 'done' : ''}"><span>${i + 1}</span><span>${l.safe ? '★ ' : ''}${fmt(l.points)}</span></div>`).join('')}</div>`;
+  }
+  function predBar(h) {
+    const pc = h.predCounts || { sahi: 0, galat: 0 };
+    const tot = pc.sahi + pc.galat;
+    if (!tot) return h.qPhase === 'question' ? '<div class="pred-bar empty">🔮 Audience — call it on your phones: Sahi or Galat?</div>' : '';
+    const res = h.predResult && h.qPhase !== 'question' ? `<b class="called">🔮 ${h.predResult.right.length} called it · +25 each</b>` : '';
+    return `<div class="pred-bar"><span class="ps" style="flex:${pc.sahi || 0.001}">✅ ${pc.sahi} Sahi</span><span class="pg" style="flex:${pc.galat || 0.001}">${pc.galat} Galat ❌</span></div>${res}`;
   }
   function kbcScene(L) {
     const head = `<div class="ghead"><span class="pill gold">💰 Kaun Banega Crorepati</span></div>`;
@@ -380,31 +396,78 @@
     const key = `hot-${h.pid}-${lvl}-${h.qPhase}${h.qPhase === 'over' ? (h.status === 'won' ? '-won' : '-wrong') : ''}${h.qPhase === 'reveal' ? '-reveal-kbc' : ''}`;
     return [`<div class="gframe">${head}<div class="kbc"><div class="kbc-main">
       <div class="kbc-hot">${av(p)} ${esc(p ? p.name : '')} in the hot seat · Question ${lvl + 1} for ${fmt(L.ladder[lvl].points)}${q.personal ? ' · <span class="pill personal">✨ About our guests</span>' : ''}</div>
-      <div class="kbc-q">${esc(q.q)}</div>${opts}${banner}${phone}
+      <div class="kbc-q">${esc(q.q)}</div>${opts}${banner}${phone}${predBar(h)}
       </div><div class="kbc-side">${lifelines}${pollHtml && h.qPhase === 'question' ? pollHtml : ladderHtml(L, h.qPhase === 'over' ? -1 : lvl, h.level)}</div></div></div>`, key];
   }
 
   function hookScene(L) {
-    const head = `<div class="ghead"><span class="pill gold">💃 ${esc(L.title)}</span>${L.phase === 'perform' || L.phase === 'voting' ? medalCount(L.until, L.startedAt) : ''}</div>`;
     const perf = L.perf;
-    const who = perf ? perf.performer : null;
-    const whoHtml = who ? `<div class="perf">${entAv(who)}<h1>${esc(who.name)}</h1>${perf.members ? `<div class="step">${perf.members.map(esc).join(' · ')}</div>` : ''}</div>` : '';
-    if (L.phase === 'idle') {
-      const res = L.results.length ? `<div class="list-card" style="width:60vw;margin-top:2vw;text-align:left"><h3>Performances so far</h3>${[...L.results].sort((a, b) => b.points - a.points).map((r) => `<div class="lrow">${entAv(r.performer)}${esc(r.performer.name)} <span class="small" style="opacity:.7">${esc(r.song)} · ${r.avg}★</span><span class="pts">+${r.points}</span></div>`).join('')}</div>` : '';
-      return [`<div class="gframe">${head}<div class="hook"><div>${intro({ emoji: '💃', title: L.title }, 'Spin a song · nail the hook step · the crowd rates you 1–5 diyas')}${res}</div></div></div>`, 'hook-idle'];
+    const team = perf && perf.team;
+    const head = `<div class="ghead"><span class="pill gold">💃 ${esc(L.title)}</span>${team ? `<span class="pill control" style="--tc:${team.color}">${esc(team.emoji)} ${esc(team.name)}</span>` : ''}<span class="pill">📵 No phones · +${L.bonus} for every dancer</span>${L.phase === 'perform' ? medalCount(L.until, L.startedAt) : ''}</div>`;
+    const dancers = (list) => `<div class="dancers">${(list || []).map((d, i) => `<div class="dancer" style="animation-delay:${i * 0.08}s">${av(d)}<b>${esc(d.name)}</b><small>+${L.bonus}</small></div>`).join('')}</div>`;
+    if (L.phase === 'idle' || !perf) {
+      const res = L.results.length ? `<div class="list-card hook-results"><h3>Dance-offs so far</h3>${[...L.results].sort((a, b) => b.teamPoints - a.teamPoints).map((r) => `<div class="lrow">${r.team ? `<span class="avatar" style="--c:${r.team.color}">${esc(r.team.emoji)}</span>${esc(r.team.name)}` : '💃 Open floor'} <span class="small" style="opacity:.7">${esc(r.song)} · ${'🪔'.repeat(r.stars)} · ${r.dancers.length} dancers</span><span class="pts">+${r.teamPoints}</span></div>`).join('')}</div>` : '';
+      return [`<div class="gframe">${head}<div class="hook"><div>${intro({ emoji: '💃', title: L.title }, 'Phones down. A song spins, a team is called up — <b>anyone who dances earns a personal bonus</b> on top of the team points.')}${res}</div></div></div>`, 'hook-idle'];
     }
-    if (L.phase === 'spin') return [`<div class="gframe">${head}<div class="hook"><div class="perf">${whoHtml}<div class="slot paper" id="slot">🎵</div></div></div></div>`, 'spin'];
+    if (L.phase === 'spin') return [`<div class="gframe">${head}<div class="hook"><div class="perf">${team ? `<div class="call">${esc(team.emoji)} ${esc(team.name)}</div>` : ''}<div class="reel paper"><div class="reel-win" id="slot">🎵</div></div><div class="hand-note">Spinning the song…</div></div></div></div>`, 'spin'];
     const song = perf.song;
-    const songHtml = song ? `<div class="song">🎵 ${esc(song.title)}</div><div class="step">Hook step: <b>${esc(song.step)}</b></div>` : '<div class="song">🎵 Song: ???</div>';
-    if (L.phase === 'ready') return [`<div class="gframe">${head}<div class="hook"><div class="perf">${whoHtml}${songHtml}<div class="hand-note">Get ready… 💫</div></div></div></div>`, 'hook-ready-' + (who && who.key) + (song ? song.title : '')];
-    if (L.phase === 'perform') return [`<div class="gframe">${head}${timerBar(L.startedAt, L.until)}<div class="hook"><div class="perf">${whoHtml}${songHtml}<div class="big-count" data-count="${L.until}"></div></div></div></div>`, 'hook-perform'];
-    if (L.phase === 'voting' || L.phase === 'tally') return [`<div class="gframe">${head}<div class="hook"><div class="perf">${whoHtml}<h1 style="font-size:4vw">${L.phase === 'voting' ? 'Rate it on your phones! 🪔' : 'Votes are in…'}</h1><div class="song">${perf.votes} votes</div></div></div></div>`, 'hook-vote-' + L.phase];
+    const songHtml = song ? `<div class="song">🎵 ${esc(song.title)}</div><div class="step">Hook step: <b>${esc(song.step)}</b></div>` : '';
+    if (L.phase === 'ready') {
+      return [`<div class="gframe">${head}<div class="hook"><div class="perf"><div class="call big">${team ? `${esc(team.emoji)} ${esc(team.name)}` : 'Open floor!'}</div>
+        <h1 class="brave">Who's brave enough? Come up!</h1>${songHtml}${dancers(perf.dancers)}</div></div></div>`, 'hook-ready-' + (song ? song.title : '')];
+    }
+    if (L.phase === 'perform') {
+      return [`<div class="gframe">${head}${timerBar(L.startedAt, L.until)}<div class="hook"><div class="perf">${songHtml}<div class="big-count" data-count="${L.until}"></div>${perf.dancers.length ? dancers(perf.dancers) : '<div class="hand-note">Get up and dance! 💃🕺</div>'}</div></div></div>`, 'hook-perform'];
+    }
+    if (L.phase === 'judge') {
+      const stars = perf.stars || 0;
+      const measuring = perf.measure && !perf.applause && perf.applause !== 0;
+      if (perf.measure && prev.measureId !== perf.measure.id) { prev.measureId = perf.measure.id; measureApplause(perf.measure.id); }
+      return [`<div class="gframe">${head}<div class="hook"><div class="perf"><h1 style="font-size:4vw">The verdict…</h1>
+        <div class="stars-tv judge">${[1, 2, 3, 4, 5].map((n) => `<span class="${n <= stars ? 'on' : ''}" style="transition-delay:${n * 0.08}s">🪔</span>`).join('')}</div>
+        <div class="applause"><span>👏 Crowd</span><div class="meter"><i id="meterFill" style="width:${perf.applause || 0}%"></i></div><b id="meterVal">${measuring ? 'CHEER NOW!' : perf.applause != null ? perf.applause : '—'}</b></div>
+        ${dancers(perf.dancers)}</div></div></div>`, 'hook-judge'];
+    }
     const last = L.last;
-    const full = Math.round(last.avg);
-    return [`<div class="gframe">${head}<div class="hook"><div class="perf">${entAv(last.performer)}<h1>${esc(last.performer.name)}</h1>
-      <div class="stars-tv">${'🪔'.repeat(full)}<span style="opacity:.25">${'🪔'.repeat(5 - full)}</span></div>
-      <div class="song">${last.avg} avg from ${last.votes} votes${last.judge ? ` + ${last.judge} judges' bonus` : ''}</div>
-      <h1 style="color:var(--haldi)" class="pop">+${last.points} points</h1></div></div></div>`, 'hook-scored-' + L.results.length];
+    return [`<div class="gframe">${head}<div class="hook hook-scored-fit"><div class="perf">
+      <div class="call big">${last.team ? `${esc(last.team.emoji)} ${esc(last.team.name)}` : 'Open floor'}</div>
+      <div class="stars-tv">${'🪔'.repeat(last.stars)}<span style="opacity:.2">${'🪔'.repeat(5 - last.stars)}</span></div>
+      <h1 class="pop team-pts">+${last.teamPoints} <small>${last.team ? 'team points' : 'points each'}</small></h1>
+      ${last.crowd ? `<div class="song">👏 Crowd bonus +${last.crowd}</div>` : ''}
+      ${last.dancers.length ? `<div class="hand-note">Himmat bonus for every dancer 🙌</div>${dancers(last.dancers)}` : ''}</div></div></div>`, 'hook-scored-' + L.results.length];
+  }
+
+  // Applause-o-meter: the TV's microphone listens to the crowd for 5 seconds.
+  async function measureApplause(id) {
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    } catch { App.toast('Allow the microphone on the TV to use the Applause-o-meter', true); return; }
+    const ac = App.audio || new (window.AudioContext || window.webkitAudioContext)();
+    App.audio = ac; ac.resume();
+    const an = ac.createAnalyser(); an.fftSize = 1024;
+    ac.createMediaStreamSource(stream).connect(an);
+    const buf = new Float32Array(an.fftSize);
+    const t0 = performance.now(); let peak = 0, sum = 0, n = 0;
+    App.sfx('drumroll');
+    await new Promise((resolve) => {
+      const step = () => {
+        an.getFloatTimeDomainData(buf);
+        let rms = 0; for (let i = 0; i < buf.length; i++) rms += buf[i] * buf[i];
+        rms = Math.sqrt(rms / buf.length);
+        const level = Math.max(0, Math.min(100, (20 * Math.log10(rms + 1e-6) + 55) * 2.2)); // ~-55 dB → 0, ~-10 dB → 100
+        peak = Math.max(peak, level); sum += level; n++;
+        const fill = document.getElementById('meterFill'), val = document.getElementById('meterVal');
+        if (fill) fill.style.width = level.toFixed(0) + '%';
+        if (val) val.textContent = level.toFixed(0);
+        if (performance.now() - t0 < 5000) requestAnimationFrame(step); else resolve();
+      };
+      step();
+    });
+    stream.getTracks().forEach((t) => t.stop());
+    const score = Math.round(0.6 * peak + 0.4 * (sum / Math.max(1, n)));
+    App.sfx('ding'); App.fireworks(score / 80);
+    fetch('/api/applause', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, level: score }) }).catch(() => {});
   }
 
   function customScene(L) {

@@ -83,10 +83,72 @@
       left = `<div class="card"><h3>${esc(L.emoji)} ${esc(L.title)} <span class="chip live">LIVE</span><span class="chip">${L.mode}</span>${L.practice ? '<span class="chip">🧪 practice questions</span>' : ''}${S.personalCount ? `<span class="chip gold">✨ ${S.personalCount} personalised</span>` : ''}
         <button class="btn red small" style="margin-left:auto" data-a="end">🏁 End game → leaderboard</button></h3>${fn(L)}</div>`;
     }
-    return `<div class="hgrid"><div>${demoCard()}${left}${tvCard()}</div><div>${pendingCard()}${awardCard()}${feedCard()}</div></div>`;
+    return `${cueBar()}<div class="hgrid"><div>${demoCard()}${left}${tvCard()}</div><div>${pendingCard()}${awardCard()}${feedCard()}</div></div>`;
+  }
+
+  // ---------- Run of show + the single "next cue" (a stage manager's cue list) ----------
+  function nextCue() {
+    const L = S.live;
+    const g = (action, label, hint) => ({ label, hint, run: () => gameAct(action) });
+    const a = (action, label, hint) => ({ label, hint, run: () => act(action) });
+    const wait = (label, hint) => ({ label, hint, disabled: true });
+    if (!L) {
+      const next = S.games.find((x) => x.status === 'pending');
+      if (S.tv.view === 'awards') {
+        const n = S.awardsCount || 0, i = S.tv.awardIndex || 0;
+        return i <= n ? a({ type: 'award-step', dir: 1 }, i === 0 ? '🎖️ Reveal the first award' : i === n ? '🪔 Reveal the champion' : '▶ Next award', `Each award adds +200 points`) : a({ type: 'tv', view: 'podium' }, '🥇 Show the podium', 'The grand finale');
+      }
+      if (next) return a({ type: 'startGame', gameId: next.id }, `▶ Start ${next.emoji} ${next.title}`, next.mode === 'team' && !S.teams.length ? 'Make teams first (Players tab)' : `${S.players.length} players ready`);
+      return a({ type: 'tv', view: 'awards' }, '🎖️ Start the Diwali Awards', 'All games played — time for the ceremony');
+    }
+    const end = a({ type: 'endGame' }, '🏁 End game → standings', 'Shows the standings on the TV');
+    if (L.type === 'quiz') {
+      if (L.phase === 'intro') return g({ type: 'next' }, '▶ First question', `${L.total} questions`);
+      if (L.phase === 'question') return g({ type: 'reveal' }, '⏩ Reveal the answer', `${L.answered} answered`);
+      if (L.phase === 'reveal') return L.qIndex + 1 >= L.total ? g({ type: 'next' }, '🏁 Finish the round', 'That was the Double Diya') : g({ type: 'next' }, '▶ Next question', L.qIndex + 2 === L.total ? 'Next one is the ✨ Double Diya' : `Q${L.qIndex + 2} of ${L.total}`);
+      return end;
+    }
+    if (L.type === 'jeopardy') {
+      if (L.phase === 'board') return L.categories.every((c) => c.clues.every((x) => x.used)) ? end : wait('👇 Tap the clue they call', `${L.control ? L.control.name : 'The team in control'} picks next`);
+      if (L.phase === 'dd') return { label: '💎 Lock the wager', hint: 'Enter it below', run: () => gameAct({ type: 'wager', amount: Number(ui.wager || 500) }) };
+      if (L.phase === 'clue' && !L.buzzOpen && !L.dd) return g({ type: 'openBuzz' }, '🔔 Open buzzers', 'After you have read the clue aloud');
+      if (L.phase === 'clue') return L.active ? g({ type: 'correct' }, `✓ Correct — ${L.active.name}`, 'Or tap ✗ Wrong below') : g({ type: 'reveal' }, '🙊 Nobody? Reveal the answer', 'Waiting for buzzes…');
+      return g({ type: 'board' }, '↩ Back to the board', L.control ? `${L.control.name} picks next` : '');
+    }
+    if (L.type === 'kbc') {
+      if (L.phase === 'idle') return g({ type: 'ff' }, '⚡ Fastest Finger First', 'Everyone answers on their phone');
+      if (L.phase === 'ff') return g({ type: 'ffClose' }, '⏩ Close Fastest Finger', `${L.ff.answered} answered`);
+      if (L.phase === 'ff-result') return L.ff.result.winner ? g({ type: 'seat' }, `🪑 Seat ${pname(L.ff.result.winner).replace(/<[^>]+>/g, '')}`, 'Into the hot seat') : g({ type: 'ff' }, '⚡ Another Fastest Finger', 'Nobody got it right');
+      const h = L.hot;
+      if (h.qPhase === 'question') return h.locked == null ? wait('⏳ Waiting for the lock', 'Or lock for them below') : g({ type: 'reveal' }, '🎯 Reveal the answer', 'Lock kiya jaaye…');
+      if (h.qPhase === 'reveal') return g({ type: 'nextQ' }, '▶ Next question', `For ${fmt(L.ladder[h.level].points)}`);
+      return g({ type: 'ff' }, '⚡ Next Fastest Finger', 'Or end the game');
+    }
+    if (L.type === 'hookstep') {
+      const p = L.perf;
+      const nextTeam = () => { const used = L.results.map((r) => r.team && r.team.key); const t = S.teams.find((x) => !used.includes('t:' + x.id)) || S.teams[0]; return t ? 't:' + t.id : null; };
+      if (!p || L.phase === 'idle' || L.phase === 'scored') {
+        if (L.phase === 'scored' && S.teams.length && L.results.length >= S.teams.length) return end;
+        return { label: L.mode === 'team' ? '📣 Call the next team up' : '📣 Open the floor', hint: 'A song spins next', run: () => gameAct({ type: 'setup', team: L.mode === 'team' ? (ui.hookTeam || nextTeam()) : null, songIndex: ui.song }) };
+      }
+      if (L.phase === 'spin') return wait('🎰 Spinning…', '');
+      if (L.phase === 'ready') return p.song ? g({ type: 'perform' }, '▶ Start the dance', `🎵 ${p.song.title}`) : g({ type: 'spin' }, '🎰 Spin a song on the TV', 'Builds suspense');
+      if (L.phase === 'perform') return g({ type: 'stop' }, '⏹ Stop — time to judge', `${p.dancers.length} dancers tapped in`);
+      return p.stars ? g({ type: 'score' }, '🏅 Award the points', `${p.stars} diyas · ${p.dancers.length} dancers`) : wait('🪔 Rate the dance below', 'Tap 1–5 diyas, then measure the crowd');
+    }
+    return end;
+  }
+  function cueBar() {
+    const cue = nextCue();
+    window._cue = cue;
+    const steps = [['lobby', '🏠 Lobby', S.tv.view === 'lobby' && !S.live]].concat(S.games.map((x) => [x.id, `${x.emoji} ${x.title}`, x.status === 'live', x.status === 'done'])).concat([['awards', '🎖️ Awards', S.tv.view === 'awards'], ['podium', '🥇 Podium', S.tv.view === 'podium']]);
+    return `<div class="cue-bar"><div class="ros">${steps.map(([k, l, on, done]) => `<span class="ros-step ${on ? 'on' : ''} ${done ? 'done' : ''}">${esc(l)}</span>`).join('<i></i>')}</div>
+      <div class="cue-main"><div class="cue-hint"><span class="eyebrow">Next cue</span><b>${esc(cue.hint || '')}</b></div>
+      <button class="btn big cue-btn" data-a="cue" ${cue.disabled ? 'disabled' : ''}>${esc(cue.label)}<kbd>Space</kbd></button></div></div>`;
   }
 
   function demoCard() {
+    if (S.demo && S.live) return `<div class="demo-slim">🤖 Demo: ${S.demo.bots} bots playing along${S.settings.practice ? ' · 🧪 practice questions' : ''}<span class="grow"></span><button class="btn small red" data-a="demoEnd">End demo & reset</button></div>`;
     if (S.demo) {
       return `<div class="card demo-on"><div class="row"><span style="font-size:30px">🤖</span><div class="grow"><b>Demo mode: ${S.demo.bots} bots are playing along</b>
         <div class="small muted">They answer, buzz, vote, rate dances, use power-ups and send reactions. Run any game from the list below.</div></div>
@@ -174,18 +236,29 @@
 
   // ---------- jeopardy ----------
   function jeoCtl(L) {
+    const ctlSel = `<div class="row"><span class="small muted">In control:</span><select data-a="setControl" style="width:auto">${(L.mode === 'team' ? S.teams.map((t) => ['t:' + t.id, `${t.emoji} ${t.name}`]) : S.players.map((p) => ['p:' + p.id, `${p.avatar} ${p.name}`])).map(([k, l]) => opt(k, esc(l), L.control ? L.control.key : '')).join('')}</select></div>`;
     if (L.phase === 'board') {
       const cats = L.categories;
       const rows = Math.max(...cats.map((c) => c.clues.length));
       let cells = cats.map((c) => `<div class="jc">${esc(c.name)}</div>`).join('');
-      for (let i = 0; i < rows; i++) cells += cats.map((c, ci) => c.clues[i] ? `<button data-g="pick" data-c="${ci}" data-i="${i}" ${c.clues[i].used ? 'disabled' : ''}>${c.clues[i].value}</button>` : '<span></span>').join('');
-      return `<p class="muted">Pick a clue — buzzers open automatically.</p><div class="jgrid" style="grid-template-columns:repeat(${cats.length},1fr)">${cells}</div>`;
+      for (let i = 0; i < rows; i++) cells += cats.map((c, ci) => c.clues[i] ? `<button data-g="pick" data-c="${ci}" data-i="${i}" ${c.clues[i].used ? 'disabled' : ''} class="${c.clues[i].dd && !c.clues[i].used ? 'dd' : ''}">${c.clues[i].value}${c.clues[i].dd && !c.clues[i].used ? ' 💎' : ''}</button>` : '<span></span>').join('');
+      return `<p class="muted"><b>${L.control ? `${esc(L.control.emoji)} ${esc(L.control.name)}` : 'The team in control'}</b> picks next — tap the clue they call. 💎 = hidden Daily Double (only you can see it).</p>${ctlSel}<div class="jgrid" style="grid-template-columns:repeat(${cats.length},1fr);margin-top:10px">${cells}</div>`;
     }
     const c = L.clue;
+    if (L.phase === 'dd') {
+      const max = L.maxWager || 500;
+      return `<div class="qbox"><div class="small muted">💎 Daily Double · ${esc(c.category)}</div><div class="q">Ask ${esc(L.control ? L.control.name : 'the team')} for their wager (100–${fmt(max)})</div></div>
+        <div class="row"><input type="number" data-ui="wager" value="${esc(ui.wager || Math.min(500, max))}" min="100" max="${max}" step="50" style="width:140px"/>
+        ${[200, 500, max].filter((v, i, a) => a.indexOf(v) === i).map((v) => `<button class="btn small ghost" data-a="wagerSet" data-v="${v}">${fmt(v)}</button>`).join('')}
+        <button class="btn" data-a="wager">Lock wager & show clue</button></div>`;
+    }
     const queue = L.buzzes.map((b, i) => `<div class="row ${L.active && L.active.key === b.key ? 'active' : ''} ${L.locked.includes(b.key) ? 'locked' : ''}">${i + 1}. ${esc(b.emoji)} ${esc(b.name)} ${b.kind === 'team' ? `<span class="small muted">(${esc(b.buzzerName)})</span>` : ''}<span class="small muted" style="margin-left:auto">${(b.ms / 1000).toFixed(2)}s</span></div>`).join('');
-    return `<div class="qbox"><div class="small muted">${esc(c.category)} · ${c.value}</div><div class="q">${esc(c.q)}</div></div>
+    const reading = L.phase === 'clue' && !L.buzzOpen && !L.dd;
+    return `<div class="qbox"><div class="small muted">${esc(c.category)} · ${fmt(c.value)}${L.dd ? ' · 💎 Daily Double' : ''}</div><div class="q">${esc(c.q)}</div></div>
       <div class="answer-key">Answer: ${esc(c.a)}</div>
-      <div class="sec-title">Buzz queue</div><div class="queue">${queue || '<p class="muted">Waiting for buzzes…</p>'}</div>
+      ${reading ? `<div class="cue-inline">Read the clue aloud, then <button class="btn big gold" data-g="openBuzz">🔔 Open buzzers</button></div><p class="small muted">Anyone who buzzes before you open gets a short lockout.</p>` : ''}
+      ${L.dd && L.phase === 'clue' ? `<p><b>${esc(L.control ? L.control.name : '')}</b> answers for <b>${fmt(L.wager)}</b> — no buzzers.</p>` : ''}
+      ${!L.dd ? `<div class="sec-title">Buzz queue</div><div class="queue">${queue || `<p class="muted">${L.buzzOpen ? 'Waiting for buzzes…' : 'Buzzers armed.'}</p>`}</div>` : ''}
       ${L.phase === 'clue' ? `<div class="btn-row" style="margin-top:12px">
         <button class="btn green" data-g="correct" ${L.active ? '' : 'disabled'}>✓ Correct${L.active ? ' — ' + esc(L.active.name) : ''}</button>
         <button class="btn red" data-g="wrong" ${L.active ? '' : 'disabled'}>✗ Wrong</button>
@@ -213,7 +286,8 @@
         <div class="btn-row">${q.options.map((o, i) => `<button class="btn small ${h.locked === i ? 'gold' : 'ghost'}" data-g="lock" data-i="${i}" ${h.removed.includes(i) ? 'disabled' : ''}>Lock ${letters[i]}</button>`).join('')}${h.locked != null ? '<button class="btn small ghost" data-g="unlock">Unlock</button>' : ''}</div>
         <div class="btn-row" style="margin-top:10px"><button class="btn big" data-g="reveal" ${h.locked == null ? 'disabled' : ''}>🎯 Reveal answer</button><button class="btn ghost" data-g="walk">🚶 Walk away</button></div>
         <div class="sec-title">Lifelines</div><div class="btn-row">${[['fifty', '✂️ 50:50'], ['poll', '📊 Audience poll'], ['phone', '📞 Phone a friend']].map(([k, l]) => `<button class="btn small teal" data-g="lifeline" data-name="${k}" ${h.lifelines[k] ? '' : 'disabled'}>${l}</button>`).join('')}</div>
-        ${h.poll ? `<p class="small">Poll ${h.poll.open ? '(open)' : '(closed)'}: ${h.poll.counts.map((c, i) => `${letters[i]} ${c}`).join(' · ')}</p>` : ''}`;
+        ${h.poll ? `<p class="small">Poll ${h.poll.open ? '(open)' : '(closed)'}: ${h.poll.counts.map((c, i) => `${letters[i]} ${c}`).join(' · ')}</p>` : ''}
+        <p class="small muted">🔮 Audience predictions: ✅ ${(h.predCounts || {}).sahi || 0} Sahi · ❌ ${(h.predCounts || {}).galat || 0} Galat (correct calls earn +25)</p>`;
     } else if (h.qPhase === 'reveal') {
       ctl = `<p>✅ Correct! Now at level ${h.level}.</p><button class="btn big" data-g="nextQ">▶ Next question (${fmt(L.ladder[h.level].points)})</button>`;
     } else {
@@ -227,23 +301,30 @@
   // ---------- hook step ----------
   function hookCtl(L) {
     const perf = L.perf;
-    const performerSel = `<select data-ui="performer"><option value="">— who's performing? —</option>${entityOptions(ui.performer || (perf ? perf.performer.key : ''), L.mode === 'team')}</select>`;
-    const songSel = `<select data-ui="song"><option value="">🎰 Random (spin)</option>${L.songs.map((s, i) => opt(i, esc(s), ui.song)).join('')}</select>`;
-    let body = `<div class="stack">${performerSel}${songSel}<div class="btn-row"><button class="btn" data-a="hookSetup">✅ Set performer${ui.song === '' ? '' : ' & song'}</button>${perf ? '<button class="btn gold" data-g="spin">🎰 Spin a song</button>' : ''}</div></div>`;
-    if (perf) {
-      body += `<div class="qbox" style="margin-top:12px"><div><b>${esc(perf.performer.emoji)} ${esc(perf.performer.name)}</b> ${perf.members ? `<span class="small muted">(${perf.members.map(esc).join(', ')})</span>` : ''}</div>
-        <div>🎵 ${perf.song ? `${esc(perf.song.title)} — <span class="muted">${esc(perf.song.step)}</span>` : L.phase === 'spin' ? 'spinning…' : '<i>no song yet</i>'}</div>
-        <div class="small muted">Phase: ${L.phase}${L.phase === 'voting' ? ` · ${perf.votes} votes · avg ${perf.avg}` : ''}</div></div>
-        <div class="btn-row">
-          <button class="btn" data-g="perform" ${perf.song && L.phase === 'ready' ? '' : 'disabled'}>▶ Start performance</button>
-          <button class="btn teal" data-g="vote" ${['perform', 'ready'].includes(L.phase) ? '' : 'disabled'}>🗳 Open voting</button>
-          ${L.phase === 'voting' ? '<button class="btn ghost" data-g="closeVote">Close voting</button>' : ''}
-        </div>
-        ${['voting', 'tally'].includes(L.phase) ? `<div class="row" style="margin-top:10px"><span>Judges' bonus</span><select data-ui="judge" style="width:auto">${[0, 50, 100, 150, 200].map((n) => opt(n, '+' + n, ui.judge)).join('')}</select><button class="btn green" data-a="hookScore">🏅 Award (${perf.avg}★ × 100 + bonus)</button></div>` : ''}
-        ${L.phase === 'scored' && L.last ? `<p>Awarded <b>+${L.last.points}</b>. Pick the next performer above.</p>` : ''}`;
-    }
-    if (L.results.length) body += `<div class="sec-title">Results</div>${L.results.map((r) => `<div class="kv"><span>${esc(r.performer.emoji)} ${esc(r.performer.name)} · <span class="muted small">${esc(r.song)}</span></span><b>+${r.points}</b></div>`).join('')}`;
-    return body;
+    const teamSel = L.mode === 'team'
+      ? `<select data-ui="hookTeam" style="width:auto">${S.teams.map((t) => opt('t:' + t.id, `${esc(t.emoji)} ${esc(t.name)}`, ui.hookTeam || (perf && perf.team ? perf.team.key : ''))).join('')}</select>` : '<span class="chip">Open floor (solo mode)</span>';
+    const songSel = `<select data-ui="song" style="flex:1"><option value="">🎰 Random — spin on the TV</option>${L.songs.map((x, i) => opt(i, esc(x), ui.song)).join('')}</select>`;
+    let body = `<div class="steps"><div class="step-row"><span class="step-n">1</span><b>Call a team up</b></div>
+      <div class="row">${teamSel}${songSel}<button class="btn" data-a="hookSetup">📣 Call them up</button></div>`;
+    if (!perf) return body + resultsHtml(L) + '</div>';
+    const phase = L.phase;
+    const team = perf.team;
+    body += `<div class="step-row"><span class="step-n">2</span><b>Song</b><span class="muted small">${perf.song ? `🎵 ${esc(perf.song.title)} — ${esc(perf.song.step)}` : phase === 'spin' ? 'spinning…' : 'none yet'}</span></div>
+      <div class="btn-row">${!perf.song ? '<button class="btn gold" data-g="spin">🎰 Spin a song on the TV</button>' : '<button class="btn small ghost" data-g="spin">🎰 Re-spin</button>'}
+        <button class="btn" data-g="perform" ${perf.song && phase === 'ready' ? '' : 'disabled'}>▶ Start the dance (music plays)</button>
+        ${phase === 'perform' ? '<button class="btn ghost" data-g="stop">⏹ Stop — judge it</button>' : ''}</div>
+      <div class="step-row"><span class="step-n">3</span><b>Tap everyone who's dancing</b><span class="muted small">+${L.bonus} Himmat bonus each</span></div>
+      <div class="dancer-grid">${S.players.map((p) => { const on = perf.dancers.some((d) => d.id === p.id); const mine = team && p.teamId && 't:' + p.teamId === team.key; return `<button class="dz ${on ? 'on' : ''} ${mine ? 'team' : ''}" data-g="dancer" data-pid="${p.id}"><span class="avatar" style="--c:${p.color}">${esc(p.avatar)}</span>${esc(p.name)}</button>`; }).join('')}</div>
+      <div class="step-row"><span class="step-n">4</span><b>Rate it</b><span class="muted small">${team ? 'team gets 100 per diya + crowd bonus' : 'each dancer gets 100 per diya + crowd'}</span></div>
+      <div class="row"><div class="rate">${[1, 2, 3, 4, 5].map((n) => `<button class="${perf.stars >= n ? 'on' : ''}" data-g="rate" data-stars="${n}">🪔</button>`).join('')}</div>
+        <button class="btn small teal" data-g="measure">🎤 Applause-o-meter (TV mic)</button>
+        <span class="small">Crowd: <b>${perf.applause != null ? perf.applause : '—'}</b>/100</span>
+        <input type="number" data-ui="applause" placeholder="or type 0–100" value="${esc(ui.applause || '')}" style="width:130px"/><button class="btn small ghost" data-a="applauseSet">Set</button></div>
+      <div class="btn-row" style="margin-top:12px"><button class="btn big green" data-g="score" ${perf.stars && ['perform', 'judge'].includes(phase) ? '' : 'disabled'}>🏅 Award ${perf.stars ? `+${perf.stars * 100 + Math.round((perf.applause || 0) * 2)}` : ''} ${team ? `to ${esc(team.name)}` : ''} + ${L.bonus} × ${perf.dancers.length} dancers</button></div>`;
+    return body + resultsHtml(L) + '</div>';
+  }
+  function resultsHtml(L) {
+    return L.results.length ? `<div class="sec-title">Results</div>${L.results.map((r) => `<div class="kv"><span>${r.team ? `${esc(r.team.emoji)} ${esc(r.team.name)}` : 'Open floor'} · <span class="muted small">${esc(r.song)} · ${r.dancers.length} dancers</span></span><b>+${r.teamPoints}</b></div>`).join('')}` : '';
   }
 
   // ================= GAMES TAB =================
@@ -357,6 +438,7 @@
     if (t.dataset && t.dataset.eg) { if (/radio|checkbox/.test(t.type) || t.tagName === 'SELECT') editor.onInput(e); return; }
     if (t.dataset.ui) { ui[t.dataset.ui] = t.value; render(); return; }
     if (t.dataset.a === 'mode') act({ type: 'editGame', gameId: t.dataset.id, mode: t.value });
+    if (t.dataset.a === 'setControl') gameAct({ type: 'setControl', key: t.value });
     if (t.dataset.a === 'setTeam') act({ type: 'setTeam', playerId: t.dataset.id, teamId: t.value });
   });
 
@@ -370,6 +452,8 @@
       if (g.dataset.c != null) { a.c = Number(g.dataset.c); }
       if (g.dataset.i != null) { a.i = Number(g.dataset.i); a.choice = Number(g.dataset.i); }
       if (g.dataset.name) a.name = g.dataset.name;
+      if (g.dataset.pid) a.pid = g.dataset.pid;
+      if (g.dataset.stars) a.stars = Number(g.dataset.stars);
       return gameAct(a);
     }
     const b = e.target.closest('[data-a]');
@@ -379,6 +463,7 @@
       case 'start': act({ type: 'startGame', gameId: id }); break;
       case 'end': if (confirm('End this game and show the leaderboard?')) act({ type: 'endGame' }); break;
       case 'practice': act({ type: 'settings', practice: b.dataset.v === '1' }, b.dataset.v === '1' ? 'Practice questions on 🧪' : 'Real questions are back'); break;
+      case 'cue': if (window._cue && window._cue.run) window._cue.run(); break;
       case 'demoStart': act({ type: 'demoStart', count: Number(ui.demoCount || 8) }, 'Bots joined! 🤖'); break;
       case 'demoEnd': if (confirm('Remove all bots and reset every score, game and power-up? Real guests stay logged in.')) act({ type: 'demoEnd' }, 'Demo over: everything reset ✨'); break;
       case 'tv': act({ type: 'tv', view: b.dataset.v }); break;
@@ -401,7 +486,11 @@
         break;
       }
       case 'seatPick': if (!ui.seat) return App.toast('Pick a player', true); gameAct({ type: 'seat', playerId: ui.seat }); break;
-      case 'hookSetup': if (!ui.performer && !(S.live.perf)) return App.toast('Pick a performer', true);
+      case 'hookSetup': gameAct({ type: 'setup', team: S.live.mode === 'team' ? (ui.hookTeam || (S.teams[0] && 't:' + S.teams[0].id)) : null, songIndex: ui.song }); break;
+      case 'applauseSet': gameAct({ type: 'applause', level: Number(ui.applause) }); break;
+      case 'wagerSet': ui.wager = b.dataset.v; render(true); break;
+      case 'wager': gameAct({ type: 'wager', amount: Number(ui.wager || 500) }); ui.wager = ''; break;
+      case 'hookSetupOld': if (!ui.performer && !(S.live.perf)) return App.toast('Pick a performer', true);
         gameAct({ type: 'setup', performer: ui.performer || S.live.perf.performer.key, songIndex: ui.song }); break;
       case 'hookScore': gameAct({ type: 'score', judge: Number(ui.judge) }); ui.performer = ''; ui.song = ''; break;
       case 'edit': tab = 'questions'; store.set('dgn_host_tab', tab); render(true); setTimeout(() => { const el = document.getElementById('ed-' + id); if (el) el.scrollIntoView({ behavior: 'smooth' }); }, 50); break;
@@ -423,6 +512,12 @@
       case 'logout': store.del('dgn_host'); location.reload(); break;
       default:
     }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.code !== 'Space' || tab !== 'live' || /INPUT|TEXTAREA|SELECT/.test((document.activeElement || {}).tagName)) return;
+    e.preventDefault();
+    if (window._cue && window._cue.run && !window._cue.disabled) { window._cue.run(); App.toast(window._cue.label); }
   });
 
   const tok = store.get('dgn_host');

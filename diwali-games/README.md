@@ -8,6 +8,31 @@ A live, multiplayer party-game system for 12–16 guests: players use their phon
 | Host console | `/host` | You, on a laptop, tablet or phone (PIN protected) |
 | TV display | `/tv` | The big screen (cast or HDMI a browser tab) |
 
+## How a game feels (v3: "heads up, phones down")
+
+- **📺 The TV is the source of truth.** Questions, options, the Jeopardy board, who buzzed, reveals and standings all appear only on the TV.
+- **📱 The phone is just a controller.** It shows one moment at a time:
+  - four big shapes to answer with
+  - a buzzer in your team's colour
+  - Sahi / Galat for KBC predictions
+  - "eyes on the TV" while you watch
+
+  There's no question text, rankings tab or feed. Power-ups sit in a 🎁 drawer that only opens between games.
+- **🎛️ The host gets a separate dark control room.** A run-of-show strip (Lobby → games → Awards → Podium) sits at the top, with a single **Next cue** button that always shows the right next step. **Space** triggers it.
+
+**Game rules**
+- **Quiz games:** the final question of each round is a **✨ Double Diya**, worth double points. Streaks of 3 or more earn a bonus.
+- **Jeopardy:**
+  - The host reads the clue, then presses **Open buzzers**. Anyone who buzzes early gets a short lockout.
+  - A correct answer gives that team control, and the team in control picks the next clue.
+  - **Two hidden 💎 Daily Doubles** let the team in control wager.
+- **KBC:** while someone's in the hot seat, everyone else predicts **Sahi / Galat** on their phone. A correct call earns +25.
+- **Hook Step (no phones):**
+  1. The TV spins a song and calls a team up: *"Who's brave enough?"*
+  2. The host taps everyone who dances. Each dancer earns a personal **Himmat bonus** (+100, editable).
+  3. The host rates the dance 1–5 diyas, worth 100 each to the team. The optional **🎤 Applause-o-meter** uses the TV's microphone to add up to +200 for crowd noise.
+- **Diwali Awards:** each award is worth **+200 points**, so the standings can change during the ceremony.
+
 ## The experience (design notes)
 
 **The look.** Warm kohl-black night, marigold and haldi, sindoor and rani pink, peacock teal and mango-leaf green, with brass instead of flat gold. Panels are cream "invitation card" paper with brass borders and rangoli corners. A marigold toran garland hangs across every screen, and real flickering diyas sit along the bottom of the TV. Type pairs Rozha One (Bollywood-poster display), Mukta and the handwritten Kalam.

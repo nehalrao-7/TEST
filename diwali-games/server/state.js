@@ -59,6 +59,7 @@ function freshState() {
     ledger: [],
     rankSnapshots: {},
     stats: {},
+    hookV2: true,
     tv: { view: 'lobby', announce: null, compareGameId: null },
     feed: [],
     pending: {},
@@ -91,6 +92,11 @@ function setState(s) {
   if (state.settings.questionnaireOpen == null) state.settings.questionnaireOpen = true;
   if (!state.personalUsed) state.personalUsed = [];
   if (!state.stats) state.stats = {};
+  if (!state.hookV2) {
+    // v2 Hook Step: phone-free team dance-off; dancers earn a personal Himmat bonus.
+    state.games.forEach((g) => { if (g.type === 'hookstep' && g.status !== 'live') { g.mode = 'team'; g.content.himmatBonus = g.content.himmatBonus || 100; delete g.content.votingSeconds; } });
+    state.hookV2 = true;
+  }
   return state;
 }
 

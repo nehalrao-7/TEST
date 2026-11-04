@@ -86,12 +86,12 @@ function phaseKey(state, game) {
     const h = L.hot;
     if (L.phase === 'hot' && h) {
       if (h.poll && h.poll.open) return `poll${h.seat}-${h.qLevel}`;
-      if (h.qPhase === 'question' && h.locked == null && isBot(state.players[h.pid])) return `hot${h.seat}-${h.qLevel}`;
+      if (h.qPhase === 'question') return `hot${h.seat}-${h.qLevel}-${h.locked == null ? 'u' : 'l'}`;
     }
     return null;
   }
-  if (game.type === 'jeopardy') return L.phase === 'clue' && L.cur ? `c${L.cur.c}-${L.cur.i}-${L.locked.length}` : null;
-  if (game.type === 'hookstep') return L.phase === 'voting' ? `v${L.results.length}-${L.startedAt}` : L.phase === 'scored' ? `s${L.results.length}` : null;
+  if (game.type === 'jeopardy') return L.phase === 'clue' && L.cur && L.buzzOpen && !L.ddActive ? `c${L.cur.c}-${L.cur.i}-${L.openedAt}-${L.locked.length}` : null;
+  if (game.type === 'hookstep') return L.phase === 'perform' ? `p${L.results.length}-${L.startedAt}` : L.phase === 'scored' ? `s${L.results.length}` : null;
   return null;
 }
 
@@ -133,15 +133,19 @@ function makePlan(state, game, key) {
   } else if (key.startsWith('hot')) {
     const q = require('./games').engines.kbc.currentQ(game, L.hot);
     const b = state.players[L.hot.pid];
-    const p = Math.max(0.35, b.skill + 0.15 - L.hot.qLevel * 0.07);
-    const choices = [0, 1, 2, 3].filter((i) => !L.hot.removed.includes(i) && i !== q.answer);
-    acts.push({ pid: b.id, at: t + rnd(4000, 9000), action: { type: 'lock', choice: Math.random() < p ? q.answer : pick(choices) } });
+    if (isBot(b) && L.hot.locked == null) {
+      const p = Math.max(0.35, b.skill + 0.15 - L.hot.qLevel * 0.07);
+      const choices = [0, 1, 2, 3].filter((i) => !L.hot.removed.includes(i) && i !== q.answer);
+      acts.push({ pid: b.id, at: t + rnd(5000, 10000), action: { type: 'lock', choice: Math.random() < p ? q.answer : pick(choices) } });
+    }
+    // The audience predicts Sahi / Galat.
+    bots.filter((x) => x.id !== L.hot.pid && !(L.hot.predictions || {})[x.id]).forEach((x) => acts.push({ pid: x.id, at: t + rnd(1500, 8000), action: { type: 'predict', pick: Math.random() < 0.65 ? 'sahi' : 'galat' } }));
   } else if (key.startsWith('c')) {
     const n = Math.min(bots.length, crypto.randomInt(1, 4));
     S.shuffle(bots).slice(0, n).forEach((b) => acts.push({ pid: b.id, at: t + rnd(900, 5000), action: { type: 'buzz' } }));
-  } else if (key.startsWith('v')) {
-    const span = Math.max(3000, L.until - L.startedAt - 1500);
-    bots.forEach((b) => acts.push({ pid: b.id, at: L.startedAt + rnd(1500, span), action: { type: 'vote', stars: 3 + crypto.randomInt(3) } }));
+  } else if (key.startsWith('p')) {
+    // The crowd cheers the dancers on.
+    react(crypto.randomInt(3, 7), 2000, Math.max(4000, L.until - t - 2000));
   }
   return { key, acts: acts.sort((a, b) => a.at - b.at) };
 }

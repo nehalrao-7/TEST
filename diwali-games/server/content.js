@@ -126,7 +126,7 @@ const kbc = {
 
 const hookstep = {
   performSeconds: 45,
-  votingSeconds: 20,
+  himmatBonus: 100,
   songs: [
     { title: 'Naatu Naatu — RRR', step: 'The lightning foot shuffle, arms on each other’s shoulders' },
     { title: 'Lungi Dance — Chennai Express', step: 'Twirl the (imaginary) lungi and swing those hips' },
@@ -144,7 +144,7 @@ const hookstep = {
 function defaultGames() {
   return [
     { id: 'g1', type: 'quiz', title: 'Guess the Movie', emoji: '🎬', mode: 'team', status: 'pending', content: guessTheMovie },
-    { id: 'g2', type: 'hookstep', title: 'Hook Step Challenge', emoji: '💃', mode: 'individual', status: 'pending', content: hookstep },
+    { id: 'g2', type: 'hookstep', title: 'Hook Step Challenge', emoji: '💃', mode: 'team', status: 'pending', content: hookstep },
     { id: 'g3', type: 'jeopardy', title: 'Desi Jeopardy', emoji: '🧠', mode: 'team', status: 'pending', content: jeopardy },
     { id: 'g4', type: 'quiz', title: 'Diwali Kahoot', emoji: '⚡', mode: 'individual', status: 'pending', content: kahoot },
     { id: 'g5', type: 'kbc', title: 'Kaun Banega Crorepati', emoji: '💰', mode: 'individual', status: 'pending', content: kbc },

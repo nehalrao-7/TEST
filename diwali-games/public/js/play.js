@@ -1,8 +1,8 @@
-/* Player phone app */
+/* Player phone — a clean controller. The TV is the source of truth. */
 (function () {
   const { esc, fmt, letters } = App;
   const app = document.getElementById('app');
-  const nav = document.getElementById('nav');
+  const dock = document.getElementById('dock');
   const modal = document.getElementById('modal');
   App.sparkles(25);
 
@@ -14,7 +14,6 @@
 
   let S = null;
   let sock = null;
-  let tab = 'play';
   let seenLedger = null;
   let lastScore = null;
   const revealed = new Set(JSON.parse(store.get('dgn_revealed') || '[]'));
@@ -29,7 +28,7 @@
   }
 
   function renderLogin() {
-    nav.classList.add('hidden');
+    dock.innerHTML = '';
     const title = esc(L.eventName).replace(/(\S+\s+\S+)$/, '<span>$1</span>');
     if (L.step === 'phone') {
       app.innerHTML = `<div class="login">
@@ -89,17 +88,12 @@
   }
 
   // =================== MAIN ===================
+  // =================== CONTROLLER ===================
+  // The TV is the source of truth. The phone shows one "moment" at a time: only what you
+  // need to act on right now. Moments cross-fade when they change.
   function start(token) {
-    app.innerHTML = `<div id="hdr"></div><div id="dbl"></div><div id="body"></div>`;
-    nav.classList.remove('hidden');
-    if (!document.querySelector('.react-bar')) {
-      const bar = document.createElement('div');
-      bar.className = 'react-bar';
-      bar.innerHTML = REACTS.map((e) => `<button data-react="${e}" aria-label="Send ${e} to the TV">${e}</button>`).join('');
-      document.body.appendChild(bar);
-      bar.addEventListener('click', (e) => { const b = e.target.closest('[data-react]'); if (b) sendReaction(b.dataset.react, b); });
-    }
-    sock = App.connect('player', token, (s) => { onState(s); }, (msg) => {
+    app.innerHTML = `<header class="ctl-head" id="hdr"></header><main class="moment-wrap"><div id="moment"></div></main>`;
+    sock = App.connect('player', token, (s) => onState(s), (msg) => {
       store.del('dgn_token');
       if (sock) sock.disconnect();
       App.toast(msg, true);
@@ -108,15 +102,7 @@
     });
   }
 
-  nav.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-tab]');
-    if (!b) return;
-    tab = b.dataset.tab;
-    nav.querySelectorAll('[data-tab]').forEach((x) => x.classList.toggle('on', x === b));
-    render();
-  });
-
-  // ---------- reactions: tap an emoji, it floats up on the TV ----------
+  // ---------- reactions ----------
   const REACTS = ['🔥', '😂', '👏', '😱', '💃', '🪔'];
   let lastReact = 0;
   function sendReaction(emoji, btn) {
@@ -128,205 +114,217 @@
     const f = document.createElement('div');
     f.className = 'react-local';
     f.textContent = emoji;
-    f.style.left = (btn ? btn.getBoundingClientRect().left + 8 : innerWidth / 2) + 'px';
+    f.style.left = (btn ? btn.getBoundingClientRect().left + 6 : innerWidth / 2 - 18) + 'px';
     document.body.appendChild(f);
     setTimeout(() => f.remove(), 1200);
   }
 
   function onState(s) {
-    const prevLive = S && S.live;
     S = s;
-    // Points notifications
+    // Celebrate points that arrive outside a result screen (power-ups, steals, bonuses).
     const hist = S.me.history;
     if (seenLedger === null) seenLedger = new Set(hist.map((h) => h.id));
     else {
       const fresh = hist.filter((h) => !seenLedger.has(h.id)).reverse();
       fresh.forEach((h) => seenLedger.add(h.id));
       const total = fresh.reduce((a, h) => a + h.amount, 0);
-      // During a quiz reveal the result screen already celebrates the points.
-      const quiet = S.live && S.live.type === 'quiz' && S.live.phase === 'reveal';
-      if (fresh.length && quiet) { /* shown on the result screen */ } else if (fresh.length) {
-        floatPoints(total);
+      // Result screens already celebrate their own points — no extra toast on top.
+      const onResult = S.live && ((S.live.type === 'quiz' && S.live.phase === 'reveal') || (S.live.type === 'hookstep' && S.live.phase === 'scored')
+        || (S.live.type === 'kbc' && S.live.hot && S.live.hot.qPhase !== 'question') || (S.live.type === 'jeopardy' && S.live.phase === 'answer'));
+      if (fresh.length && !onResult) {
         const robbed = fresh.find((h) => h.amount < 0);
         if (robbed) App.toast(`${robbed.reason}: ${robbed.amount}`, true);
-        else App.toast(`+${total} · ${fresh[fresh.length - 1].reason}`);
-        if (total > 0) { App.confetti(0.5); if (navigator.vibrate) navigator.vibrate(60); }
+        else if (total > 0) { App.toast(`+${total} · ${fresh[fresh.length - 1].reason}`); App.fireworks(0.4); App.vibrate(60); }
       }
     }
-    lastScore = S.me.score;
     if (!S.live && S.questionnaire.open && !answeredCount() && !store.get('dgn_q_prompted_' + S.me.id) && !modal.innerHTML) {
       store.set('dgn_q_prompted_' + S.me.id, '1');
       setTimeout(openQuestionnaire, 1200);
     }
-    // Jump to the play tab when a new game starts
-    if (S.live && (!prevLive || prevLive.gameId !== S.live.gameId)) { tab = 'play'; nav.querySelectorAll('[data-tab]').forEach((x) => x.classList.toggle('on', x.dataset.tab === 'play')); }
     render();
-  }
-
-  function floatPoints(n) {
-    const d = document.createElement('div');
-    d.className = 'float-pts' + (n < 0 ? ' neg' : '');
-    d.textContent = (n > 0 ? '+' : '') + n;
-    document.body.appendChild(d);
-    setTimeout(() => d.remove(), 1700);
   }
 
   const teamOf = (tid) => S.teams.find((t) => t.id === tid);
   const av = (p) => `<span class="avatar" style="--c:${p.color}">${esc(p.avatar)}</span>`;
+  const shape = (i) => `<span class="shape-ic">${App.shapes[i]}</span>`;
+  const timer = (s, e) => `<div class="timer" data-start="${s}" data-end="${e}"><i></i></div>`;
+  const watch = (em, title, sub, extra = '') => `<div class="watch"><div class="watch-em">${em}</div><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ''}${extra}</div>`;
 
+  let shownScore = null;
+  let momentKey = null;
   function render() {
     if (!S) return;
     const me = S.me;
     const t = me.teamId && teamOf(me.teamId);
-    App.patch(document.getElementById('hdr'), `<div class="me-bar">${av(me)}<div class="who"><div class="nm">${esc(me.name)}</div>${t ? `<span class="team-chip" style="background:${t.color}">${esc(t.emoji)} ${esc(t.name)}</span>` : `<span class="rank-chip">#${me.rank} of ${S.players.length}</span>`}</div>
-      <div class="score"><b>${fmt(me.score)}</b><span>${t ? `#${me.rank} · ` : ''}points</span></div></div>`);
-    App.patch(document.getElementById('dbl'), me.doubleActive ? `<div class="double-badge">💥 Double Dhamaka active — all points ×2 this game!</div>` : me.doublePending ? `<div class="double-badge">💥 Double Dhamaka armed for the next game</div>` : '');
-    const unused = me.powerups.filter((p) => !p.used && !revealed.has(p.id)).length;
-    const dot = document.getElementById('puDot');
-    dot.textContent = unused; dot.classList.toggle('hidden', !unused);
-    const body = document.getElementById('body');
-    if (tab === 'play') App.patch(body, playTab());
-    else if (tab === 'power') App.patch(body, powerTab());
-    else App.patch(body, ranksTab());
-    body.querySelectorAll('[data-countup]:not([data-done])').forEach((el) => {
-      el.dataset.done = '1';
-      App.countUp(el, Number(el.dataset.countup), 900);
-      const flash = el.closest('.result-flash');
-      if (flash && flash.classList.contains('good')) { App.fireworks(0.6); App.vibrate([40, 40, 80]); }
-    });
-    const bad = body.querySelector('.result-flash.bad:not([data-done])');
-    if (bad) { bad.dataset.done = '1'; App.vibrate([120]); }
-  }
-
-  // ---------- Play tab ----------
-  function playTab() {
-    const G = S.live;
-    if (!G) {
-      const next = S.games.find((g) => g.status === 'pending');
-      if (['awards', 'podium'].includes(S.tv.view)) return myNightCard() + feedCard();
-      return `${aboutCard()}<div class="card panel tapper"><div class="up-next">${next ? `Up next · ${esc(next.emoji)} ${esc(next.title)}` : 'Hang tight · the host is setting up'}</div>
-        <button class="big-diya" data-act="tap-diya" aria-label="Light the diya">${App.diya(true, 150)}</button>
-        <p class="hand tap-hint">Tap the diya to send sparks to the TV ✨</p>
-        <button class="btn gold" data-goto="power">🎁 Peek at my secret power-ups</button></div>${feedCard()}`;
+    document.body.style.setProperty('--team', t ? t.color : 'var(--marigold)');
+    App.patch(document.getElementById('hdr'), `${av(me)}<div class="who"><b>${esc(me.name)}</b>${t ? `<span class="team-pill">${esc(t.emoji)} ${esc(t.name)}</span>` : ''}</div>
+      <div class="score-medal"><span id="scoreNum">${fmt(shownScore == null ? me.score : shownScore)}</span><small>pts</small></div>`);
+    if (shownScore !== me.score) {
+      const el = document.getElementById('scoreNum');
+      if (shownScore != null && el) { App.countUp(el, me.score, 800, shownScore); el.parentElement.classList.remove('bump'); void el.offsetWidth; el.parentElement.classList.add('bump'); }
+      shownScore = me.score;
     }
-    const fn = { quiz: quizP, jeopardy: jeoP, kbc: kbcP, hookstep: hookP, custom: customP }[G.type];
-    return `<div class="card panel slide-up"><div class="title"><span style="font-size:26px">${esc(G.emoji)}</span><h3>${esc(G.title)}</h3>${G.practice ? '<span class="chip" style="margin-left:auto">🧪 Practice</span>' : ''}<span class="chip ${G.mode === 'team' ? 'gold' : ''}" style="${G.practice ? '' : 'margin-left:auto'}">${G.mode === 'team' ? 'Team' : 'Solo'}</span></div>${fn(G)}</div>`;
+    const [key, html, mode] = moment();
+    const box = document.getElementById('moment');
+    if (key !== momentKey) {
+      momentKey = key;
+      box.classList.remove('m-enter'); void box.offsetWidth;
+      box.innerHTML = html; box._html = html; box.classList.add('m-enter');
+      onMoment(key);
+    } else App.patch(box, html);
+    renderDock(mode);
+    box.querySelectorAll('[data-countup]:not([data-done])').forEach((el) => { el.dataset.done = '1'; App.countUp(el, Number(el.dataset.countup), 900); });
   }
 
-  const rankBefore = { q: null, rank: null };
-  const LOCK_LINES = ['Diya lit! Waiting for the slowpokes…', 'Bas, ab dekhte hain… 👀', 'Confidence level: Shah Rukh arms wide 🙌', 'Locked. No take-backs!', 'Ab bhagwan bharose 🙏', 'Fingers crossed, toes too…'];
-  const RIGHT_LINES = ['Sahi jawab!', 'Ekdum first class!', 'Shabash!', 'Kya baat hai!', 'Waah! Bilkul sahi!', 'Too good!'];
-  const RIGHT_EMO = ['🎉', '🪔', '🎆', '✨', '🥳', '💯'];
-  const WRONG_LINES = ['Arre yaar!', 'Oops, galat ho gaya!', 'So close… not really 😅', 'Koi baat nahi!', 'Next one is yours!'];
-  const waitTv = (em, h, p) => `<div class="waiting"><div class="em">${em}</div><h2>${h}</h2>${p ? `<p class="muted">${p}</p>` : ''}</div>`;
-  const timer = (s, e) => `<div class="timer" data-start="${s}" data-end="${e}" style="margin-bottom:12px"><i></i></div>`;
+  function onMoment(key) {
+    if (/^r-good|^hk-earned|called-yes|jp-won/.test(key)) { App.fireworks(0.6); App.vibrate([40, 40, 90]); }
+    else if (/^r-bad|called-no/.test(key)) App.vibrate(140);
+    else if (/^q-open|jp-open|ff-open/.test(key)) App.vibrate(30);
+  }
 
-  function quizP(G) {
-    if (G.phase === 'intro') return waitTv('👀', 'Get ready!', `${G.total} questions coming up. ${G.mode === 'team' ? 'Your team scores the average of everyone’s points — so everybody answer!' : 'Faster correct answers score more.'}`);
-    if (G.phase === 'final') return waitTv('🎉', 'Round complete!', 'Watch the TV for the leaderboard.');
-    const q = G.question;
+  // Dock: reactions while you're watching, the 🎁 drawer between games, nothing while answering.
+  function renderDock(mode) {
+    const unused = S.me.powerups.filter((p) => !p.used).length;
+    let html = '';
+    if (mode === 'watch' || mode === 'break') {
+      html = `<div class="react-bar">${REACTS.map((e) => `<button data-react="${e}" aria-label="Send ${e} to the TV">${e}</button>`).join('')}</div>`;
+      if (mode === 'break') html = `<button class="pu-pill" data-act="powerups">🎁 <span>Power-ups</span>${unused ? `<i>${unused}</i>` : ''}</button>` + html;
+    }
+    App.patch(dock, html);
+  }
+
+  // ---------- moments ----------
+  const LOCK_LINES = ['Diya lit! Waiting for the rest…', 'Bas, ab dekhte hain 👀', 'Confidence: Shah Rukh arms wide 🙌', 'Locked. No take-backs!', 'Ab bhagwan bharose 🙏', 'Fingers crossed, toes too…'];
+  const RIGHT = [['Sahi jawab!', '🎉'], ['Ekdum first class!', '🪔'], ['Shabash!', '🎆'], ['Kya baat hai!', '✨'], ['Waah!', '🥳'], ['Too good!', '💯']];
+  const WRONG = ['Arre yaar!', 'Oops, galat!', 'So close…', 'Koi baat nahi!', 'Next one is yours!'];
+
+  function moment() {
+    const G = S.live;
+    if (['awards', 'podium'].includes(S.tv.view)) return ['night', myNightCard(), 'watch'];
+    if (!G) return idleMoment();
+    const fn = { quiz: quizM, jeopardy: jeoM, kbc: kbcM, hookstep: hookM, custom: () => ['custom', watch(esc(G.emoji), esc(G.title), 'Eyes on the TV — the host is keeping score.'), 'watch'] }[G.type];
+    return fn(G);
+  }
+
+  function idleMoment() {
+    // Just finished a game: a quick "how you did" card. Standings live on the TV.
+    if (S.tv.view === 'leaderboard' && S.tv.compareGameId) {
+      const g = S.games.find((x) => x.id === S.tv.compareGameId);
+      const earned = S.me.history.filter((h) => h.gameId === S.tv.compareGameId).reduce((a, h) => a + h.amount, 0);
+      return ['post-' + S.tv.compareGameId, `<div class="round-card"><div class="rc-em">${g ? esc(g.emoji) : '🏁'}</div><span class="eyebrow">${g ? esc(g.title) : 'Round'} complete</span>
+        <div class="rc-pts">${earned >= 0 ? '+' : ''}<span data-countup="${earned}">0</span></div><p>points this round</p><div class="rc-tv">👀 The standings are on the TV</div></div>`, 'break'];
+    }
+    const next = S.games.find((g) => g.status === 'pending');
+    return ['idle', `${aboutCard()}<div class="tapper"><span class="eyebrow">${next ? `Up next · ${esc(next.emoji)} ${esc(next.title)}` : 'The host is setting up'}</span>
+      <button class="big-diya" data-act="tap-diya" aria-label="Light the diya">${App.diya(true, 168)}</button>
+      <p class="hand">Tap the diya to send sparks to the TV</p></div>`, 'break'];
+  }
+
+  // Quiz: the question is on the TV; the phone is four big shapes.
+  function quizM(G) {
+    if (G.phase === 'intro') return ['q-intro', watch('👀', 'Eyes on the TV', `${G.total} questions · match the shape on screen.<br/>The last one is a <b>✨ Double Diya</b>.`), 'watch'];
+    if (G.phase === 'final') return ['q-final', watch('🎆', 'Round complete!', 'The standings are on the TV.'), 'watch'];
     const m = G.mine;
+    const dd = G.doubleDiya ? '<span class="dd-badge">✨ Double Diya · ×2</span>' : '';
     if (G.phase === 'question') {
-      if (App.now() < G.opensAt) { setTimeout(render, G.opensAt - App.now() + 30); return waitTv('⏳', `Question ${G.qIndex + 1}`, 'Read it on the TV…'); }
-      if (rankBefore.q !== G.qIndex) { rankBefore.q = G.qIndex; rankBefore.rank = S.me.rank; }
-      if (m.answered) return `${timer(G.opensAt, G.deadline)}<div class="locked-in"><div class="pick-tile opt o${m.choice}"><span class="k">${App.shapes[m.choice]}</span>${esc(q.options[m.choice])}</div>
-        <div class="lock-msg">${App.diya(true, 64)}<div><b>Locked in${m.order ? ` · #${m.order}` : ''}${m.order === 1 ? ' ⚡' : ''}</b><span class="hand">${LOCK_LINES[(G.qIndex + (m.order || 0)) % LOCK_LINES.length]}</span></div></div>
-        ${m.streak >= 2 ? `<div class="streak-chip">🔥 ${m.streak} in a row — keep it going!</div>` : ''}</div>`;
+      if (App.now() < G.opensAt) { setTimeout(render, G.opensAt - App.now() + 30); return [`q-wait-${G.qIndex}`, `<div class="get-ready"><span class="eyebrow">Question ${G.qIndex + 1} of ${G.total}</span>${dd}<div class="gr-num" data-count="${G.opensAt}"></div><p>Read it on the TV</p></div>`, 'answer']; }
+      if (m.answered) return [`q-locked-${G.qIndex}`, `<div class="locked"><div class="lock-tile o${m.choice}">${shape(m.choice)}</div>
+        <h2>Locked in${m.order ? ` · #${m.order}` : ''}${m.order === 1 ? ' ⚡' : ''}</h2><p class="hand">${LOCK_LINES[(G.qIndex + (m.order || 0)) % LOCK_LINES.length]}</p>
+        ${m.streak >= 2 ? `<span class="streak">🔥 ${m.streak} in a row</span>` : ''}</div>`, 'watch'];
       const hint = S.me.powerups.find((p) => p.type === 'hint' && !p.used);
-      return `${timer(G.opensAt, G.deadline)}${q.clue ? `<div class="clue-sm">${esc(q.clue)}</div>` : ''}<div class="qtext">${esc(q.q)}</div>
-        <div class="opts">${q.options.map((o, i) => `<button class="opt o${i} ${m.hint && m.hint.includes(i) ? 'gone' : ''}" data-act="answer" data-i="${i}"><span class="k">${App.shapes[i]}</span>${esc(o)}</button>`).join('')}</div>
-        ${hint && !m.hint && S.powerupsEnabled ? `<button class="btn ghost block" style="margin-top:12px" data-act="use-pu" data-id="${hint.id}">✨ Use Phuljhari Hint (remove 2 wrong)</button>` : ''}`;
+      return [`q-open-${G.qIndex}`, `<div class="pad-head"><span class="eyebrow">Q${G.qIndex + 1} / ${G.total}</span>${dd}<span class="secs" data-count="${G.deadline}"></span></div>${timer(G.opensAt, G.deadline)}
+        <div class="shape-pad">${G.question.options.map((_, i) => `<button class="pad o${i} ${m.hint && m.hint.includes(i) ? 'gone' : ''}" data-act="answer" data-i="${i}" aria-label="${App.shapeNames[i]}">${shape(i)}<span>${App.shapeNames[i]}</span></button>`).join('')}</div>
+        ${hint && !m.hint && S.powerupsEnabled ? `<button class="hint-pill" data-act="use-pu" data-id="${hint.id}">✨ Phuljhari Hint — remove 2 wrong</button>` : ''}`, 'answer'];
     }
     const r = G.result;
+    const q = G.question;
+    const ans = `<div class="ans-chip o${r.answer}">${shape(r.answer)}<span>${esc(q.options[r.answer])}</span></div>`;
+    if (m.choice == null) return [`r-none-${G.qIndex}`, `<div class="result meh"><div class="r-em">😴</div><h2>No answer!</h2><p>The answer was</p>${ans}</div>`, 'watch'];
     const right = m.choice === r.answer;
-    const ansTile = `<div class="pick-tile opt o${r.answer} small-tile"><span class="k">${App.shapes[r.answer]}</span>${esc(q.options[r.answer])}</div>`;
-    const moved = rankBefore.q === G.qIndex && rankBefore.rank ? rankBefore.rank - S.me.rank : 0;
-    const rankLine = `<div class="rank-line">You're <b>#${S.me.rank}</b>${moved > 0 ? ` <span class="up">▲${moved}</span>` : moved < 0 ? ` <span class="down">▼${-moved}</span>` : ''} of ${S.players.length}</div>`;
-    if (m.choice == null) return `<div class="result-flash meh"><div class="em">😴</div><h2>Arre, no answer!</h2><p>The answer was</p>${ansTile}${rankLine}</div>`;
-    const earned = G.mode === 'team' ? r.perTeam[S.me.teamId] || 0 : m.points;
-    return `<div class="result-flash ${right ? 'good' : 'bad'}"><div class="em">${right ? RIGHT_EMO[G.qIndex % RIGHT_EMO.length] : '😅'}</div>
-      <h2>${right ? RIGHT_LINES[G.qIndex % RIGHT_LINES.length] : WRONG_LINES[G.qIndex % WRONG_LINES.length]}</h2>
-      ${right ? `<div class="pts-big">+<span data-countup="${earned + (m.bonus || 0)}">0</span></div>${G.mode === 'team' ? `<p class="small">You scored ${m.points} · team average awarded to everyone</p>` : ''}` : `<p>The answer was</p>${ansTile}`}
-      ${m.streak >= 2 ? `<div class="streak-chip">🔥 ${m.streak} in a row${m.bonus ? ` · +${m.bonus} bonus` : ''}</div>` : ''}${rankLine}</div>`;
+    const earned = (G.mode === 'team' ? (r.perTeam[S.me.teamId] || 0) : m.points) + (m.bonus || 0);
+    const [line, emo] = RIGHT[G.qIndex % RIGHT.length];
+    return [`r-${right ? 'good' : 'bad'}-${G.qIndex}`, `<div class="result ${right ? 'good' : 'bad'}"><div class="r-em">${right ? emo : '😅'}</div><h2>${right ? line : WRONG[G.qIndex % WRONG.length]}</h2>
+      ${right ? `<div class="r-pts">+<span data-countup="${earned}">0</span></div>${r.double ? '<span class="streak">✨ Double Diya ×2</span>' : ''}${G.mode === 'team' ? '<p class="small">Team average · everyone on your team gets it</p>' : ''}` : `<p>The answer was</p>${ans}`}
+      ${m.streak >= 2 ? `<span class="streak">🔥 ${m.streak} in a row${m.bonus ? ` · +${m.bonus}` : ''}</span>` : ''}</div>`, 'watch'];
   }
 
-  function jeoP(G) {
-    if (G.phase === 'board') return waitTv('🧠', 'Watch the board', 'The host is picking the next clue. Get your thumb ready!');
+  // Jeopardy: the board is on the TV; your phone is a buzzer in your team's colour.
+  function jeoM(G) {
     const m = G.mine;
-    const c = G.clue;
-    const head = `<p class="muted center" style="margin:0 0 4px">${esc(c.category)} · ${c.value}</p><div class="qtext center">${esc(c.q)}</div>`;
+    const ctl = G.control;
+    if (G.phase === 'board') {
+      return ['jp-board', watch('🧠', 'Eyes on the board', ctl ? (m.inControl ? `<b>Your ${G.mode === 'team' ? 'team picks' : 'pick'}!</b> Call out a category and value to the host.` : `${esc(ctl.name)} picks next.`) : 'The host is picking a clue.'), 'watch'];
+    }
+    if (G.phase === 'dd') return ['jp-dd', watch('💎', 'Daily Double!', m.inControl ? '<b>You found it!</b> Tell the host your wager.' : `${esc(ctl ? ctl.name : '')} is wagering…`), 'watch'];
     if (G.phase === 'answer') {
       const won = G.last && G.last.correct && G.last.key === m.key;
-      return `${head}<div class="big-state ${won ? 'good' : ''}"><div class="em">${won ? '🎉' : '✨'}</div><h2>${esc(c.a)}</h2>${won ? `<p><b>+${c.value}</b> for you${G.mode === 'team' ? 'r team' : ''}!</p>` : ''}</div>`;
+      return [won ? 'jp-won' : 'jp-ans', won ? `<div class="result good"><div class="r-em">🎉</div><h2>Correct!</h2><div class="r-pts">+<span data-countup="${G.last.value}">0</span></div><p>${G.mode === 'team' ? 'for your team · you pick next' : 'and you pick next'}</p></div>`
+        : watch('✨', 'Answer on the TV', G.last && G.last.correct ? `${esc(G.last.info.name)} got it.` : 'Nobody got that one.'), 'watch'];
     }
-    if (m.active) return `${head}<button class="buzzer active" disabled style="opacity:1">YOU'RE<br/>UP!</button><p class="center"><b>Say your answer out loud!</b></p>`;
-    if (m.locked) return `${head}<button class="buzzer" disabled>❌</button><p class="center muted">Locked out for this clue.</p>`;
-    if (m.buzzed) return `${head}<button class="buzzer" disabled>#${m.position}</button><p class="center muted">You're in the queue at #${m.position}.</p>`;
-    return `${head}<button class="buzzer" data-act="buzz" ${G.buzzOpen ? '' : 'disabled'}>BUZZ!</button>`;
+    // clue
+    if (G.dd) return ['jp-ddclue', watch('💎', m.inControl ? 'Answer out loud!' : 'Daily Double', m.inControl ? `Your wager: <b>${fmt(G.wager)}</b>` : `${esc(ctl ? ctl.name : '')} is answering for ${fmt(G.wager)}`), 'watch'];
+    if (m.active) return ['jp-up', `<div class="buzz-wrap"><button class="buzzer up" disabled><span>YOU'RE UP</span></button><p class="buzz-cap"><b>Say your answer out loud!</b></p></div>`, 'answer'];
+    if (m.locked) return ['jp-locked', watch('🔒', 'Locked out', 'Wrong answer — wait for the next clue.'), 'watch'];
+    if (m.buzzed) return ['jp-queued', `<div class="buzz-wrap"><button class="buzzer queued" disabled><span>#${m.position}</span></button><p class="buzz-cap">You're #${m.position} in line</p></div>`, 'watch'];
+    if (!G.buzzOpen) {
+      return [`jp-armed-${G.cur.c}-${G.cur.i}`, `<div class="buzz-wrap"><button class="buzzer armed ${m.early ? 'early' : ''}" data-act="buzz"><span>${m.early ? 'TOO EARLY' : 'WAIT…'}</span></button>
+        <p class="buzz-cap">${m.early ? '⏳ Jumped the gun — short lockout when buzzers open' : 'Buzzers open when the host has read the clue'}</p></div>`, 'answer'];
+    }
+    return [`jp-open-${G.cur.c}-${G.cur.i}`, `<div class="buzz-wrap"><button class="buzzer open" data-act="buzz"><span>BUZZ!</span></button><p class="buzz-cap">First to buzz answers</p></div>`, 'answer'];
   }
 
-  function kbcP(G) {
-    if (G.phase === 'idle') return waitTv('💰', 'Kaun Banega Crorepati', 'Get ready for Fastest Finger First!');
+  // KBC: the hot seat locks answers; everyone else predicts Sahi / Galat.
+  function kbcM(G) {
+    if (G.phase === 'idle') return ['k-idle', watch('💰', 'Kaun Banega Crorepati', 'Fastest Finger First is coming — get ready!'), 'watch'];
     if (G.phase === 'ff' || G.phase === 'ff-result') {
       const f = G.ff;
       if (G.phase === 'ff') {
-        if (App.now() < f.opensAt) { setTimeout(render, f.opensAt - App.now() + 30); return waitTv('⚡', 'Fastest Finger First', 'Read the question on the TV…'); }
-        if (f.mine != null) return `${timer(f.opensAt, f.deadline)}${waitTv('🔒', 'Locked in!', `You picked <b>${letters[f.mine]}</b>.`)}`;
-        return `${timer(f.opensAt, f.deadline)}<div class="qtext">${esc(f.question.q)}</div><div class="opts kbc-p">${f.question.options.map((o, i) => `<button class="opt" data-act="ff" data-i="${i}"><span class="k">${letters[i]}</span>${esc(o)}</button>`).join('')}</div>`;
+        if (App.now() < f.opensAt) { setTimeout(render, f.opensAt - App.now() + 30); return ['ff-wait', `<div class="get-ready"><span class="eyebrow">Fastest Finger First</span><div class="gr-num" data-count="${f.opensAt}"></div><p>Read it on the TV</p></div>`, 'answer']; }
+        if (f.mine != null) return ['ff-locked', `<div class="locked"><div class="lock-tile kbc">${App.letters[f.mine]}</div><h2>Locked in!</h2><p class="hand">Fastest correct answer takes the hot seat</p></div>`, 'watch'];
+        return ['ff-open', `<div class="pad-head"><span class="eyebrow">Fastest Finger First</span><span class="secs" data-count="${f.deadline}"></span></div>${timer(f.opensAt, f.deadline)}
+          <div class="shape-pad kbc">${f.question.options.map((_, i) => `<button class="pad kbc" data-act="ff" data-i="${i}"><span class="kl">${App.letters[i]}</span></button>`).join('')}</div>`, 'answer'];
       }
       const won = f.result.winner === S.me.id;
-      return won ? `<div class="big-state good"><div class="em">🪑</div><h2>You're fastest!</h2><p>Head to the hot seat!</p></div>` : waitTv('⚡', 'Fastest Finger done', f.result.winner ? `Answer: <b>${letters[f.result.answer]}</b>` : 'Nobody got it right!');
+      return [won ? 'ff-won' : 'ff-res', won ? `<div class="result good"><div class="r-em">🪑</div><h2>You're the fastest!</h2><p>Take the hot seat</p></div>` : watch('⚡', 'Fastest Finger done', 'Watch who takes the hot seat!'), 'watch'];
     }
     const h = G.hot;
     const isMe = h.pid === S.me.id;
-    const q = h.question;
+    const hp = S.players.find((p) => p.id === h.pid);
     const lvl = G.ladder[h.questionLevel];
-    if (!isMe) {
-      if (h.poll && h.poll.open) {
-        if (h.myVote != null) return waitTv('📊', 'Vote counted!', `You voted <b>${letters[h.myVote]}</b>.`);
-        return `<div class="qtext">📊 Audience poll — help them out!</div><div class="qtext">${esc(q.q)}</div><div class="opts kbc-p">${q.options.map((o, i) => `<button class="opt ${h.removed.includes(i) ? 'gone' : ''}" data-act="poll" data-i="${i}"><span class="k">${letters[i]}</span>${esc(o)}</button>`).join('')}</div>`;
-      }
-      const hp = S.players.find((p) => p.id === h.pid);
-      return waitTv('🪑', `${esc(hp ? hp.name : '')} is in the hot seat`, `Question ${h.questionLevel + 1} for ${fmt(lvl.points)} points. Shhh… no hints (unless it's Phone-a-Friend 📞)!`);
+    if (isMe) {
+      if (h.qPhase === 'over') return [`k-over`, `<div class="result ${h.status === 'wrong' ? 'bad' : 'good'}"><div class="r-em">${h.status === 'won' ? '🏆' : h.status === 'walked' ? '🚶' : '💔'}</div><h2>${fmt(h.winnings)} points</h2><p>${h.status === 'won' ? 'Crorepati! 🎆' : 'Thanks for playing!'}</p></div>`, 'watch'];
+      if (h.qPhase === 'reveal') return [`k-right-${h.questionLevel}`, `<div class="result good"><div class="r-em">✅</div><h2>Sahi jawab!</h2><p>${fmt(lvl.points)} points secured</p></div>`, 'watch'];
+      if (h.locked != null) return [`k-locked-${h.questionLevel}`, `<div class="locked"><div class="lock-tile kbc">${App.letters[h.locked]}</div><h2>Lock kiya!</h2><p class="hand">Waiting for the host to reveal…</p></div>`, 'watch'];
+      return [`k-q-${h.questionLevel}`, `<div class="pad-head"><span class="eyebrow">Q${h.questionLevel + 1} · for ${fmt(lvl.points)}</span><span class="eyebrow">safe ${fmt(h.safe)}</span></div>
+        <div class="kbc-list">${h.question.options.map((o, i) => `<button class="kbc-row ${h.removed.includes(i) ? 'gone' : ''}" data-act="lock" data-i="${i}"><b>${App.letters[i]}</b><span>${esc(o)}</span></button>`).join('')}</div>
+        <div class="lifelines">${[['fifty', '✂️ 50:50'], ['poll', '📊 Poll'], ['phone', '📞 Friend']].map(([k, l]) => `<button class="ll" data-act="lifeline" data-name="${k}" ${h.lifelines[k] ? '' : 'disabled'}>${l}</button>`).join('')}</div>
+        <button class="walk" data-act="walk">🚶 Walk away with ${fmt(h.level > 0 ? G.ladder[h.level - 1].points : 0)}</button>`, 'answer'];
     }
-    if (h.qPhase === 'over') return `<div class="big-state ${h.status === 'wrong' ? 'bad' : 'good'}"><div class="em">${h.status === 'won' ? '🏆' : h.status === 'walked' ? '🚶' : '💔'}</div><h2>${fmt(h.winnings)} points</h2><p>${h.status === 'won' ? 'You conquered the ladder!' : 'Thanks for playing KBC!'}</p></div>`;
-    if (h.qPhase === 'reveal') return `<div class="big-state good"><div class="em">✅</div><h2>Sahi jawab!</h2><p>${fmt(lvl.points)} points secured. Next question coming up…</p></div>`;
-    const locked = h.locked != null;
-    return `<div class="muted small">Question ${h.questionLevel + 1} · for <b>${fmt(lvl.points)}</b> points · safe: ${fmt(h.safe)}</div><div class="qtext">${esc(q.q)}</div>
-      <div class="opts kbc-p">${q.options.map((o, i) => `<button class="opt ${h.removed.includes(i) ? 'gone' : ''} ${h.locked === i ? 'locked' : ''}" data-act="lock" data-i="${i}" ${locked ? 'disabled' : ''}><span class="k">${letters[i]}</span>${esc(o)}</button>`).join('')}</div>
-      ${locked ? `<p class="center"><b>🔒 Locked! Waiting for the host to reveal…</b></p>` : `
-      <div class="lifeline-row">
-        <button class="btn small ${h.lifelines.fifty ? 'teal' : 'ghost'}" data-act="lifeline" data-name="fifty" ${h.lifelines.fifty ? '' : 'disabled'}>✂️ 50:50</button>
-        <button class="btn small ${h.lifelines.poll ? 'teal' : 'ghost'}" data-act="lifeline" data-name="poll" ${h.lifelines.poll ? '' : 'disabled'}>📊 Poll</button>
-        <button class="btn small ${h.lifelines.phone ? 'teal' : 'ghost'}" data-act="lifeline" data-name="phone" ${h.lifelines.phone ? '' : 'disabled'}>📞 Friend</button>
-      </div>
-      ${h.poll && !h.poll.open ? `<p class="small center">Poll: ${h.poll.counts.map((c, i) => `${letters[i]} ${c}`).join(' · ')}</p>` : ''}
-      <button class="btn ghost block" style="margin-top:10px" data-act="walk">🚶 Walk away with ${fmt(h.level > 0 ? G.ladder[h.level - 1].points : 0)}</button>`}`;
+    if (h.poll && h.poll.open) {
+      if (h.myVote != null) return ['k-poll-done', watch('📊', 'Vote counted', `You said <b>${App.letters[h.myVote]}</b>.`), 'watch'];
+      return ['k-poll', `<div class="pad-head"><span class="eyebrow">📊 Audience poll — help ${esc(hp ? hp.name : '')}!</span></div>
+        <div class="shape-pad kbc">${[0, 1, 2, 3].map((i) => `<button class="pad kbc ${h.removed.includes(i) ? 'gone' : ''}" data-act="poll" data-i="${i}"><span class="kl">${App.letters[i]}</span></button>`).join('')}</div>`, 'answer'];
+    }
+    if (h.qPhase === 'question') {
+      if (h.myPrediction) return [`k-pred-${h.questionLevel}-done`, watch('🔮', `You said ${h.myPrediction === 'sahi' ? 'Sahi ✅' : 'Galat ❌'}`, `+25 if you call it right. Watch ${esc(hp ? hp.name : '')} sweat!`), 'watch'];
+      return [`k-pred-${h.questionLevel}`, `<div class="predict"><span class="eyebrow">${esc(hp ? hp.name : '')} · Q${h.questionLevel + 1} for ${fmt(lvl.points)}</span><h2>Will they get it right?</h2><p>Call it for +25</p>
+        <div class="pred-row"><button class="pred yes" data-act="predict" data-pick="sahi">✅<span>Sahi</span></button><button class="pred no" data-act="predict" data-pick="galat">❌<span>Galat</span></button></div></div>`, 'answer'];
+    }
+    if (h.qPhase === 'reveal' || h.qPhase === 'over') {
+      if (h.myPrediction) return [h.iCalledIt ? `called-yes-${h.questionLevel}` : `called-no-${h.questionLevel}`, h.iCalledIt ? `<div class="result good"><div class="r-em">🔮</div><h2>Called it!</h2><div class="r-pts">+<span data-countup="25">0</span></div></div>` : `<div class="result bad"><div class="r-em">🙈</div><h2>Not this time</h2><p>Next question!</p></div>`, 'watch'];
+    }
+    return ['k-watch', watch('🪑', `${esc(hp ? hp.name : '')} is in the hot seat`, 'Eyes on the TV!'), 'watch'];
   }
 
-  function hookP(G) {
+  // Hook Step: no phones needed — just watch the TV and come dance.
+  function hookM(G) {
+    const m = G.mine || {};
     const perf = G.perf;
-    const amPerformer = perf && perf.performer && (perf.performer.key === 'p:' + S.me.id || perf.performer.key === 't:' + S.me.teamId);
-    if (G.phase === 'idle' || !perf) return waitTv('💃', 'Hook Step Challenge', 'The host is choosing the next performer…');
-    if (G.phase === 'spin') return waitTv('🎰', 'Spinning the song…', amPerformer ? 'Get ready — it’s YOU!' : `Up next: ${esc(perf.performer.name)}`);
-    if (G.phase === 'ready' || G.phase === 'perform') {
-      const s = perf.song;
-      if (amPerformer) return `<div class="big-state good"><div class="em">🕺</div><h2>You're on!</h2>${s ? `<p><b>${esc(s.title)}</b><br/>Hook step: ${esc(s.step)}</p>` : ''}</div>`;
-      return waitTv('👀', `${esc(perf.performer.name)} is ${G.phase === 'perform' ? 'performing' : 'up next'}!`, 'Cheer loud — you’ll rate them in a moment.');
-    }
-    if (G.phase === 'voting') {
-      if (!G.mine || !G.mine.canVote) return waitTv('🙏', 'The crowd is voting…', 'Strike a pose while you wait!');
-      const v = G.mine.vote;
-      return `<div class="center"><h2 style="font-size:22px">Rate ${esc(perf.performer.name)}!</h2><p class="muted">Tap the diyas — 1 to 5</p>
-        <div class="stars">${[1, 2, 3, 4, 5].map((n) => `<button data-act="vote" data-stars="${n}" class="${v && n <= v ? 'on' : ''}">🪔</button>`).join('')}</div>
-        <p>${v ? `You gave <b>${v}</b> diya${v > 1 ? 's' : ''} — tap to change` : ''}</p>${timer(G.startedAt, G.until)}</div>`;
-    }
-    if (G.phase === 'tally') return waitTv('🧮', 'Counting votes…');
-    const last = G.last;
-    return last ? waitTv('🌟', `${esc(last.performer.name)}: +${last.points}`, `${last.avg} ★ average from ${last.votes} votes`) : '';
+    if (G.phase === 'scored' && m.earned) return ['hk-earned', `<div class="result good"><div class="r-em">💃</div><h2>Himmat bonus!</h2><div class="r-pts">+<span data-countup="${m.earned}">0</span></div><p>for getting up and dancing</p></div>`, 'watch'];
+    if (m.dancing) return ['hk-dancing', watch('🕺', "You're dancing!", `Give it everything — +${G.bonus} Himmat bonus is yours 🙌`), 'watch'];
+    if (perf && m.myTeamUp && ['ready', 'spin', 'perform'].includes(G.phase)) return ['hk-up', watch('💃', 'Your team is up!', `Get up and dance! <b>Every dancer earns +${G.bonus}</b> on top of the team points.`), 'watch'];
+    return ['hk-watch', watch('📺', 'Hook Step time', `No phones needed — eyes on the TV and cheer loud. When your team is called, come dance for <b>+${G.bonus}</b>!`), 'watch'];
   }
-
-  function customP(G) { return waitTv(G.emoji, esc(G.title), esc(G.description) || 'The host is keeping score — watch the TV!'); }
 
   // ---------- "About me" questionnaire ----------
   const answeredCount = () => Object.values(S.questionnaire.answers || {}).filter(Boolean).length;
@@ -382,40 +380,6 @@
     };
   }
 
-  function feedCard() {
-    if (!S.feed.length) return '';
-    return `<div class="card" style="margin-top:12px"><h3>📣 Latest</h3>${S.feed.slice(0, 6).map((f) => `<div class="hist-row"><span>${esc(f.emoji || '✨')} ${esc(f.text)}</span></div>`).join('')}</div>`;
-  }
-
-  // ---------- Power-ups tab ----------
-  function powerTab() {
-    const pus = S.me.powerups;
-    return `<div class="card" style="margin-bottom:12px"><h3>🎁 Your secret power-ups</h3><p class="muted small" style="margin:0">Only you can see these. Tap a card to reveal it, then use it at the perfect moment.${S.powerupsEnabled ? '' : ' <b>Power-ups are paused by the host right now.</b>'}</p></div>
-      <div class="pu-grid">${pus.map((p) => {
-        const flipped = revealed.has(p.id) || p.used;
-        let action = '';
-        if (p.used) action = '';
-        else if (p.passive) action = `<span class="chip done">🛡️ Active — protecting you</span>`;
-        else action = `<button class="btn small" data-act="use-pu" data-id="${p.id}" ${S.powerupsEnabled ? '' : 'disabled'}>Use it!</button>`;
-        return `<div class="pu ${flipped ? 'flipped' : ''} ${p.used ? 'used' : ''}" data-act="flip" data-id="${p.id}"><div class="pu-inner">
-          <div class="pu-face pu-back"><div class="em">🎁</div><b>Tap to reveal</b><span class="small" style="opacity:.8">Shhh… it's a secret</span></div>
-          <div class="pu-face pu-front"><div class="em">${p.emoji}</div><div><h4>${esc(p.name)}</h4><p>${esc(p.desc)}</p>${action}</div></div>
-          </div>${p.used ? '<span class="stamp">USED</span>' : ''}</div>`;
-      }).join('')}</div>`;
-  }
-
-  // ---------- Ranks tab ----------
-  function ranksTab() {
-    const me = S.me;
-    const night = myNightCard();
-    const teams = S.teams.length ? `<div class="card" style="margin-bottom:12px"><h3>Teams</h3>${[...S.teams].sort((a, b) => b.total - a.total).map((t) => `<div class="rank-row ${t.id === me.teamId ? 'me' : ''}"><span class="avatar" style="--c:${t.color}">${esc(t.emoji)}</span>${esc(t.name)}<span class="sc">${fmt(t.total)}</span></div>`).join('')}</div>` : '';
-    return `${night}${teams}<div class="card" style="margin-bottom:12px"><h3>🏆 Leaderboard</h3>${S.players.map((p) => `<div class="rank-row ${p.id === me.id ? 'me' : ''}"><span class="rk">${p.rank}</span>${av(p)}<span>${esc(p.name)}</span><span class="sc">${fmt(p.score)}</span></div>`).join('')}</div>
-      <div class="card"><h3>📜 My points</h3>${me.history.length ? me.history.map((h) => `<div class="hist-row"><span>${esc(h.reason)}</span><b class="${h.amount > 0 ? 'pos' : 'neg'}">${h.amount > 0 ? '+' : ''}${h.amount}</b></div>`).join('') : '<p class="muted">No points yet — the night is young!</p>'}
-      ${S.questionnaire.open ? '<button class="btn ghost small" style="margin-top:12px" data-act="about">📝 Edit my "About me" answers</button>' : ''}
-      <button class="btn ghost small" style="margin-top:12px" data-act="logout">Log out of this device</button></div>`;
-  }
-
-  // ---------- actions ----------
   // ---------- "My Diwali Night" keepsake card ----------
   function myNightCard() {
     const me = S.me, st = me.stats || {};
@@ -441,18 +405,6 @@
     </div>`;
   }
 
-  function send(action, cb) {
-    sock.emit('player', action, (r) => { if (r && r.error) App.toast(r.error, true); else if (cb) cb(); });
-  }
-  const game = (action) => send({ type: 'game', action });
-
-  function confirmSheet(html, yesLabel, onYes) {
-    modal.innerHTML = `<div class="modal"><div class="sheet">${html}<div class="row" style="margin-top:14px"><button class="btn ghost grow" data-m="no">Cancel</button><button class="btn grow" data-m="yes">${yesLabel}</button></div></div></div>`;
-    modal.querySelector('[data-m=no]').onclick = () => { modal.innerHTML = ''; };
-    modal.querySelector('[data-m=yes]').onclick = () => { modal.innerHTML = ''; onYes(); };
-    modal.querySelector('.modal').onclick = (e) => { if (e.target.classList.contains('modal')) modal.innerHTML = ''; };
-  }
-
   function usePowerup(pu) {
     if (pu.type === 'steal') {
       const others = S.players.filter((p) => p.id !== S.me.id);
@@ -471,9 +423,41 @@
     });
   }
 
-  app.addEventListener('click', (e) => {
-    const goto = e.target.closest('[data-goto]');
-    if (goto) { nav.querySelector(`[data-tab=${goto.dataset.goto}]`).click(); return; }
+  // ---------- 🎁 power-ups drawer (between games only) ----------
+  function powerSheet() {
+    const pus = S.me.powerups;
+    return `<div class="modal"><div class="sheet pu-sheet"><div class="sheet-grab"></div><h3>🎁 Your secret power-ups</h3>
+      <p class="muted small">Only you can see these. Tap a gift to unwrap it.${S.powerupsEnabled ? '' : ' <b>Paused by the host right now.</b>'}</p>
+      <div class="pu-grid">${pus.map((p) => {
+        const flipped = revealed.has(p.id) || p.used;
+        const action = p.used ? '' : p.passive ? '<span class="chip done">🛡️ Always on — protecting you</span>' : `<button class="btn small" data-act="use-pu" data-id="${p.id}" ${S.powerupsEnabled ? '' : 'disabled'}>Use it</button>`;
+        return `<div class="pu ${flipped ? 'flipped' : ''} ${p.used ? 'used' : ''}" data-act="flip" data-id="${p.id}"><div class="pu-inner">
+          <div class="pu-face pu-back"><div class="em">🎁</div><b>Tap to unwrap</b></div>
+          <div class="pu-face pu-front"><div class="em">${p.emoji}</div><div><h4>${esc(p.name)}</h4><p>${esc(p.desc)}</p>${action}</div></div>
+          </div>${p.used ? '<span class="stamp">USED</span>' : ''}</div>`;
+      }).join('')}</div>
+      <div class="sheet-foot"><button class="btn ghost small" data-act="about">📝 My "About me" answers</button><button class="btn ghost small" data-act="logout">Log out</button><button class="btn small" data-m="no">Done</button></div></div></div>`;
+  }
+  function openPowerups() {
+    modal.innerHTML = powerSheet();
+    modal.querySelector('.modal').addEventListener('click', (e) => { if (e.target.classList.contains('modal')) modal.innerHTML = ''; });
+  }
+
+  function send(action, cb) {
+    sock.emit('player', action, (r) => { if (r && r.error) { App.toast(r.error, true); App.vibrate(120); } else if (cb) cb(); });
+  }
+  const game = (action) => send({ type: 'game', action });
+
+  function confirmSheet(html, yesLabel, onYes) {
+    modal.innerHTML = `<div class="modal"><div class="sheet"><div class="sheet-grab"></div>${html}<div class="row" style="margin-top:14px"><button class="btn ghost grow" data-m="no">Cancel</button><button class="btn grow" data-m="yes">${yesLabel}</button></div></div></div>`;
+    modal.querySelector('[data-m=yes]').onclick = () => { modal.innerHTML = ''; onYes(); };
+    modal.querySelector('.modal').onclick = (e) => { if (e.target.classList.contains('modal')) modal.innerHTML = ''; };
+  }
+
+  function handle(e) {
+    const r = e.target.closest('[data-react]');
+    if (r) { sendReaction(r.dataset.react, r); return; }
+    if (e.target.closest('[data-m=no]')) { modal.innerHTML = ''; return; }
     const el = e.target.closest('[data-act]');
     if (!el || !S) return;
     const act = el.dataset.act;
@@ -486,26 +470,27 @@
       if (!revealed.has(el.dataset.id)) {
         revealed.add(el.dataset.id);
         store.set('dgn_revealed', JSON.stringify([...revealed]));
-        App.confetti(0.3);
-        render();
+        el.classList.add('flipped');
+        App.fireworks(0.3); App.vibrate(25);
       }
-    } else if (act === 'tap-diya') {
-      el.classList.remove('flare'); void el.offsetWidth; el.classList.add('flare');
-      App.vibrate(20);
-      sendReaction('🪔');
-    } else if (act === 'answer') { game({ type: 'answer', choice: i }); if (navigator.vibrate) navigator.vibrate(30); }
-    else if (act === 'ff') game({ type: 'ffAnswer', choice: i });
-    else if (act === 'buzz') { game({ type: 'buzz' }); if (navigator.vibrate) navigator.vibrate(80); }
+    } else if (act === 'powerups') openPowerups();
+    else if (act === 'tap-diya') { el.classList.remove('flare'); void el.offsetWidth; el.classList.add('flare'); App.vibrate(20); sendReaction('🪔'); }
+    else if (act === 'answer') { el.classList.add('chosen'); game({ type: 'answer', choice: i }); App.vibrate(30); }
+    else if (act === 'ff') { el.classList.add('chosen'); game({ type: 'ffAnswer', choice: i }); App.vibrate(30); }
+    else if (act === 'buzz') { el.classList.remove('hit'); void el.offsetWidth; el.classList.add('hit'); game({ type: 'buzz' }); App.vibrate(80); }
     else if (act === 'poll') game({ type: 'pollVote', choice: i });
-    else if (act === 'vote') game({ type: 'vote', stars: Number(el.dataset.stars) });
-    else if (act === 'lifeline') confirmSheet(`<h3>Use this lifeline?</h3><p class="muted">You only get one of each.</p>`, 'Yes!', () => game({ type: 'lifeline', name: el.dataset.name }));
+    else if (act === 'predict') { App.vibrate(30); game({ type: 'predict', pick: el.dataset.pick }); }
+    else if (act === 'lifeline') confirmSheet('<h3>Use this lifeline?</h3><p class="muted">You only get one of each.</p>', 'Yes!', () => game({ type: 'lifeline', name: el.dataset.name }));
     else if (act === 'lock') {
       const q = S.live.hot.question;
-      confirmSheet(`<div class="center"><h3>Lock kiya jaaye?</h3><p style="font-size:20px"><b>${letters[i]}. ${esc(q.options[i])}</b></p></div>`, '🔒 Lock it', () => game({ type: 'lock', choice: i }));
-    } else if (act === 'walk') confirmSheet(`<h3>Walk away?</h3><p class="muted">You'll keep the points you've secured so far.</p>`, '🚶 Walk away', () => game({ type: 'walk' }));
-    else if (act === 'about') openQuestionnaire();
-    else if (act === 'logout') confirmSheet(`<h3>Log out?</h3><p class="muted">Your points are safe — log in again with the same number.</p>`, 'Log out', () => { store.del('dgn_token'); location.reload(); });
-  });
+      confirmSheet(`<div class="center"><h3>Lock kiya jaaye?</h3><p style="font-size:20px"><b>${App.letters[i]}. ${esc(q.options[i])}</b></p></div>`, '🔒 Lock it', () => game({ type: 'lock', choice: i }));
+    } else if (act === 'walk') confirmSheet('<h3>Walk away?</h3><p class="muted">You keep the points you have secured.</p>', '🚶 Walk away', () => game({ type: 'walk' }));
+    else if (act === 'about') { modal.innerHTML = ''; openQuestionnaire(); }
+    else if (act === 'logout') confirmSheet('<h3>Log out?</h3><p class="muted">Your points are safe.</p>', 'Log out', () => { store.del('dgn_token'); location.reload(); });
+  }
+  app.addEventListener('click', handle);
+  dock.addEventListener('click', handle);
+  modal.addEventListener('click', handle);
 
   const tok = store.get('dgn_token');
   if (tok) start(tok); else startLogin();
