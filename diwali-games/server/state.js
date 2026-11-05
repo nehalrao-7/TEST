@@ -77,8 +77,8 @@ function setState(s) {
   // Fill in fields added after a saved game was created.
   const PZ = require('./personalize');
   if (!state.questionnaire) state.questionnaire = PZ.DEFAULT_PROMPTS.map((x) => ({ ...x }));
-  const QV = 3;
-  if ((state.questionnaireVersion || 1) < QV) {
+  const QV = 4;
+  if ((state.questionnaireVersion || 1) < 3) {
     // v2 added garba + "about the group" questions, v3 more group votes. Replace an unedited v1
     // list; otherwise append only the questions that are new since the saved version.
     const ids = state.questionnaire.map((q) => q.id);
@@ -86,6 +86,13 @@ function setState(s) {
     const from = state.questionnaireVersion || 1;
     if (unedited) state.questionnaire = PZ.DEFAULT_PROMPTS.map((x) => ({ ...x }));
     else PZ.DEFAULT_PROMPTS.filter((p) => (PZ.ADDED_IN[p.id] || 1) > from && !ids.includes(p.id)).forEach((p) => state.questionnaire.push({ ...p }));
+    state.questionnaireVersion = 3;
+  }
+  if ((state.questionnaireVersion || 1) < QV) {
+    const drop = new Set(PZ.DROPPED_IDS);
+    const keep = new Set(PZ.DEFAULT_PROMPTS.map((p) => p.id));
+    const custom = state.questionnaire.filter((q) => !drop.has(q.id) && !keep.has(q.id));
+    state.questionnaire = PZ.DEFAULT_PROMPTS.map((x) => ({ ...x })).concat(custom);
     state.questionnaireVersion = QV;
   }
   if (state.settings.personalPct == null) state.settings.personalPct = 20;
