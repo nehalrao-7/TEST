@@ -18,7 +18,7 @@ const TEAM_PRESETS = [
 ];
 
 const POWERUPS = {
-  double: { name: 'Double Dhamaka', emoji: '💥', desc: 'Double every point you earn in the current game (or the next one, if none is live).' },
+  double: { name: 'Double Dhamaka', emoji: '💥', desc: 'Double your next score, once. The extra is capped at 400 points.' },
   steal: { name: 'Chor Bazaar', emoji: '🦹', desc: 'Steal points from any player of your choice.', target: true },
   shield: { name: 'Raksha Kavach', emoji: '🛡️', desc: 'Passive: automatically blocks the first steal or swap aimed at you.', passive: true },
   laddoo: { name: 'Lucky Laddoo', emoji: '🍬', desc: 'Open a mystery box worth 50 to 300 points!' },
@@ -97,6 +97,12 @@ function setState(s) {
     state.games.forEach((g) => { if (g.type === 'hookstep' && g.status !== 'live') { g.mode = 'team'; g.content.himmatBonus = g.content.himmatBonus || 100; delete g.content.votingSeconds; } });
     state.hookV2 = true;
   }
+  // Double Dhamaka used to double every award in a game. It is now one charge.
+  Object.values(state.players || {}).forEach((p) => {
+    if (p.doubleArmed == null) p.doubleArmed = Boolean(p.doubleGameId || p.doublePending);
+    if (p.doubleGameId) p.doubleArmed = true;
+    p.doubleGameId = null;
+  });
   return state;
 }
 
@@ -125,6 +131,7 @@ function createPlayer({ name, phone, avatar }) {
     powerups: dealPowerups(state.settings.powerupsPerPlayer),
     teamId: null,
     doublePending: false,
+    doubleArmed: false,
     doubleGameId: null,
     answers: {},
   };
@@ -190,15 +197,17 @@ function pushFeed(item) {
   state.feed = state.feed.slice(0, 40);
 }
 
-// Award points to one player. Double Dhamaka applies to positive game points.
+// Award points to one player. Double Dhamaka doubles the next positive award once.
+const DOUBLE_EXTRA_CAP = 400;
 function award(playerId, amount, reason, gameId = null, opts = {}) {
   const p = state.players[playerId];
   if (!p || !Number.isFinite(amount) || amount === 0) return 0;
   amount = Math.round(amount);
   let note = reason;
-  if (amount > 0 && gameId && p.doubleGameId === gameId && !opts.noDouble) {
-    amount *= 2;
+  if (amount > 0 && gameId && p.doubleArmed && !opts.noDouble) {
+    amount += Math.min(amount, DOUBLE_EXTRA_CAP);
     note += ' ×2';
+    p.doubleArmed = false;
   }
   const entry = { id: id(), ts: Date.now(), playerId, amount, reason: note, gameId, teamId: p.teamId, kind: opts.kind || 'game' };
   state.ledger.push(entry);
@@ -242,7 +251,12 @@ function stat(pid) {
 // ---------- announcements ----------
 
 function announce(a) {
-  state.tv.announce = { id: id(), at: Date.now(), until: Date.now() + (a.ms || 6000), ...a };
+  // Bumpers own the picture (a game starting). Everything else is a lower-third
+  // so the leaderboard, clue, or podium stays readable.
+  const lower = new Set(['powerup', 'end', 'dd', 'kbc', 'jump']);
+  const style = a.style || (lower.has(a.kind) ? 'lower' : 'bumper');
+  const ms = a.ms != null ? a.ms : (style === 'lower' ? 4200 : 3400);
+  state.tv.announce = { id: id(), at: Date.now(), until: Date.now() + ms, ...a, style };
   pushFeed({ emoji: a.emoji, text: a.feed || `${a.title}${a.text ? ' — ' + a.text : ''}` });
 }
 
@@ -250,6 +264,7 @@ function announce(a) {
 
 function usePowerup(player, puId, targetId, liveCtx) {
   if (!state.settings.powerupsEnabled) throw new Error('Power-ups are paused by the host right now.');
+  if (state.tv && (state.tv.view === 'awards' || state.tv.view === 'podium')) throw new Error('The ceremony is on — power-ups open again after the crowns.');
   const pu = player.powerups.find((x) => x.id === puId);
   if (!pu || pu.used) throw new Error('That power-up is not available.');
   const def = POWERUPS[pu.type];
@@ -267,15 +282,10 @@ function usePowerup(player, puId, targetId, liveCtx) {
 
   switch (pu.type) {
     case 'double': {
-      const live = state.live && state.games.find((g) => g.id === state.live.gameId);
-      if (live) {
-        if (player.doubleGameId === live.id) throw new Error('Double Dhamaka is already active for this game.');
-        player.doubleGameId = live.id;
-        announce({ emoji: '💥', title: 'DOUBLE DHAMAKA!', text: `${player.name} is earning double points in ${live.title}!`, kind: 'powerup' });
-      } else {
-        player.doublePending = true;
-        announce({ emoji: '💥', title: 'DOUBLE DHAMAKA!', text: `${player.name} will earn double points in the next game!`, kind: 'powerup' });
-      }
+      if (player.doubleArmed || player.doublePending) throw new Error('Double Dhamaka is already lined up.');
+      player.doubleArmed = true;
+      player.doublePending = false;
+      announce({ emoji: '💥', title: 'DOUBLE DHAMAKA!', text: `${player.name} doubles their next score.`, kind: 'powerup', ms: 3800 });
       break;
     }
     case 'steal': {
@@ -342,7 +352,7 @@ function publicPlayers(onlineSet) {
     return {
       id: p.id, name: p.name, avatar: p.avatar, color: p.color, teamId: p.teamId,
       score: x.score, rank: byId[p.id].rank, online: onlineSet.has(p.id),
-      double: Boolean(state.live && p.doubleGameId === state.live.gameId),
+      double: Boolean(p.doubleArmed),
     };
   });
 }

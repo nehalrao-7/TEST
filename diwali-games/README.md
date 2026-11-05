@@ -93,7 +93,7 @@ Click **Tap to enable sound & music** on the TV once, because browsers block aud
 - In team games, every member of the team gets the team's points. Team standings show the average per member, so uneven teams stay fair.
 - When a game ends, the TV switches to an animated **leaderboard with ▲/▼ rank movement** since that game started. **Podium** is the grand finale.
 - **Secret power-ups:** each guest gets 2 random power-ups when they join. They're hidden behind "tap to reveal" cards on their phone, and the TV announces them dramatically when used:
-  - 💥 **Double Dhamaka**: double points for the current or next game
+  - 💥 **Double Dhamaka**: the next score is doubled, once (extra capped at 400)
   - 🦹 **Chor Bazaar**: steal points from any player (default 150)
   - 🛡️ **Raksha Kavach**: passive, auto-blocks the first steal or swap against you
   - 🍬 **Lucky Laddoo**: mystery 50–300 points

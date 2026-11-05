@@ -98,7 +98,7 @@ Requests inside one instance are serialised (the `serial()` queue) because engin
   2. The host taps each dancer (each gets a +100 **Himmat bonus**) and rates 1–5 diyas (×100 to the team).
   3. The optional TV-microphone **Applause-o-meter** adds up to +200.
 - **Awards:** frozen when the ceremony starts. Each award gives winners +200 points.
-- **Power-ups:** Double Dhamaka, Chor Bazaar (steal), Raksha Kavach (shield), Lucky Laddoo, Ulta Pulta (swap) and Phuljhari Hint. Guests use them from the phone's 🎁 drawer between games.
+- **Power-ups:** Double Dhamaka (next score, once, extra capped at 400), Chor Bazaar (steal), Raksha Kavach (shield), Lucky Laddoo, Ulta Pulta (swap) and Phuljhari Hint. Guests use them from the phone's 🎁 drawer between games. They stay closed during the awards ceremony and the podium. TV announcements are either a `bumper` (the picture) or a `lower` third (the picture stays up). Question clocks wait until a bumper has finished.
 
 ## 8. Deploying
 
