@@ -183,11 +183,10 @@
     const [key, html, mode] = moment();
     const lead = S.players[0];
     const pct = lead && lead.score > 0 ? Math.max(4, Math.round((100 * me.score) / lead.score)) : 0;
-    const rail = S.players.slice(0, 6);
-    const score = `<div class="ring ${mode === 'answer' ? 'ring-sm' : ''}" style="--p:${me.score ? pct : 0}" role="img" aria-label="${fmt(me.score)} points"><div><b id="scoreNum">${fmt(shownScore == null ? me.score : shownScore)}</b><small>pts</small></div></div>`;
+    const score = `<div class="ring ring-sm" style="--p:${me.score ? pct : 0}" role="img" aria-label="${fmt(me.score)} points"><div><b id="scoreNum">${fmt(shownScore == null ? me.score : shownScore)}</b><small>pts</small></div></div>`;
+    const here = S.players.filter((p) => p.online).length;
     App.patch(document.getElementById('hdr'), `<p class="greet">Happy Diwali, ${esc(me.name)}!</p>
-      <div class="head-row">${score}<div class="who"><b>${esc(me.name)}</b>${t ? `<span class="team-pill">${esc(t.emoji)} ${esc(t.name)}</span>` : '<span class="muted">Playing tonight</span>'}</div></div>
-      ${mode === 'answer' || !rail.length ? '' : `<div class="rail" aria-label="Who is here">${rail.map((p) => `<div class="rail-p ${p.online ? 'on' : ''}">${av(p)}<small>#${p.rank}</small></div>`).join('')}<span class="rail-n">${S.players.filter((p) => p.online).length} here</span></div>`}`);
+      <div class="head-row">${score}<div class="who"><b>${esc(me.name)}</b>${t ? `<span class="team-pill">${esc(t.emoji)} ${esc(t.name)}</span>` : `<span class="muted">${here} here</span>`}</div></div>`);
     if (shownScore !== me.score) {
       const el = document.getElementById('scoreNum');
       if (shownScore != null && el) { App.countUp(el, me.score, 800, shownScore); const ring = el.closest('.ring'); if (ring) { ring.classList.remove('bump'); void ring.offsetWidth; ring.classList.add('bump'); } }
@@ -248,7 +247,7 @@
       <p class="eyebrow">${next ? 'Up next' : 'Waiting for the host'}</p>
       <h2>${next ? `${esc(next.emoji)} ${esc(next.title)}` : 'The night is warming up'}</h2>
       <button class="btn diya-btn big block" data-act="tap-diya">${App.diya(true, 28)} Send a spark</button>
-    </div>${aboutCard()}`, 'break'];
+    </div>`, 'break'];
   }
 
   // Quiz: the question is on the TV; the phone is four big shapes.
@@ -364,16 +363,7 @@
 
   // ---------- "About me" questionnaire ----------
   const answeredCount = () => Object.values(S.questionnaire.answers || {}).filter(Boolean).length;
-  function aboutCard() {
-    const Q = S.questionnaire;
-    if (!Q.open) return '';
-    const n = answeredCount(), total = Q.prompts.length;
-    return `<div class="card about-card" style="margin-bottom:12px"><div class="row"><div style="font-size:40px">📝</div><div class="grow">
-      <h3 style="margin:0">${n ? 'Thanks for sharing!' : 'Tell us about you & the gang'}</h3>
-      <p class="small muted" style="margin:4px 0 0">${n ? `${n} of ${total} answered. Some of tonight's questions will be about you 👀` : 'Quick questions about you, your garba crew and secret group votes. They turn into game questions tonight ✨'}</p></div></div>
-      <button class="btn ${n ? 'ghost' : ''} block" style="margin-top:12px" data-act="about">${n ? 'Edit my answers' : 'Start (3 minutes) →'}</button></div>`;
-  }
-  const SECTIONS = [['you', '🙋 About you'], ['garba', '🪔 Garba time'], ['group', '👯 About the group'], ['vote', '🗳️ Secret group votes']];
+  const SECTIONS = [['you', 'About you'], ['group', 'The group'], ['vote', 'Secret votes']];
   function openQuestionnaire() {
     const Q = S.questionnaire;
     const draft = { ...(Q.answers || {}) };
@@ -396,10 +386,10 @@
     const groups = SECTIONS.map(([k, title]) => [title, Q.prompts.filter((q) => (q.section || 'you') === k)])
       .concat([['✨ More', Q.prompts.filter((q) => !known.includes(q.section || 'you'))]])
       .filter(([, list]) => list.length);
-    modal.innerHTML = `<div class="modal"><div class="sheet about-sheet"><h3>📝 About you & the gang</h3>
-      <p class="muted small" style="margin-top:4px">Answer as many as you like (skip any). Answers become some of tonight's game questions, so the whole party gets to guess! Votes stay secret. Only the winner is revealed 🤫</p>
-      <form id="qf" class="stack">${groups.map(([title, list]) => `<div class="q-sec"><h4>${title}</h4>${list.map(field).join('')}${title.includes('group') || title.includes('votes') ? '<p class="small muted" style="margin:6px 0 0">Someone missing? They may not have joined yet. Come back and update your answers later.</p>' : ''}</div>`).join('')}
-        <div class="row q-actions"><button type="button" class="btn ghost grow" data-m="no">Later</button><button class="btn grow" type="submit">Save my answers ✨</button></div></form></div></div>`;
+    modal.innerHTML = `<div class="modal"><div class="sheet about-sheet"><h3>Quick questions</h3>
+      <p class="muted small sheet-lead">Skip any. Votes stay secret.</p>
+      <form id="qf"><div class="q-scroll">${groups.map(([title, list]) => `<div class="q-sec"><h4>${title}</h4>${list.map(field).join('')}</div>`).join('')}</div>
+        <div class="row q-actions"><button type="button" class="btn ghost grow" data-m="no">Later</button><button class="btn grow" type="submit">Save</button></div></form></div></div>`;
     const f = modal.querySelector('#qf');
     f.querySelectorAll('.choice input').forEach((r) => r.addEventListener('change', () => {
       f.querySelectorAll(`[name="${r.name}"]`).forEach((x) => x.parentElement.classList.toggle('on', x.checked));
