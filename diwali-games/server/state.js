@@ -104,6 +104,12 @@ function setState(s) {
     state.games.forEach((g) => { if (g.type === 'hookstep' && g.status !== 'live') { g.mode = 'team'; g.content.himmatBonus = g.content.himmatBonus || 100; delete g.content.votingSeconds; } });
     state.hookV2 = true;
   }
+  const { applyHookVideos } = require('./content');
+  state.games.forEach((g) => { if (g.type === 'hookstep') applyHookVideos(g.content); });
+  if (state.live && state.live.content) {
+    const liveGame = state.games.find((g) => g.id === state.live.gameId);
+    if (liveGame && liveGame.type === 'hookstep') applyHookVideos(state.live.content);
+  }
   // Double Dhamaka used to double every award in a game. It is now one charge.
   Object.values(state.players || {}).forEach((p) => {
     if (p.doubleArmed == null) p.doubleArmed = Boolean(p.doubleGameId || p.doublePending);

@@ -124,21 +124,37 @@ const kbc = {
   ],
 };
 
+// Official music videos. `t` is where the hook choreography starts; `clip` matches the dance clock.
+const hookVideo = (id, t) => ({ youtube: `https://www.youtube.com/watch?v=${id}&t=${t}s`, clip: 45, showVideo: true });
+const HOOK_SONGS = [
+  { title: 'Naatu Naatu — RRR', step: 'The lightning foot shuffle, arms on each other’s shoulders', ...hookVideo('4_eEgJhsBMo', 68) },
+  { title: 'Lungi Dance — Chennai Express', step: 'Twirl the (imaginary) lungi and swing those hips', ...hookVideo('2kWLyInyjOE', 46) },
+  { title: 'Kala Chashma — Baar Baar Dekho', step: 'The big squat-drop on “kala chashma jachda”', ...hookVideo('k4yXQkG2s1E', 48) },
+  { title: 'Srivalli — Pushpa', step: 'The swagger walk with one slipper dragging', ...hookVideo('hcMzwMrr1tE', 55) },
+  { title: 'Tamma Tamma Again — Badrinath Ki Dulhania', step: 'The hand-roll and shoulder bounce', ...hookVideo('EEX_XM6SxmY', 24) },
+  { title: 'Chaiyya Chaiyya — Dil Se', step: 'Groove like you’re on top of a moving train', ...hookVideo('9yT4F8hzykY', 20) },
+  { title: 'Gallan Goodiyaan — Dil Dhadakne Do', step: 'Full bhangra shoulders, nonstop', ...hookVideo('jCEdTq3j-0U', 22) },
+  { title: 'Butta Bomma — Ala Vaikunthapurramuloo', step: 'The smooth side-step shuffle', ...hookVideo('2mDCVzruYzQ', 18) },
+  { title: 'Jhoome Jo Pathaan — Pathaan', step: 'The arm-flip and lean-back hook', ...hookVideo('YxWlaYCA8MU', 55) },
+  { title: 'London Thumakda — Queen', step: 'Maximum thumkas, wedding-style', ...hookVideo('udra3Mfw2oo', 38) },
+];
+const hookKey = (title) => String(title || '').split('—')[0].split('(')[0].trim().toLowerCase();
+const HOOK_LINKS = Object.fromEntries(HOOK_SONGS.map((s) => [hookKey(s.title), { youtube: s.youtube, clip: s.clip, showVideo: true }]));
+
+// Saved games keep host-written links. Songs that still match the default list pick up a link.
+function applyHookVideos(content) {
+  if (!content || !Array.isArray(content.songs)) return;
+  for (const s of content.songs) {
+    if (s.youtube) continue;
+    const link = HOOK_LINKS[hookKey(s.title)];
+    if (link) Object.assign(s, link);
+  }
+}
+
 const hookstep = {
   performSeconds: 45,
   himmatBonus: 100,
-  songs: [
-    { title: 'Naatu Naatu — RRR', step: 'The lightning foot shuffle, arms on each other’s shoulders' },
-    { title: 'Lungi Dance — Chennai Express', step: 'Twirl the (imaginary) lungi and swing those hips' },
-    { title: 'Kala Chashma — Baar Baar Dekho', step: 'The big squat-drop on “kala chashma jachda”' },
-    { title: 'Srivalli — Pushpa', step: 'The swagger walk with one slipper dragging' },
-    { title: 'Tamma Tamma Again — Badrinath Ki Dulhania', step: 'The hand-roll and shoulder bounce' },
-    { title: 'Chaiyya Chaiyya — Dil Se', step: 'Groove like you’re on top of a moving train' },
-    { title: 'Gallan Goodiyaan — Dil Dhadakne Do', step: 'Full bhangra shoulders, nonstop' },
-    { title: 'Butta Bomma — Ala Vaikunthapurramuloo', step: 'The smooth side-step shuffle' },
-    { title: 'Jhoome Jo Pathaan — Pathaan', step: 'The arm-flip and lean-back hook' },
-    { title: 'London Thumakda — Queen', step: 'Maximum thumkas, wedding-style' },
-  ],
+  songs: HOOK_SONGS,
 };
 
 function defaultGames() {
@@ -153,4 +169,4 @@ function defaultGames() {
 
 const templates = { quiz: kahoot, jeopardy, kbc, hookstep, custom: { description: 'Host awards points manually.' } };
 
-module.exports = { defaultGames, templates };
+module.exports = { defaultGames, templates, applyHookVideos };

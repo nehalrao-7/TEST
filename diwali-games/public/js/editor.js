@@ -111,7 +111,7 @@
       const songs = c.songs || [];
       return `<div class="qe-row"><span class="qe-l">Performance time (s)</span>${field(gid, 'performSeconds', c.performSeconds, { type: 'number', kind: 'num', style: 'width:90px' })}
           <span class="qe-l">Himmat bonus per dancer</span>${field(gid, 'himmatBonus', c.himmatBonus == null ? 100 : c.himmatBonus, { type: 'number', kind: 'num', style: 'width:90px' })}</div>
-        <p class="small muted">No phones in this game: the TV calls a team up, the song's YouTube clip plays from its timestamp, you tap everyone who dances (each gets the Himmat bonus) and rate it 1–5 diyas for the team.</p>
+        <p class="small muted">No phones in this game. The TV calls a team up and plays the song's YouTube video, blurred, while they dance. When the timer ends it replays sharp so the room can judge against the original. Tap everyone who dances (each gets the Himmat bonus) and rate it 1–5 diyas for the team.</p>
         ${songs.map((s, i) => `<div class="qe">
           <div class="qe-head"><b class="qe-n">${i + 1}</b>${field(gid, `songs.${i}.title`, s.title, { ph: 'Song — Movie', cls: 'grow qe-q' })}
             ${btn('move', '↑', `data-eg="${gid}" data-list="songs" data-i="${i}" data-d="-1" ${i === 0 ? 'disabled' : ''}`)}
