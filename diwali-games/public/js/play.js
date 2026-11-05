@@ -29,21 +29,27 @@
 
   function renderLogin() {
     dock.innerHTML = '';
-    const title = esc(L.eventName).replace(/(\S+\s+\S+)$/, '<span>$1</span>');
+    const greet = L.name.trim() ? `Happy Diwali, ${esc(L.name.trim())}!` : 'Happy Diwali';
     if (L.step === 'phone') {
       app.innerHTML = `<div class="login">
-        <div class="hero"><div class="em">${App.diya(true, 92)}</div><h1>${title}</h1><p>Join the party · win the night ✨</p></div>
+        <div class="shell-card">
+          <div class="breakout">${App.mascot()}</div>
+          <p class="greet">${greet}</p>
+          <h1>${esc(L.eventName)}</h1>
+          <p class="live-count" id="liveCount" hidden></p>
+        </div>
         <form class="card stack" id="f1">
           <div><label class="field">Your name</label><input type="text" id="name" maxlength="20" placeholder="e.g. Priya" value="${esc(L.name)}" autocomplete="given-name" /></div>
-          <div><label class="field">Pick your avatar</label><div class="avatars">${L.avatars.map((a) => `<button type="button" data-av="${a}" class="${a === L.avatar ? 'on' : ''}">${a}</button>`).join('')}</div></div>
+          <div><label class="field">Pick your avatar</label><div class="avatars">${L.avatars.map((a) => `<button type="button" data-av="${a}" class="${a === L.avatar ? 'on' : ''}" aria-label="Avatar ${a}">${a}</button>`).join('')}</div></div>
           ${L.open ? '' : `<div><label class="field">Phone number</label><div class="phone-row">
             <select id="cc">${COUNTRIES.map(([c, l]) => `<option value="${c}" ${c === L.cc ? 'selected' : ''}>${l}</option>`).join('')}</select>
             <input type="tel" id="phone" inputmode="tel" placeholder="Phone number" value="${esc(L.phone)}" autocomplete="tel-national" /></div>
-            <div class="small muted" style="margin-top:6px">Returning on a new device? Just use the same number.</div></div>`}
-          <button class="btn big block" type="submit">${L.open ? "Let's play 🎉" : 'Send my code ✨'}</button>
+            <div class="small muted" style="margin-top:6px">Returning on a new device? Use the same number.</div></div>`}
+          <button class="btn diya-btn big block" type="submit">${App.diya(true, 28)} ${L.open ? 'Join the night' : 'Send my code'}</button>
         </form>
-        <div class="center small" style="color:#fff;opacity:.6">Host? <a href="/host" style="color:var(--gold)">Open the host console</a></div>
+        <p class="fine">Host? <a href="/host">Open the console</a></p>
       </div>`;
+      showLiveCount();
       app.querySelectorAll('[data-av]').forEach((b) => b.onclick = () => { L.avatar = b.dataset.av; app.querySelectorAll('[data-av]').forEach((x) => x.classList.toggle('on', x === b)); });
       app.querySelector('#f1').onsubmit = async (e) => {
         e.preventDefault();
@@ -65,12 +71,17 @@
       };
     } else {
       app.innerHTML = `<div class="login">
-        <div class="hero"><div class="em">${L.returning ? '👋' : '🔐'}</div><h1>${L.returning ? `Welcome back, ${esc(L.name)}!` : `Namaste, ${esc(L.name)}!`}</h1><p>Enter your verification code</p></div>
+        <div class="shell-card">
+          <div class="breakout">${App.mascot()}</div>
+          <p class="greet">Happy Diwali, ${esc(L.name)}!</p>
+          <h1>${L.returning ? 'Welcome back' : 'One more step'}</h1>
+          <p class="muted">${L.via === 'sms' ? 'Enter the code we texted you.' : 'Ask the host for your code.'}</p>
+        </div>
         <form class="card stack" id="f2">
-          ${L.via === 'sms' ? `<p class="muted" style="margin:0">We texted a 6-digit code to <b>+${esc(L.cc)} ${esc(L.phone)}</b>.</p>` : `<div class="relay">🪔 Your code is waiting with the <b>host</b> — ask them for your 4-digit code!</div>`}
-          <input type="text" id="code" class="code-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="${L.via === 'sms' ? '••••••' : '••••'}" />
-          <button class="btn big block" type="submit">Let's play 🎉</button>
-          <button class="btn ghost block" type="button" id="back">← Change number</button>
+          ${L.via === 'sms' ? `<p class="muted" style="margin:0">Sent to <b>+${esc(L.cc)} ${esc(L.phone)}</b>.</p>` : `<div class="relay">Your code is with the host. Ask them for the 4 digits.</div>`}
+          <input type="text" id="code" class="code-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="${L.via === 'sms' ? '••••••' : '••••'}" aria-label="Verification code" />
+          <button class="btn diya-btn big block" type="submit">${App.diya(true, 28)} Join the night</button>
+          <button class="btn ghost block" type="button" id="back">Change number</button>
         </form></div>`;
       const code = app.querySelector('#code');
       code.focus();
@@ -91,8 +102,19 @@
   // =================== CONTROLLER ===================
   // The TV is the source of truth. The phone shows one "moment" at a time: only what you
   // need to act on right now. Moments cross-fade when they change.
+  async function showLiveCount() {
+    try {
+      const v = await App.post('/api/view', { role: 'tv' });
+      const n = (v.players || []).filter((p) => p.online).length;
+      const el = document.getElementById('liveCount');
+      if (!el || !n) return;
+      el.hidden = false;
+      el.innerHTML = `<i></i>${n} ${n === 1 ? 'person' : 'people'} here`;
+    } catch { /* the count stays hidden when the room can't be read */ }
+  }
+
   function start(token) {
-    app.innerHTML = `<header class="ctl-head" id="hdr"></header><main class="moment-wrap"><div id="moment"></div></main>`;
+    app.innerHTML = `<header class="ctl-head" id="hdr"></header><main class="moment-wrap"><div id="moment"><p class="greet">Lighting the diyas…</p></div></main>`;
     sock = App.connect('player', token, (s) => onState(s), (msg) => {
       store.del('dgn_token');
       if (sock) sock.disconnect();
@@ -137,9 +159,10 @@
         else if (total > 0) { App.toast(`+${total} · ${fresh[fresh.length - 1].reason}`); App.fireworks(0.4); App.vibrate(60); }
       }
     }
+    if (S.live && modal.querySelector('.about-sheet')) modal.innerHTML = '';
     if (!S.live && S.questionnaire.open && !answeredCount() && !store.get('dgn_q_prompted_' + S.me.id) && !modal.innerHTML) {
       store.set('dgn_q_prompted_' + S.me.id, '1');
-      setTimeout(openQuestionnaire, 1200);
+      setTimeout(() => { if (S && !S.live && !modal.innerHTML) openQuestionnaire(); }, 1200);
     }
     render();
   }
@@ -157,14 +180,19 @@
     const me = S.me;
     const t = me.teamId && teamOf(me.teamId);
     document.body.style.setProperty('--team', t ? t.color : 'var(--marigold)');
-    App.patch(document.getElementById('hdr'), `${av(me)}<div class="who"><b>${esc(me.name)}</b>${t ? `<span class="team-pill">${esc(t.emoji)} ${esc(t.name)}</span>` : ''}</div>
-      <div class="score-medal"><span id="scoreNum">${fmt(shownScore == null ? me.score : shownScore)}</span><small>pts</small></div>`);
+    const [key, html, mode] = moment();
+    const lead = S.players[0];
+    const pct = lead && lead.score > 0 ? Math.max(4, Math.round((100 * me.score) / lead.score)) : 0;
+    const rail = S.players.slice(0, 6);
+    const score = `<div class="ring ${mode === 'answer' ? 'ring-sm' : ''}" style="--p:${me.score ? pct : 0}" role="img" aria-label="${fmt(me.score)} points"><div><b id="scoreNum">${fmt(shownScore == null ? me.score : shownScore)}</b><small>pts</small></div></div>`;
+    App.patch(document.getElementById('hdr'), `<p class="greet">Happy Diwali, ${esc(me.name)}!</p>
+      <div class="head-row">${score}<div class="who"><b>${esc(me.name)}</b>${t ? `<span class="team-pill">${esc(t.emoji)} ${esc(t.name)}</span>` : '<span class="muted">Playing tonight</span>'}</div></div>
+      ${mode === 'answer' || !rail.length ? '' : `<div class="rail" aria-label="Who is here">${rail.map((p) => `<div class="rail-p ${p.online ? 'on' : ''}">${av(p)}<small>#${p.rank}</small></div>`).join('')}<span class="rail-n">${S.players.filter((p) => p.online).length} here</span></div>`}`);
     if (shownScore !== me.score) {
       const el = document.getElementById('scoreNum');
-      if (shownScore != null && el) { App.countUp(el, me.score, 800, shownScore); el.parentElement.classList.remove('bump'); void el.offsetWidth; el.parentElement.classList.add('bump'); }
+      if (shownScore != null && el) { App.countUp(el, me.score, 800, shownScore); const ring = el.closest('.ring'); if (ring) { ring.classList.remove('bump'); void ring.offsetWidth; ring.classList.add('bump'); } }
       shownScore = me.score;
     }
-    const [key, html, mode] = moment();
     const box = document.getElementById('moment');
     if (key !== momentKey) {
       momentKey = key;
@@ -177,7 +205,8 @@
   }
 
   function onMoment(key) {
-    if (/^r-good|^hk-earned|called-yes|jp-won/.test(key)) { App.fireworks(0.6); App.vibrate([40, 40, 90]); }
+    if (key === 'night') { App.fireworks(1); App.vibrate([40, 40, 90]); }
+    else if (/^r-good|^hk-earned|called-yes|jp-won/.test(key)) { App.fireworks(0.6); App.vibrate([40, 40, 90]); }
     else if (/^r-bad|called-no/.test(key)) App.vibrate(140);
     else if (/^q-open|jp-open|ff-open/.test(key)) App.vibrate(30);
   }
@@ -215,9 +244,11 @@
         <div class="rc-pts">${earned >= 0 ? '+' : ''}<span data-countup="${earned}">0</span></div><p>points this round</p><div class="rc-tv">👀 The standings are on the TV</div></div>`, 'break'];
     }
     const next = S.games.find((g) => g.status === 'pending');
-    return ['idle', `${aboutCard()}<div class="tapper"><span class="eyebrow">${next ? `Up next · ${esc(next.emoji)} ${esc(next.title)}` : 'The host is setting up'}</span>
-      <button class="big-diya" data-act="tap-diya" aria-label="Light the diya">${App.diya(true, 168)}</button>
-      <p class="hand">Tap the diya to send sparks to the TV</p></div>`, 'break'];
+    return ['idle', `<div class="shell-card lobby-hero"><div class="breakout">${App.mascot()}</div>
+      <p class="eyebrow">${next ? 'Up next' : 'Waiting for the host'}</p>
+      <h2>${next ? `${esc(next.emoji)} ${esc(next.title)}` : 'The night is warming up'}</h2>
+      <button class="btn diya-btn big block" data-act="tap-diya">${App.diya(true, 28)} Send a spark</button>
+    </div>${aboutCard()}`, 'break'];
   }
 
   // Quiz: the question is on the TV; the phone is four big shapes.
@@ -390,13 +421,16 @@
     const me = S.me, st = me.stats || {};
     const acc = st.answered ? Math.round((100 * st.correct) / st.answered) : null;
     const used = me.powerups.filter((p) => p.used).length;
-    const medal = me.rank === 1 ? '🥇' : me.rank === 2 ? '🥈' : me.rank === 3 ? '🥉' : '🪔';
     const year = new Date().getFullYear();
+    const top = S.players[0];
+    const pct = top && top.score > 0 ? Math.max(4, Math.round((100 * me.score) / top.score)) : 0;
+    const board = S.players.slice(0, 5).map((p) => `<div class="lb-mini ${p.id === me.id ? 'me' : ''}"><b class="rk">#${p.rank}</b>${av(p)}<span>${esc(p.name)}</span><em>${fmt(p.score)}</em></div>`).join('');
     return `<div class="night-card">
       <div class="nc-top"><span class="hand">${esc(S.eventName)} · ${year}</span></div>
-      <div class="nc-avatar">${av(me)}</div>
-      <h2>${esc(me.name)}'s Diwali Night</h2>
-      <div class="nc-rank">${medal} Finished <b>#${me.rank}</b> of ${S.players.length} · <b>${fmt(me.score)}</b> pts</div>
+      <div class="ring" style="--p:${pct}"><div><b>${fmt(me.score)}</b><small>pts</small></div></div>
+      <h2>${esc(me.name)}</h2>
+      <div class="nc-rank">Rank <b>#${me.rank}</b> of ${S.players.length}</div>
+      <div class="lb-mini-list">${board}</div>
       <div class="nc-stats">
         <div><b>${st.correct || 0}</b><span>right answers</span></div>
         <div><b>${acc != null ? acc + '%' : '—'}</b><span>accuracy</span></div>

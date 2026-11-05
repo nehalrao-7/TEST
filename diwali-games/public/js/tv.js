@@ -160,7 +160,8 @@
     const ps = S.players;
     const newIds = prev.newIds || new Set();
     return `<div class="lobby">
-      <div>
+      <div class="lobby-hero">
+        <div class="tv-mascot">${App.mascot()}</div>
         <div class="title-big">${esc(S.eventName.replace(/ Game Night$/i, '') || 'Diwali')}</div>
         <div class="title-hand">Game Night ✨</div>
         <div class="sub">Scan · verify your phone · unwrap your <b>secret power-ups</b> 🎁</div>

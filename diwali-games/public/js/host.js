@@ -27,7 +27,7 @@
     }
     app.innerHTML = `<div class="login-card card stack">
       <div class="center"><div style="font-size:52px">🪔</div><h2 style="font-size:28px">Host console</h2><p class="muted">Enter the host PIN (printed in the server log, or set with HOST_PIN).</p></div>
-      <form id="lf" class="stack"><input type="password" id="pin" inputmode="numeric" placeholder="Host PIN" autocomplete="current-password" /><button class="btn big block">Enter</button></form></div>`;
+      <form id="lf" class="stack"><input type="password" id="pin" inputmode="numeric" placeholder="Host PIN" autocomplete="current-password" /><button class="btn diya-btn big block">${App.diya(true, 28)} Enter</button></form></div>`;
     app.querySelector('#lf').onsubmit = async (e) => {
       e.preventDefault();
       try {

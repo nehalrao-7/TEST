@@ -125,7 +125,23 @@
     },
 
     // Drifting embers + the marigold toran across the top.
+    mascot() {
+      return `<svg class="mascot-svg" viewBox="0 0 200 160" aria-hidden="true">
+        <defs>
+          <radialGradient id="mascotGlow" cx="50%" cy="42%" r="52%"><stop offset="0" stop-color="#FFD36E" stop-opacity=".85"/><stop offset="1" stop-color="#F2A33A" stop-opacity="0"/></radialGradient>
+          <linearGradient id="mascotBowl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD36E"/><stop offset=".5" stop-color="#F2A33A"/><stop offset="1" stop-color="#D98A24"/></linearGradient>
+        </defs>
+        <ellipse cx="100" cy="86" rx="74" ry="42" fill="url(#mascotGlow)"/>
+        <circle cx="42" cy="34" r="3" fill="#FFD36E"/><circle cx="158" cy="26" r="2.4" fill="#FFF3C4"/><circle cx="172" cy="64" r="2" fill="#F2A33A"/><circle cx="30" cy="72" r="2" fill="#E35D4F"/>
+        <path d="M36 112 Q100 158 164 112 Q140 126 100 126 Q60 126 36 112Z" fill="url(#mascotBowl)"/>
+        <path d="M36 112 Q100 98 164 112 Q140 126 100 126 Q60 126 36 112Z" fill="#D98A24"/>
+        <path d="M150 110 Q174 98 178 84 Q164 100 146 106Z" fill="#F2A33A"/>
+        <g class="flame"><path d="M100 22 C120 56 118 86 100 96 C82 86 80 56 100 22Z" fill="#F2A33A"/><path d="M100 46 C112 66 110 82 100 88 C90 82 88 66 100 46Z" fill="#FFF3C4"/></g>
+      </svg>`;
+    },
+
     sparkles(n = 40) {
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
       if (!document.querySelector('.toran') && !document.body.classList.contains('no-toran')) {
         const t = document.createElement('div');
         t.className = 'toran';
@@ -204,13 +220,14 @@
     // ---------- fireworks (anar + rockets) ----------
     confetti(power = 1) { App.fireworks(power); },
     fireworks(power = 1, zone) {
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
       let c = document.getElementById('confetti');
       if (!c) { c = document.createElement('canvas'); c.id = 'confetti'; document.body.appendChild(c); }
       const ctx = c.getContext('2d');
       const W = innerWidth, H = innerHeight, dpr = devicePixelRatio || 1;
       if (c.width !== W * dpr) { c.width = W * dpr; c.height = H * dpr; }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const palette = [['#ffc93c', '#fff3c4'], ['#f7931e', '#ffd28a'], ['#e8577f', '#ffd1e0'], ['#2ec4b6', '#c8fff8'], ['#fff3dc', '#ffffff'], ['#d7263d', '#ffb3bd']];
+      const palette = [['#FFD36E', '#FFF3C4'], ['#F2A33A', '#FFD36E'], ['#E35D4F', '#FFF3C4'], ['#FFF3C4', '#F2A33A']];
       App._fw = App._fw || { parts: [], running: false };
       const P = App._fw.parts;
       const rockets = Math.max(1, Math.round((zone ? 2 : 3) * power));
