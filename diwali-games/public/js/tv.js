@@ -31,11 +31,40 @@
     chip.classList.toggle('hidden', !(playing && !m.show));
     chip.classList.toggle('blocked', Boolean(playing && !App.soundOn));
     $('musicText').textContent = !playing ? '' : App.soundOn ? 'Now playing… listen closely!' : 'Music ready — click "enable sound" on the TV';
-    if (!ytReady) return;
-    const sig = playing ? `${m.key}|${m.nonce}|${m.videoId}|${m.start}|${m.end}` : 'none';
-    if (sig === mediaSig) return;
-    mediaSig = sig;
-    if (!playing) { yt.stopVideo(); return; }
+    if (ytReady) {
+      const sig = playing ? `${m.key}|${m.nonce}|${m.videoId}|${m.start}|${m.end}` : 'none';
+      if (sig !== mediaSig) {
+        mediaSig = sig;
+        if (!playing) yt.stopVideo();
+        else {
+          const opts = { videoId: m.videoId, startSeconds: m.start || 0 };
+          if (m.end) opts.endSeconds = m.end;
+          yt.loadVideoById(opts);
+          if (App.soundOn) { yt.unMute(); yt.setVolume(100); } else yt.mute();
+        }
+      }
+    }
+    syncHookVeil();
+  }
+
+  // Hook Step: the original stays blurred for the dance, then replays sharp so the room can judge.
+  let hookRevealed = '';
+  function syncHookVeil() {
+    const box = $('mediaBox');
+    const L = S && S.live;
+    const m = S && S.media;
+    const hook = Boolean(L && L.type === 'hookstep' && m && !m.stopped && m.videoId && m.show);
+    const dancing = hook && L.phase === 'perform' && App.now() < L.until;
+    const clear = hook && (L.phase === 'judge' || (L.phase === 'perform' && App.now() >= L.until));
+    box.classList.toggle('hook-veiled', dancing);
+    box.classList.toggle('hook-clear', clear);
+    document.body.classList.toggle('hook-ref', clear);
+    if (dancing) $('mediaLabel').textContent = 'Hidden until the timer ends';
+    else if (clear) $('mediaLabel').textContent = 'Original — judge the hook';
+    if (!clear) return;
+    const perfKey = `${m.key}|${m.nonce}`;
+    if (hookRevealed === perfKey || !ytReady || !yt) return;
+    hookRevealed = perfKey;
     const opts = { videoId: m.videoId, startSeconds: m.start || 0 };
     if (m.end) opts.endSeconds = m.end;
     yt.loadVideoById(opts);
@@ -62,6 +91,7 @@
       el.style.setProperty('--p', p.toFixed(1));
       el.classList.toggle('low', e - t < 5500 && e - t > 0);
     });
+    if (S && S.live && S.live.type === 'hookstep') syncHookVeil();
     requestAnimationFrame(burn);
   })();
 
@@ -434,13 +464,13 @@
         <h1 class="brave">Who's brave enough? Come up!</h1>${songHtml}${dancers(perf.dancers)}</div></div></div>`, 'hook-ready-' + (song ? song.title : '')];
     }
     if (L.phase === 'perform') {
-      return [`<div class="gframe">${head}${timerBar(L.startedAt, L.until)}<div class="hook"><div class="perf">${songHtml}<div class="big-count" data-count="${L.until}"></div>${perf.dancers.length ? dancers(perf.dancers) : '<div class="hand-note">Get up and dance! 💃🕺</div>'}</div></div></div>`, 'hook-perform'];
+      return [`<div class="gframe">${head}${timerBar(L.startedAt, L.until)}<div class="hook"><div class="perf">${songHtml}<div class="big-count" data-count="${L.until}"></div><div class="hand-note">The original reveals at zero.</div>${perf.dancers.length ? dancers(perf.dancers) : ''}</div></div></div>`, 'hook-perform'];
     }
     if (L.phase === 'judge') {
       const stars = perf.stars || 0;
       const measuring = perf.measure && !perf.applause && perf.applause !== 0;
       if (perf.measure && prev.measureId !== perf.measure.id) { prev.measureId = perf.measure.id; measureApplause(perf.measure.id); }
-      return [`<div class="gframe">${head}<div class="hook"><div class="perf"><h1 style="font-size:4vw">The verdict…</h1>
+      return [`<div class="gframe">${head}<div class="hook hook-judge"><div class="perf"><h1 style="font-size:4vw">The original</h1>
         <div class="stars-tv judge">${[1, 2, 3, 4, 5].map((n) => `<span class="${n <= stars ? 'on' : ''}" style="transition-delay:${n * 0.08}s">🪔</span>`).join('')}</div>
         <div class="applause"><span>👏 Crowd</span><div class="meter"><i id="meterFill" style="width:${perf.applause || 0}%"></i></div><b id="meterVal">${measuring ? 'CHEER NOW!' : perf.applause != null ? perf.applause : '—'}</b></div>
         ${dancers(perf.dancers)}</div></div></div>`, 'hook-judge'];

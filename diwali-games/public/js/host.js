@@ -183,7 +183,7 @@
   function mediaHtml() {
     const m = S.media;
     const now = m && !m.stopped
-      ? `<div class="kv"><span>🎵 <b>${esc(m.label || 'Clip')}</b> <span class="small muted">from ${window.fmtTime(m.start || 0)}${m.end ? ' to ' + window.fmtTime(m.end) : ''} · ${m.show ? 'video showing' : 'audio only'}</span></span></div>
+      ? `<div class="kv"><span>🎵 <b>${esc(m.label || 'Clip')}</b> <span class="small muted">from ${window.fmtTime(m.start || 0)}${m.end ? ' to ' + window.fmtTime(m.end) : ''} · ${m.show ? (S.live && S.live.type === 'hookstep' && S.live.phase === 'perform' ? 'blurred until the timer ends' : 'video showing') : 'audio only'}</span></span></div>
         <div class="btn-row" style="margin-top:8px"><button class="btn small" data-a="media" data-op="replay">↺ Replay from start</button><button class="btn small ghost" data-a="media" data-op="${m.show ? 'hide' : 'show'}">${m.show ? '🙈 Hide video' : '👁 Show video'}</button><button class="btn small red" data-a="media" data-op="stop">⏹ Stop</button></div>`
       : m && m.stopped ? `<div class="kv"><span>⏹ Stopped: ${esc(m.label || '')}</span><button class="btn small" data-a="media" data-op="replay">↺ Play again</button></div>`
       : '<p class="small muted" style="margin:4px 0">Nothing playing. Clips on questions, clues and songs start automatically.</p>';

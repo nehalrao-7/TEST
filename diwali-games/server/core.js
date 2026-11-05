@@ -212,9 +212,10 @@ function autoMedia() {
       return mk(q, `hot${h.seat}-${h.qLevel}`, h.qPhase === 'reveal', `KBC · Q${h.qLevel + 1}`);
     }
   }
-  if (game.type === 'hookstep' && live.perf && live.perf.songIndex != null && live.phase === 'perform') {
+  if (game.type === 'hookstep' && live.perf && live.perf.songIndex != null && (live.phase === 'perform' || live.phase === 'judge')) {
     const song = (c.songs || [])[live.perf.songIndex];
-    return mk(song, `song${live.perf.songIndex}-${live.results.length}`, false, song ? song.title : '');
+    // Visible the whole dance. The TV blurs it until the clock hits zero, then replays it sharp.
+    return mk(song, `song${live.perf.songIndex}-${live.results.length}`, true, song ? song.title : '');
   }
   return null;
 }
