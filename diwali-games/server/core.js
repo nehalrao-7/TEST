@@ -53,7 +53,7 @@ function playerView(p, base) {
     me: {
       id: p.id, name: p.name, avatar: p.avatar, color: p.color, teamId: p.teamId, score: s[p.id], rank: me ? me.rank : null,
       powerups: p.powerups.map((x) => ({ ...x, ...S.POWERUPS[x.type] })),
-      doublePending: p.doublePending, doubleActive: Boolean(st().live && p.doubleGameId === st().live.gameId),
+      doublePending: p.doublePending, doubleActive: Boolean(p.doubleArmed),
       history: st().ledger.filter((e) => e.playerId === p.id).slice(-15).reverse(),
       stats: S.stat(p.id),
       awards: computeAwards().filter((a) => a.winners.some((w) => w.id === p.id)).map(({ emoji, title, value }) => ({ emoji, title, value })),
@@ -75,7 +75,7 @@ function hostView(base) {
     smsEnabled,
     ledger: s.ledger.slice(-150).reverse(),
     pending: Object.entries(s.pending).filter(([, v]) => v.expires > Date.now()).map(([phone, v]) => ({ phone: maskPhone(phone), name: v.name, code: v.via === 'sms' ? null : v.code, via: v.via, at: v.at })),
-    playersDetail: Object.values(s.players).map((p) => ({ id: p.id, bot: Boolean(p.bot), phone: p.bot ? '🤖 demo bot' : maskPhone(p.phone), powerups: p.powerups, doublePending: p.doublePending, doubleGameId: p.doubleGameId })),
+    playersDetail: Object.values(s.players).map((p) => ({ id: p.id, bot: Boolean(p.bot), phone: p.bot ? '🤖 demo bot' : maskPhone(p.phone), powerups: p.powerups, doublePending: p.doublePending, doubleArmed: Boolean(p.doubleArmed) })),
     powerupDefs: S.POWERUPS,
     questionnaire: s.questionnaire,
     answers: Object.values(s.players).map((p) => ({ id: p.id, answers: p.answers || {} })),
@@ -106,7 +106,7 @@ function startGame(gid) {
   if (game.mode === 'team' && !Object.keys(s.teams).length) throw new Error('This is a team game — create teams first (Players tab).');
   s.rankSnapshots[gid] = S.ranking().map((r) => ({ id: r.id, rank: r.rank, score: r.score }));
   for (const p of Object.values(s.players)) {
-    if (p.doublePending) { p.doubleGameId = gid; p.doublePending = false; }
+    if (p.doublePending) { p.doubleArmed = true; p.doublePending = false; }
   }
   game.status = 'live';
   // Practice mode: easy stand-in questions so the real set stays unseen; personal questions
@@ -119,7 +119,8 @@ function startGame(gid) {
   s.live = { gameId: gid, ...engines[game.type].init(game), content, personalCount: count, practice: Boolean(s.settings.practice) };
   s.tv.view = 'game';
   const base = game.mode === 'team' ? 'Team game — huddle up!' : 'Every player for themselves!';
-  S.announce({ emoji: game.emoji, title: game.title, text: count ? `${base} ✨ ${count} ${count === 1 ? 'question is' : 'questions are'} about YOU!` : base, kind: 'start', ms: 5000 });
+  // The intro scene is the title card. This line sits under it, so the open stays readable.
+  S.announce({ emoji: game.emoji, title: game.title, text: count ? `${base} ${count} ${count === 1 ? 'question is' : 'questions are'} about you.` : base, kind: 'start', style: 'lower', ms: 4200 });
 }
 
 function endGame() {
@@ -131,7 +132,7 @@ function endGame() {
     s.tv.view = 'leaderboard';
   s.tv.compareGameId = game.id;
   const top = S.ranking()[0];
-  S.announce({ emoji: '🏁', title: `${game.title} complete!`, text: top ? `${top.name} leads the party with ${top.score} points` : '', kind: 'end', ms: 4500 });
+  S.announce({ emoji: '🏁', title: `${game.title} complete!`, text: top ? `${top.name} leads with ${top.score}` : '', kind: 'end', style: 'lower', ms: 3800 });
 }
 
 
@@ -376,7 +377,7 @@ function hostAction(a) {
     }
     case 'clearPending': s.pending = {}; break;
     case 'resetScores': s.ledger = []; s.rankSnapshots = {}; s.stats = {}; s.personalUsed = []; s.awardsFrozen = null; s.awardsGiven = {}; s.live = null; s.games.forEach((g) => { g.status = 'pending'; });
-      Object.values(s.players).forEach((p) => { p.doubleGameId = null; p.doublePending = false; p.powerups = S.dealPowerups(s.settings.powerupsPerPlayer); });
+      Object.values(s.players).forEach((p) => { p.doubleGameId = null; p.doubleArmed = false; p.doublePending = false; p.powerups = S.dealPowerups(s.settings.powerupsPerPlayer); });
       s.tv = { view: 'lobby', announce: null, compareGameId: null }; s.feed = []; break;
     case 'resetAll': { const fresh = S.freshState(); fresh.hostTokens = s.hostTokens; S.setState(fresh); break; }
     default: throw new Error('Unknown action.');

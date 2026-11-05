@@ -227,7 +227,7 @@
     const m = G.mine;
     const dd = G.doubleDiya ? '<span class="dd-badge">✨ Double Diya · ×2</span>' : '';
     if (G.phase === 'question') {
-      if (App.now() < G.opensAt) { setTimeout(render, G.opensAt - App.now() + 30); return [`q-wait-${G.qIndex}`, `<div class="get-ready"><span class="eyebrow">Question ${G.qIndex + 1} of ${G.total}</span>${dd}<div class="gr-num" data-count="${G.opensAt}"></div><p>Read it on the TV</p></div>`, 'answer']; }
+      if (App.now() < G.opensAt) { setTimeout(render, G.opensAt - App.now() + 30); return [`q-wait-${G.qIndex}`, `<div class="get-ready"><span class="eyebrow">Question ${G.qIndex + 1} of ${G.total}</span>${dd}<div class="gr-num" data-count="${G.opensAt}"></div><p>Eyes on the TV</p></div>`, 'answer']; }
       if (m.answered) return [`q-locked-${G.qIndex}`, `<div class="locked"><div class="lock-tile o${m.choice}">${shape(m.choice)}</div>
         <h2>Locked in${m.order ? ` · #${m.order}` : ''}${m.order === 1 ? ' ⚡' : ''}</h2><p class="hand">${LOCK_LINES[(G.qIndex + (m.order || 0)) % LOCK_LINES.length]}</p>
         ${m.streak >= 2 ? `<span class="streak">🔥 ${m.streak} in a row</span>` : ''}</div>`, 'watch'];
@@ -241,11 +241,16 @@
     const ans = `<div class="ans-chip o${r.answer}">${shape(r.answer)}<span>${esc(q.options[r.answer])}</span></div>`;
     if (m.choice == null) return [`r-none-${G.qIndex}`, `<div class="result meh"><div class="r-em">😴</div><h2>No answer!</h2><p>The answer was</p>${ans}</div>`, 'watch'];
     const right = m.choice === r.answer;
-    const earned = (G.mode === 'team' ? (r.perTeam[S.me.teamId] || 0) : m.points) + (m.bonus || 0);
+    const teamShare = G.mode === 'team' ? (r.perTeam[S.me.teamId] || 0) : 0;
+    const earned = r.paid && Object.prototype.hasOwnProperty.call(r.paid, S.me.id)
+      ? r.paid[S.me.id]
+      : (G.mode === 'team' ? teamShare : (m.points || 0)) + (m.bonus || 0);
+    const doubled = r.doubled && r.doubled[S.me.id];
     const [line, emo] = RIGHT[G.qIndex % RIGHT.length];
+    const pts = earned > 0 ? `<div class="r-pts">+<span data-countup="${earned}">0</span></div>${r.double ? '<span class="streak">✨ Double Diya ×2</span>' : ''}${doubled ? '<span class="streak">💥 Double Dhamaka</span>' : ''}${G.mode === 'team' ? `<p class="small">${right ? 'Your share of the team' : 'Missed it — your team still scored'}</p>` : ''}` : '';
     return [`r-${right ? 'good' : 'bad'}-${G.qIndex}`, `<div class="result ${right ? 'good' : 'bad'}"><div class="r-em">${right ? emo : '😅'}</div><h2>${right ? line : WRONG[G.qIndex % WRONG.length]}</h2>
-      ${right ? `<div class="r-pts">+<span data-countup="${earned}">0</span></div>${r.double ? '<span class="streak">✨ Double Diya ×2</span>' : ''}${G.mode === 'team' ? '<p class="small">Team average · everyone on your team gets it</p>' : ''}` : `<p>The answer was</p>${ans}`}
-      ${m.streak >= 2 ? `<span class="streak">🔥 ${m.streak} in a row${m.bonus ? ` · +${m.bonus}` : ''}</span>` : ''}</div>`, 'watch'];
+      ${right ? pts : `<p>The answer was</p>${ans}${pts}`}
+      ${m.streak >= 2 ? `<span class="streak">🔥 ${m.streak} in a row</span>` : ''}</div>`, 'watch'];
   }
 
   // Jeopardy: the board is on the TV; your phone is a buzzer in your team's colour.
@@ -279,7 +284,7 @@
     if (G.phase === 'ff' || G.phase === 'ff-result') {
       const f = G.ff;
       if (G.phase === 'ff') {
-        if (App.now() < f.opensAt) { setTimeout(render, f.opensAt - App.now() + 30); return ['ff-wait', `<div class="get-ready"><span class="eyebrow">Fastest Finger First</span><div class="gr-num" data-count="${f.opensAt}"></div><p>Read it on the TV</p></div>`, 'answer']; }
+        if (App.now() < f.opensAt) { setTimeout(render, f.opensAt - App.now() + 30); return ['ff-wait', `<div class="get-ready"><span class="eyebrow">Fastest Finger First</span><div class="gr-num" data-count="${f.opensAt}"></div><p>Eyes on the TV</p></div>`, 'answer']; }
         if (f.mine != null) return ['ff-locked', `<div class="locked"><div class="lock-tile kbc">${App.letters[f.mine]}</div><h2>Locked in!</h2><p class="hand">Fastest correct answer takes the hot seat</p></div>`, 'watch'];
         return ['ff-open', `<div class="pad-head"><span class="eyebrow">Fastest Finger First</span><span class="secs" data-count="${f.deadline}"></span></div>${timer(f.opensAt, f.deadline)}
           <div class="shape-pad kbc">${f.question.options.map((_, i) => `<button class="pad kbc" data-act="ff" data-i="${i}"><span class="kl">${App.letters[i]}</span></button>`).join('')}</div>`, 'answer'];

@@ -23,6 +23,13 @@ const speedPoints = (at, opensAt, deadline) => {
   const frac = Math.min(1, Math.max(0, (at - opensAt) / (deadline - opensAt)));
   return Math.round((100 + 100 * (1 - frac)) / 5) * 5; // 100–200 per correct answer
 };
+// A title card owns the TV until it ends. The countdown starts after that card,
+// so the room reads the title, then the clock, then the answers.
+function showOpen(countdownMs = 2800) {
+  const ann = S.state.tv && S.state.tv.announce;
+  const blocking = ann && ann.style !== 'lower' && ann.until > now();
+  return (blocking ? ann.until + 400 : now()) + countdownMs;
+}
 const publicQ = (q) => ({ q: q.q, options: q.options, clue: q.clue || null, image: q.image || null, time: q.time || 20, personal: Boolean(q.personal) });
 
 // ======================= QUIZ (Kahoot / Guess the Movie) =======================
@@ -38,7 +45,7 @@ const quiz = {
     live.answers = {};
     live.hints = {};
     live.result = null;
-    live.opensAt = now() + 3000;
+    live.opensAt = showOpen(2800);
     live.deadline = live.opensAt + (q.time || 20) * 1000;
     quiz.resume(live, game, ctx);
   },
@@ -57,17 +64,25 @@ const quiz = {
       perPlayer[pid] = a.choice === q.answer ? speedPoints(a.at, live.opensAt, live.deadline) * mult : 0;
     }
     const perTeam = {};
+    const paid = {};
+    const doubled = {};
     const reason = `${game.title} Q${live.qIndex + 1}${mult > 1 ? ' ✨ Double Diya' : ''}`;
+    const give = (pid, amt, why) => {
+      if (!(amt > 0)) return;
+      const got = S.award(pid, amt, why, game.id) || 0;
+      paid[pid] = (paid[pid] || 0) + got;
+      if (got > amt) doubled[pid] = true;
+    };
     if (game.mode === 'team') {
       for (const t of Object.values(S.state.teams)) {
         const members = S.teamMembers(t.id);
         if (!members.length) continue;
         const pts = Math.round(members.reduce((a, m) => a + (perPlayer[m.id] || 0), 0) / members.length / 5) * 5;
         perTeam[t.id] = pts;
-        if (pts > 0) members.forEach((m) => S.award(m.id, pts, reason, game.id));
+        members.forEach((m) => give(m.id, pts, reason));
       }
     } else {
-      for (const [pid, pts] of Object.entries(perPlayer)) if (pts > 0) S.award(pid, pts, reason, game.id);
+      for (const [pid, pts] of Object.entries(perPlayer)) give(pid, pts, reason);
     }
     const fastest = Object.entries(live.answers)
       .filter(([, a]) => a.choice === q.answer)
@@ -86,12 +101,12 @@ const quiz = {
         st.correct++;
         live.streaks[p.id] = (live.streaks[p.id] || 0) + 1;
         st.bestStreak = Math.max(st.bestStreak, live.streaks[p.id]);
-        if (live.streaks[p.id] >= 3) { streakBonus[p.id] = 50; S.award(p.id, 50, `🔥 ${live.streaks[p.id]} in a row`, game.id); }
+        if (live.streaks[p.id] >= 3) { streakBonus[p.id] = 50; give(p.id, 50, `🔥 ${live.streaks[p.id]} in a row`); }
       } else live.streaks[p.id] = 0;
     }
     if (fastest[0]) S.stat(fastest[0].id).fastest++;
     const order = Object.entries(live.answers).sort((a, b) => a[1].at - b[1].at).map(([pid]) => pid);
-    live.result = { answer: q.answer, double: mult > 1, counts: countBy(live.answers, q.options.length), perPlayer, perTeam, fastest, streaks: { ...live.streaks }, streakBonus,
+    live.result = { answer: q.answer, double: mult > 1, counts: countBy(live.answers, q.options.length), perPlayer, perTeam, paid, doubled, fastest, streaks: { ...live.streaks }, streakBonus,
       byChoice: q.options.map((_, i) => order.filter((pid) => live.answers[pid].choice === i)) };
     live.phase = 'reveal';
   },
@@ -152,7 +167,8 @@ const quiz = {
 const jeopardy = {
   init: () => ({ phase: 'board', used: {}, cur: null, buzzOpen: false, buzzes: [], locked: [], active: null, last: null, early: {}, control: null, dd: null, wager: null, ddActive: false }),
   clue: (game, cur) => game.content.categories[cur.c].clues[cur.i],
-  EARLY_LOCK: 600,
+  EARLY_LOCK: 2000,
+  ANSWER_MS: 12000,
 
   ensureSetup(live, game) {
     if (!live.dd) {
@@ -169,6 +185,7 @@ const jeopardy = {
   advance(live) {
     const next = live.buzzes.find((b) => !live.locked.includes(b.key));
     live.active = next ? next.key : null;
+    live.answerUntil = live.active && !live.ddActive ? now() + jeopardy.ANSWER_MS : null;
   },
 
   maxWager(live, game) {
@@ -191,7 +208,7 @@ const jeopardy = {
         const cat = game.content.categories[a.c];
         if (!cat || !cat.clues[a.i] || live.used[k]) return;
         const isDD = live.dd.includes(k) && live.control;
-        Object.assign(live, { phase: isDD ? 'dd' : 'clue', cur: { c: a.c, i: a.i }, buzzOpen: false, buzzes: [], locked: [], active: null, openedAt: null, last: null, early: {}, wager: null, ddActive: false });
+        Object.assign(live, { phase: isDD ? 'dd' : 'clue', cur: { c: a.c, i: a.i }, buzzOpen: false, buzzes: [], locked: [], active: null, openedAt: null, answerUntil: null, last: null, early: {}, wager: null, ddActive: false });
         if (isDD) S.announce({ emoji: '💎', title: 'DAILY DOUBLE!', text: `${(S.entityInfo(live.control) || {}).name || 'The team in control'} — make your wager!`, kind: 'dd', ms: 3500 });
         break;
       }
@@ -218,6 +235,7 @@ const jeopardy = {
         live.control = live.active; // correct answer takes control of the board
         live.phase = 'answer';
         live.buzzOpen = false;
+        live.answerUntil = null;
         break;
       }
       case 'wrong': {
@@ -228,6 +246,7 @@ const jeopardy = {
           live.used[key] = { by: null };
           live.last = { key: live.active, correct: false, value: live.wager, dd: true };
           live.phase = 'answer';
+          live.answerUntil = null;
           break;
         }
         if (game.content.wrongPenalty) S.awardEntity(live.active, -clue.value, `${game.title}: wrong answer`, game.id);
@@ -241,9 +260,10 @@ const jeopardy = {
         live.used[key] = live.used[key] || { by: null };
         live.phase = 'answer';
         live.buzzOpen = false;
+        live.answerUntil = null;
         break;
       }
-      case 'board': Object.assign(live, { phase: 'board', cur: null, buzzOpen: false, buzzes: [], locked: [], active: null, wager: null, ddActive: false }); break;
+      case 'board': Object.assign(live, { phase: 'board', cur: null, buzzOpen: false, buzzes: [], locked: [], active: null, answerUntil: null, wager: null, ddActive: false }); break;
       default:
     }
   },
@@ -253,7 +273,15 @@ const jeopardy = {
     if (live.phase !== 'clue' || live.ddActive) throw new Error('No buzzing right now.');
     const key = S.entityKeyFor(p, game);
     if (!key) throw new Error('You are not on a team yet — ask the host.');
-    if (!live.buzzOpen) { live.early = live.early || {}; live.early[key] = now(); return; } // jumped the gun
+    if (!live.buzzOpen) {
+      live.early = live.early || {};
+      if (!live.early[key]) {
+        live.early[key] = now();
+        const who = S.entityInfo(key);
+        if (who) S.announce({ emoji: '⏳', title: `${who.name} jumped the gun`, text: 'Buzzers are still closed.', kind: 'jump', ms: 2200 });
+      }
+      return;
+    }
     if (live.early && live.early[key] && now() < live.openedAt + jeopardy.EARLY_LOCK) throw new Error('Too early! Locked for a moment…');
     if (live.locked.includes(key)) throw new Error('Your buzz is locked for this clue.');
     if (live.buzzes.some((b) => b.key === key)) return;
@@ -274,7 +302,7 @@ const jeopardy = {
       buzzes: live.buzzes.map((b) => ({ ...S.entityInfo(b.key), pid: b.pid, buzzerName: S.state.players[b.pid] ? S.state.players[b.pid].name : '', ms: b.ms })),
       active: live.active ? S.entityInfo(live.active) : null,
       control: live.control ? S.entityInfo(live.control) : null,
-      dd: live.phase === 'dd' || live.ddActive, wager: live.wager,
+      dd: live.phase === 'dd' || live.ddActive, wager: live.wager, answerUntil: live.answerUntil || null,
       locked: live.locked, last: live.last ? { ...live.last, info: S.entityInfo(live.last.key) } : null,
       entities: Object.fromEntries(Object.values(live.used).filter((u) => u.by).map((u) => [u.by, S.entityInfo(u.by)])),
     };
@@ -345,7 +373,7 @@ const kbc = {
         if (!pool.length) throw new Error('No Fastest Finger questions configured.');
         live.ffIndex = (live.ffIndex + 1) % pool.length;
         const q = pool[live.ffIndex];
-        const opensAt = now() + 3000;
+        const opensAt = showOpen(2800);
         live.ff = { qi: live.ffIndex, opensAt, deadline: opensAt + (q.time || 15) * 1000, answers: {}, winner: null };
         live.phase = 'ff';
         live.hot = null;
@@ -615,6 +643,10 @@ function tick(state) {
   const game = base && live.content ? { ...base, content: live.content } : base;
   if (!game) return;
   if (game.type === 'quiz' && live.phase === 'question' && t > live.deadline + 300) quiz.reveal(live, game);
+  if (game.type === 'jeopardy' && live.phase === 'clue' && !live.ddActive && live.answerUntil && t > live.answerUntil && live.active) {
+    live.answerUntil = null;
+    jeopardy.host(live, game, { type: 'wrong' });
+  }
   if (game.type === 'kbc') {
     if (live.phase === 'ff' && live.ff && t > live.ff.deadline + 300) kbc.ffClose(live, game);
     if (live.hot && live.hot.poll && live.hot.poll.open && t > live.hot.poll.deadline) live.hot.poll.open = false;
@@ -632,6 +664,7 @@ function nextDeadline(state) {
   const live = state.live;
   if (live) {
     if (live.phase === 'question' && live.deadline) c.push(live.deadline + 400);
+    if (live.phase === 'clue' && live.answerUntil) c.push(live.answerUntil + 200);
     if (live.phase === 'ff' && live.ff) c.push(live.ff.deadline + 400);
     if (live.hot && live.hot.poll && live.hot.poll.open) c.push(live.hot.poll.deadline + 100);
     if (live.phase === 'perform') c.push(live.until + 1600);

@@ -203,7 +203,7 @@
 
     // ---------- fireworks (anar + rockets) ----------
     confetti(power = 1) { App.fireworks(power); },
-    fireworks(power = 1) {
+    fireworks(power = 1, zone) {
       let c = document.getElementById('confetti');
       if (!c) { c = document.createElement('canvas'); c.id = 'confetti'; document.body.appendChild(c); }
       const ctx = c.getContext('2d');
@@ -213,13 +213,17 @@
       const palette = [['#ffc93c', '#fff3c4'], ['#f7931e', '#ffd28a'], ['#e8577f', '#ffd1e0'], ['#2ec4b6', '#c8fff8'], ['#fff3dc', '#ffffff'], ['#d7263d', '#ffb3bd']];
       App._fw = App._fw || { parts: [], running: false };
       const P = App._fw.parts;
-      const rockets = Math.max(1, Math.round(3 * power));
+      const rockets = Math.max(1, Math.round((zone ? 2 : 3) * power));
       for (let r = 0; r < rockets; r++) {
-        const x = W * (0.15 + Math.random() * 0.7), ty = H * (0.15 + Math.random() * 0.3);
+        const side = Math.random() < 0.5;
+        const x = zone === 'sides'
+          ? W * (side ? 0.06 + Math.random() * 0.14 : 0.80 + Math.random() * 0.14)
+          : W * (0.22 + Math.random() * 0.56);
+        const ty = zone ? H * (0.06 + Math.random() * 0.14) : H * (0.15 + Math.random() * 0.3);
         P.push({ rocket: true, x, y: H + 10, vx: (Math.random() - 0.5) * 1.5, vy: -(Math.sqrt(2 * 0.12 * (H - ty)) ), delay: r * 14, col: palette[(Math.random() * palette.length) | 0] });
       }
-      // ground fountain (anar) for bigger moments
-      if (power >= 1) for (let i = 0; i < 90 * power; i++) {
+      // ground fountain (anar) only when the picture is the celebration itself
+      if (!zone && power >= 1) for (let i = 0; i < 90 * power; i++) {
         P.push({ x: W / 2 + (Math.random() - 0.5) * 40, y: H, vx: (Math.random() - 0.5) * 4, vy: -(6 + Math.random() * 7), life: 70 + Math.random() * 40, max: 110, size: 1.8, col: palette[(Math.random() * 2) | 0], delay: (Math.random() * 40) | 0, g: 0.14 });
       }
       if (App._fw.running) return;

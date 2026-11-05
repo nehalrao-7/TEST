@@ -387,7 +387,7 @@
         <td class="small muted">${esc(d.phone)}</td>
         <td>${S.teams.length ? `<select data-a="setTeam" data-id="${p.id}">${teamOpts(p.teamId)}</select>` : '—'}</td>
         <td><b>${fmt(p.score)}</b></td>
-        <td>${d.powerups.map((u) => `<span class="pu-mini ${u.used ? 'used' : ''}" title="${esc(S.powerupDefs[u.type].name)}${u.used ? ' (used)' : ''}">${S.powerupDefs[u.type].emoji}</span>`).join(' ')}${d.doublePending ? ' <span class="chip gold">×2 next</span>' : ''}</td>
+        <td>${d.powerups.map((u) => `<span class="pu-mini ${u.used ? 'used' : ''}" title="${esc(S.powerupDefs[u.type].name)}${u.used ? ' (used)' : ''}">${S.powerupDefs[u.type].emoji}</span>`).join(' ')}${d.doublePending || d.doubleArmed ? ' <span class="chip gold">×2 next</span>' : ''}</td>
         <td><div class="btn-row"><button class="btn small ghost" data-a="rename" data-id="${p.id}">✏️</button><button class="btn small ghost" data-a="redeal" data-id="${p.id}" title="Re-deal power-ups">🎁</button><button class="btn small ghost" data-a="remove" data-id="${p.id}">🗑</button></div></td></tr>`;
     }).join('');
     return `<div class="hgrid"><div>${pendingCard()}<div class="card"><h3>👥 Players (${S.players.length})</h3><div class="scroll-x"><table class="tbl"><thead><tr><th>#</th><th>Player</th><th>Phone</th><th>Team</th><th>Score</th><th>Power-ups</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="7" class="muted">No one yet — put the TV on the lobby so guests can scan the QR.</td></tr>'}</tbody></table></div></div></div>
