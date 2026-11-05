@@ -59,7 +59,17 @@ body.has-lower .ticker-inner { visibility: hidden; }
 .lobby .sub b { color: var(--haldi); }
 .join-box { display: flex; gap: 2vw; align-items: center; padding: 1.6vw; }
 .join-box img { width: 12.5vw; height: 12.5vw; border-radius: 1vw; background: #fff; padding: 0.4vw; box-shadow: 0 0 0 0.25vw var(--brass); }
-.join-box .url { font-family: var(--font-display); font-size: 2.2vw; color: var(--rani); word-break: break-all; line-height: 1.1; }
+.join-box .url { font-family: var(--font-display); font-size: 1.3vw; color: var(--text-muted); word-break: break-all; line-height: 1.1; }
+.join-box .room-code { font-size: 4.8vw; font-weight: 700; letter-spacing: .22em; color: #2B0F15; line-height: 1; margin: 0.2vw 0 0.4vw; }
+body.tv-gate .tv-top, body.tv-gate .tv-foot, body.tv-gate .sound-btn, body.tv-gate .media-box, body.tv-gate .music-chip { display: none; }
+body.tv-gate .stage { display: grid; place-items: center; }
+.gate { width: min(42vw, 760px); text-align: center; }
+.gate h1 { font-size: 4vw; margin: 0.4vw 0; }
+.gate p { color: var(--text-muted); font-size: 1.4vw; }
+.gate .em .diya-svg { width: 7vw; height: 7vw; }
+.gate .code-input { width: 100%; font-size: 3.2vw; letter-spacing: .4em; text-align: center; font-weight: 700; text-transform: uppercase; margin: 1vw 0; background: var(--shell); color: var(--cream); }
+.gate .btn { margin-top: 0.6vw; }
+.gate-err { color: var(--coral); }
 .join-box .step { font-size: 1.15vw; color: var(--ink-2); font-weight: 700; }
 .join-box .games { font-size: 1.8vw; margin-top: 0.6vw; letter-spacing: 0.3vw; }
 .q-note { margin-top: 1.2vw; font-size: 1.3vw; background: rgba(255, 243, 220, 0.07); border: 1px dashed var(--kohl-line); border-radius: 1vw; padding: 0.8vw 1.2vw; }

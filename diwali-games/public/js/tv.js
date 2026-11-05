@@ -11,7 +11,7 @@
   const lbAnimated = new Set();
 
   $('soundBtn').onclick = () => { App.enableSound(); App.sfx('arrive'); $('soundBtn').remove(); mediaSig = ''; syncMedia(); };
-  App.onReact((r) => { App.showReaction(r); App.sfx('pop'); });
+  App.onReact((r) => { if (r.room && App.room && r.room !== App.room) return; App.showReaction(r); App.sfx('pop'); });
 
   // ---------- YouTube music / video ----------
   let yt = null, ytReady = false, mediaSig = '';
@@ -71,7 +71,44 @@
     if (App.soundOn) { yt.unMute(); yt.setVolume(100); } else yt.mute();
   }
 
-  App.connect('tv', null, (s) => { S = s; render(); });
+  let sock = null;
+  function enterRoom(code) {
+    App.room = code;
+    try { localStorage.setItem('dgn_tv_room', code); } catch { /* private mode */ }
+    history.replaceState(null, '', '/tv?room=' + code);
+    document.body.classList.remove('tv-gate');
+    if (sock) sock.disconnect();
+    sock = App.connect('tv', null, (s) => { S = s; render(); }, (msg) => {
+      try { localStorage.removeItem('dgn_tv_room'); } catch { /* ignore */ }
+      App.room = '';
+      showGate(msg);
+    });
+  }
+  function showGate(msg) {
+    document.body.classList.add('tv-gate');
+    $('stage').innerHTML = `<div class="gate"><div class="em">${App.diya(true)}</div><h1>Which room?</h1><p>Enter the 4-character code from the host.</p>
+      <form id="tvGate"><input id="tvRoom" class="code-input" type="text" maxlength="4" autocapitalize="characters" autocomplete="off" placeholder="ABCD" aria-label="Room code" />
+      <button class="btn big" type="submit">Open the room</button></form>
+      ${msg ? `<p class="gate-err">${esc(msg)}</p>` : ''}</div>`;
+    const input = $('tvRoom');
+    input.focus();
+    $('tvGate').onsubmit = async (e) => {
+      e.preventDefault();
+      const code = App.canonRoom(input.value);
+      if (!code) { showGate('Enter the 4-character room code.'); return; }
+      try {
+        const m = await (await fetch('/api/meta?room=' + code)).json();
+        if (!m.roomExists) { showGate('No room with that code.'); return; }
+        enterRoom(code);
+      } catch { showGate('Could not open that room.'); }
+    };
+  }
+  function bootTv() {
+    const code = App.roomFromQuery() || App.canonRoom((() => { try { return localStorage.getItem('dgn_tv_room'); } catch { return ''; } })());
+    if (!code) showGate();
+    else enterRoom(code);
+  }
+  bootTv();
 
   const player = (id) => S.players.find((p) => p.id === id);
   const team = (id) => S.teams.find((t) => t.id === id);
@@ -79,7 +116,7 @@
   const entAv = (e) => `<span class="avatar" style="--c:${e.color}">${esc(e.emoji)}</span>`;
   const timerBar = (start, end) => `<div class="timer" data-start="${start}" data-end="${end}"><i></i></div>`;
   const shapeK = (i) => `<span class="k"><span class="shape">${App.shapes[i] || ''}</span><span class="tick">✓</span></span>`;
-  const joinUrl = () => location.origin + '/play';
+  const joinUrl = () => location.origin + '/play?room=' + encodeURIComponent(App.room || (S && S.code) || '');
   const flame = (n) => (n >= 2 ? ` <span class="flame-chip">🔥${n}</span>` : '');
   const medalCount = (deadline, start) => `<span class="medal burn" data-burn="${deadline}" data-burn-start="${start}"><span data-count="${deadline}" data-tick="1"></span></span>`;
 
@@ -98,7 +135,7 @@
   function render() {
     document.title = `${S.eventName} — TV`;
     App.patch($('eventName'), S.eventName.split(' ').length > 2 ? esc(S.eventName).replace(/(\S+\s+\S+)$/, '<span>$1</span>') : esc(S.eventName));
-    App.patch($('nowPlaying'), S.live ? `<span class="plaque">${esc(S.live.emoji)} ${esc(S.live.title)} · ${S.live.mode === 'team' ? 'Teams' : 'Solo'}${S.live.practice ? ' · 🧪 Practice' : ''}</span>` : '');
+    App.patch($('nowPlaying'), S.live ? `<span class="plaque">${esc(S.live.emoji)} ${esc(S.live.title)} · ${S.live.mode === 'team' ? 'Teams' : 'Solo'}${S.live.difficultyName ? ' · ' + esc(S.live.difficultyName) : ''}${S.live.practice ? ' · 🧪 Practice' : ''}</span>` : `<span class="plaque">Room ${esc(S.code || '')}</span>`);
     const mini = S.live && S.live.mode === 'team' && S.teams.length
       ? [...S.teams].sort((a, b) => (b.gamePoints - a.gamePoints) || (b.total - a.total)).filter((t) => (t.gamePoints || t.total) > 0).slice(0, 3)
         .map((t, i) => `<div class="m">${['🥇', '🥈', '🥉'][i]} <span class="avatar" style="--c:${t.color}">${esc(t.emoji)}</span> ${esc(String(t.name).replace(/^Team /, ''))} · ${fmt(t.gamePoints || t.total)}</div>`).join('')
@@ -107,7 +144,7 @@
     const line = S.feed[0];
     App.patch($('ticker'), line
       ? `<span class="chyron">${esc(line.emoji || '✨')} ${esc(line.text)}</span>`
-      : `<span class="chyron">Join at <b>${esc(joinUrl())}</b></span>`);
+      : `<span class="chyron">Room <b>${esc(S.code || '')}</b></span>`);
     detectArrivals();
 
     let view = S.tv.view;
@@ -194,13 +231,13 @@
         <div class="tv-mascot">${App.mascot()}</div>
         <div class="title-big">${esc(S.eventName.replace(/ Game Night$/i, '') || 'Diwali')}</div>
         <div class="title-hand">Game Night ✨</div>
-        <div class="sub">Scan · verify your phone · unwrap your <b>secret power-ups</b> 🎁</div>
+        <div class="sub">Type the room code on your phone. Your score stays in this room.</div>
         <div class="join-box paper">
           <img src="/api/qr.svg?u=${encodeURIComponent(url)}" alt="QR code to join" />
-          <div><div class="step">Scan or type on your phone</div><div class="url">${esc(url.replace(/^https?:\/\//, ''))}</div>
+          <div><div class="step">Room code</div><div class="room-code">${esc(S.code || '')}</div>
           <div class="games">${S.games.map((g) => esc(g.emoji)).join(' ')}</div></div>
         </div>
-        ${S.questionnaire && S.questionnaire.open ? `<div class="q-note">📝 <b>${S.questionnaire.done}</b> of ${ps.length} guests have spilled the beans in “About me”. Some answers become tonight's questions 👀</div>` : ''}
+        ${S.questionnaire && S.questionnaire.open && ps.length ? `<div class="q-note">📝 <b>${S.questionnaire.done}</b> of ${ps.length} guests have answered. Some of those answers become tonight's questions.</div>` : ''}
       </div>
       <div>
         <div class="guest-head"><h2>The Guest List</h2><span class="hand-note">${ps.length} ${ps.length === 1 ? 'diya' : 'diyas'} lit</span></div>
@@ -308,7 +345,10 @@
     const fn = { quiz: quizScene, jeopardy: jeopardyScene, kbc: kbcScene, hookstep: hookScene, custom: customScene }[L.type];
     return fn(L);
   }
-  const intro = (L, sub, rules = []) => `<div class="intro"><div><div class="em">${esc(L.emoji)}</div><h1>${esc(L.title)}</h1><p>${sub}</p>${rules.length ? `<div class="rules">${rules.map((r) => `<span>${r}</span>`).join('')}</div>` : ''}</div></div>`;
+  const intro = (L, sub, rules = []) => {
+    const all = L && L.difficultyName ? rules.concat([`🎚️ ${L.difficultyName}`]) : rules;
+    return `<div class="intro"><div><div class="em">${esc(L.emoji)}</div><h1>${esc(L.title)}</h1><p>${sub}</p>${all.length ? `<div class="rules">${all.map((r) => `<span>${r}</span>`).join('')}</div>` : ''}</div></div>`;
+  };
   const lockins = (ids) => {
     const on = new Set(ids || []);
     return `<div class="lockins">${S.players.filter((p) => p.online || on.has(p.id)).map((p) => `<div class="lk ${on.has(p.id) ? 'on' : ''}">${av(p)}${App.diya(on.has(p.id))}<small>${esc(p.name)}</small></div>`).join('')}</div>`;
@@ -514,7 +554,7 @@
     stream.getTracks().forEach((t) => t.stop());
     const score = Math.round(0.6 * peak + 0.4 * (sum / Math.max(1, n)));
     App.sfx('ding'); App.fireworks(score / 80);
-    fetch('/api/applause', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, level: score }) }).catch(() => {});
+    fetch('/api/applause', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, level: score, room: App.room }) }).catch(() => {});
   }
 
   function customScene(L) {

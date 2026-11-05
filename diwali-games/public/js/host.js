@@ -15,24 +15,49 @@
   const ui = { awardTarget: '', awardReason: '', awardAmount: '100', performer: '', song: '', judge: '100', seat: '', teamCount: '3', newType: 'quiz', newTitle: '', newMode: 'individual', annTitle: '', annText: '' };
 
   // ---------- login ----------
-  // Open access (OPEN_ACCESS=true on the server): no PIN needed — log straight in.
-  let triedOpen = false;
+  function session() {
+    try { return JSON.parse(store.get('dgn_host_session') || 'null'); } catch { return null; }
+  }
+  function saveSession(code, token) {
+    store.set('dgn_host_session', JSON.stringify({ code, token }));
+    store.set('dgn_host', token);
+  }
   async function loginView() {
-    if (!triedOpen) {
-      triedOpen = true;
-      try {
-        const m = await (await fetch('/api/meta')).json();
-        if (m.openAccess) { const r = await App.post('/api/host/login', { pin: '' }); store.set('dgn_host', r.token); start(r.token); return; }
-      } catch { /* fall through to the PIN form */ }
-    }
+    let open = false;
+    try { open = Boolean((await (await fetch('/api/meta')).json()).openAccess); } catch { /* PIN form still works */ }
+    const preset = App.roomFromQuery() || (session() && session().code) || '';
     app.innerHTML = `<div class="login-card card stack">
-      <div class="center"><div style="font-size:52px">🪔</div><h2 style="font-size:28px">Host console</h2><p class="muted">Enter the host PIN (printed in the server log, or set with HOST_PIN).</p></div>
-      <form id="lf" class="stack"><input type="password" id="pin" inputmode="numeric" placeholder="Host PIN" autocomplete="current-password" /><button class="btn diya-btn big block">${App.diya(true, 28)} Enter</button></form></div>`;
+      <div class="center"><div style="font-size:52px">🪔</div><h2 style="font-size:28px">Host a room</h2><p class="muted">Each room is its own game. Scores stay in the room.</p></div>
+      <button class="btn diya-btn big block" id="newRoom" type="button">${App.diya(true, 28)} Start a new room</button>
+      ${open ? '' : '<input type="password" id="pin" inputmode="numeric" placeholder="Host PIN" autocomplete="current-password" />'}
+      <form id="lf" class="stack">
+        <label class="field" for="room">Open an existing room</label>
+        <input type="text" id="room" class="code-input" maxlength="4" autocapitalize="characters" autocomplete="off" placeholder="ABCD" aria-label="Room code" value="${esc(preset)}" />
+        <button class="btn block" type="submit">Open room</button>
+      </form>
+      <p class="fine"><a href="/">Join as a player</a> · <a href="/tv">TV</a></p>
+    </div>`;
+    const pin = () => (app.querySelector('#pin') ? app.querySelector('#pin').value : '');
+    app.querySelector('#newRoom').onclick = async () => {
+      const btn = app.querySelector('#newRoom');
+      btn.disabled = true;
+      try {
+        const r = await App.post('/api/room/create', { pin: pin() });
+        saveSession(r.code, r.token);
+        App.room = r.code;
+        history.replaceState(null, '', '/host?room=' + r.code);
+        start(r.token);
+      } catch (err) { App.toast(err.message, true); btn.disabled = false; }
+    };
     app.querySelector('#lf').onsubmit = async (e) => {
       e.preventDefault();
+      const code = App.canonRoom(app.querySelector('#room').value);
+      if (!code) { App.toast('Enter the 4-character room code.', true); return; }
       try {
-        const r = await App.post('/api/host/login', { pin: app.querySelector('#pin').value });
-        store.set('dgn_host', r.token);
+        App.room = code;
+        const r = await App.post('/api/host/login', { room: code, pin: pin() });
+        saveSession(r.code || code, r.token);
+        history.replaceState(null, '', '/host?room=' + (r.code || code));
         start(r.token);
       } catch (err) { App.toast(err.message, true); }
     };
@@ -40,8 +65,8 @@
 
   function start(token) {
     App.sparkles(14);
-    app.innerHTML = `<div class="htop"><div class="logo"><span class="diya">🪔</span><b>Host <span>Console</span></b></div><div class="htabs" id="tabs"></div></div><div id="main"></div>`;
-    sock = App.connect('host', token, (s) => { S = s; render(); }, () => { store.del('dgn_host'); sock.disconnect(); loginView(); });
+    app.innerHTML = `<div class="htop"><div class="hbrand"><div class="logo"><span class="diya">🪔</span><b>Host <span>Console</span></b></div><button class="room-pill" id="roomPill" type="button" data-a="copyCode" title="Copy room code"></button></div><div id="diffSlot"></div><div class="htabs" id="tabs"></div></div><div id="main"></div>`;
+    sock = App.connect('host', token, (s) => { S = s; const pill = document.getElementById('roomPill'); if (pill && s.code) pill.textContent = s.code; render(); }, () => { store.del('dgn_host'); store.del('dgn_host_session'); if (sock) sock.disconnect(); loginView(); });
   }
 
   const editor = window.createEditor({ send: (a, cb) => sock.emit('host', a, cb), toast: App.toast, rerender: (force) => render(force) });
@@ -56,6 +81,11 @@
     const pend = S.pending.length;
     App.patch(document.getElementById('tabs'), [['live', '🎮 Live'], ['games', '🗂 Games'], ['questions', '✏️ Questions'], ['players', `👥 Players${pend ? `<span class="dot">${pend}</span>` : ''}`], ['scores', '📊 Scores & Settings']]
       .map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? 'on' : ''}">${l}</button>`).join(''));
+    const diffSlot = document.getElementById('diffSlot');
+    if (diffSlot) {
+      const liveName = S.live && (S.live.difficultyName || 'Party');
+      App.patch(diffSlot, tab === 'live' ? (S.live ? `<p class="diff-live">This round is <b>${esc(liveName)}</b></p>` : diffControl()) : '');
+    }
     const main = document.getElementById('main');
     const html = { live: liveTab, games: gamesTab, questions: () => editor.html(S), players: playersTab, scores: scoresTab }[tab]();
     App.patch(main, html, force);
@@ -80,7 +110,7 @@
       </div>`;
     } else {
       const fn = { quiz: quizCtl, jeopardy: jeoCtl, kbc: kbcCtl, hookstep: hookCtl, custom: () => '<p class="muted">Award points with the panel on the right. End the game when you are done.</p>' }[L.type];
-      left = `<div class="card"><h3>${esc(L.emoji)} ${esc(L.title)} <span class="chip live">LIVE</span><span class="chip">${L.mode}</span>${L.practice ? '<span class="chip">🧪 practice questions</span>' : ''}${S.personalCount ? `<span class="chip gold">✨ ${S.personalCount} personalised</span>` : ''}
+      left = `<div class="card"><h3>${esc(L.emoji)} ${esc(L.title)} <span class="chip live">LIVE</span><span class="chip">${L.mode}</span>${L.difficultyName ? `<span class="chip">${esc(L.difficultyName)}</span>` : ''}${L.practice ? '<span class="chip">🧪 practice questions</span>' : ''}${S.personalCount ? `<span class="chip gold">✨ ${S.personalCount} personalised</span>` : ''}
         <button class="btn red small" style="margin-left:auto" data-a="end">🏁 End game → leaderboard</button></h3>${fn(L)}</div>`;
     }
     return `${cueBar()}<div class="hgrid"><div>${demoCard()}${left}${tvCard()}</div><div>${pendingCard()}${awardCard()}${feedCard()}</div></div>`;
@@ -161,6 +191,16 @@
       <button class="btn rani" data-a="demoStart">🤖 Start demo</button></div>${practiceRow()}</div>`;
   }
 
+  const DIFF_NAMES = ['', 'Warm', 'Gentle', 'Party', 'Tricky', 'Spicy'];
+  const DIFF_BLURB = ['', 'Easy stand-in questions, more time.', 'Your questions, a little more time.', 'Your questions, the usual clock.', 'Your questions, a shorter clock.', 'Your questions, the shortest clock.'];
+  function diffControl() {
+    const n = Math.max(1, Math.min(5, Number(S.settings && S.settings.difficulty) || 3));
+    return `<div class="diff"><div class="diff-top"><span class="field">Question difficulty</span><b>${DIFF_NAMES[n]}</b></div>
+      <input type="range" min="1" max="5" step="1" value="${n}" data-a="difficulty" aria-valuemin="1" aria-valuemax="5" aria-valuenow="${n}" aria-label="Question difficulty" />
+      <div class="diff-scale"><span>Warm</span><span>Gentle</span><span>Party</span><span>Tricky</span><span>Spicy</span></div>
+      <p class="small muted">${DIFF_BLURB[n]} Set it before you start. The room remembers it.</p></div>`;
+  }
+
   function practiceRow() {
     const on = S.settings.practice;
     return `<div class="practice-row ${on ? 'on' : ''}"><span>🧪 <b>Practice questions ${on ? 'ON' : 'off'}</b> · <span class="small">${on ? 'Games use a super-easy stand-in set. Your real questions stay hidden, so practising with guests spoils nothing.' : 'Turns on automatically with the demo, or switch it on to practise with guests without bots.'}</span></span>
@@ -193,7 +233,8 @@
 
   function linksHtml() {
     const o = location.origin;
-    return `<div class="links stack">${[['Players join', o + '/play'], ['TV display', o + '/tv'], ['Host', o + '/host']].map(([l, u]) => `<div class="row"><span style="width:100px" class="small muted">${l}</span><input type="text" readonly value="${u}" class="grow" style="flex:1"/><button class="btn small ghost" data-a="copy" data-u="${u}">Copy</button></div>`).join('')}</div>`;
+    const q = S.code ? '?room=' + encodeURIComponent(S.code) : '';
+    return `<div class="links stack">${[['Players join', o + '/play' + q], ['TV display', o + '/tv' + q], ['Host', o + '/host' + q]].map(([l, u]) => `<div class="row"><span style="width:100px" class="small muted">${l}</span><input type="text" readonly value="${esc(u)}" class="grow" style="flex:1"/><button class="btn small ghost" data-a="copy" data-u="${esc(u)}">Copy</button></div>`).join('')}</div>`;
   }
 
   function pendingCard() {
@@ -432,10 +473,21 @@
   }
 
   // ---------- events ----------
-  app.addEventListener('input', (e) => { if (e.target.dataset && e.target.dataset.eg && !/radio|checkbox/.test(e.target.type) && e.target.tagName !== 'SELECT') { editor.onInput(e); return; } const k = e.target.dataset && e.target.dataset.ui; if (k) ui[k] = e.target.value; });
+  app.addEventListener('input', (e) => {
+    if (e.target.dataset && e.target.dataset.a === 'difficulty') {
+      const n = Number(e.target.value);
+      const box = e.target.closest('.diff');
+      if (box) { const b = box.querySelector('b'); if (b) b.textContent = DIFF_NAMES[n] || ''; const p = box.querySelector('p'); if (p) p.textContent = (DIFF_BLURB[n] || '') + ' Set it before you start. The room remembers it.'; }
+      e.target.setAttribute('aria-valuenow', String(n));
+      return;
+    }
+    if (e.target.dataset && e.target.dataset.eg && !/radio|checkbox/.test(e.target.type) && e.target.tagName !== 'SELECT') { editor.onInput(e); return; }
+    const k = e.target.dataset && e.target.dataset.ui; if (k) ui[k] = e.target.value;
+  });
   app.addEventListener('change', (e) => {
     const t = e.target;
     if (t.dataset && t.dataset.eg) { if (/radio|checkbox/.test(t.type) || t.tagName === 'SELECT') editor.onInput(e); return; }
+    if (t.dataset.a === 'difficulty') { act({ type: 'settings', difficulty: Number(t.value) }); return; }
     if (t.dataset.ui) { ui[t.dataset.ui] = t.value; render(); return; }
     if (t.dataset.a === 'mode') act({ type: 'editGame', gameId: t.dataset.id, mode: t.value });
     if (t.dataset.a === 'setControl') gameAct({ type: 'setControl', key: t.value });
@@ -479,6 +531,7 @@
       }
       case 'clearAnswer': act({ type: 'clearAnswer', playerId: id, promptId: b.dataset.q }); break;
       case 'copy': navigator.clipboard && navigator.clipboard.writeText(b.dataset.u).then(() => App.toast('Copied!')); break;
+      case 'copyCode': if (S && S.code && navigator.clipboard) navigator.clipboard.writeText(S.code).then(() => App.toast('Room code copied')); break;
       case 'award': {
         if (!ui.awardTarget) return App.toast('Pick a player or team first', true);
         const n = b.dataset.n ? Number(b.dataset.n) : Number(ui.awardAmount);
@@ -509,7 +562,7 @@
       case 'saveSettings': act({ type: 'settings', eventName: document.getElementById('sName').value, powerupsEnabled: document.getElementById('sPU').checked, stealAmount: document.getElementById('sSteal').value, swapCap: document.getElementById('sSwap').value }, 'Saved ✓'); break;
       case 'resetScores': if (confirm('Reset ALL scores, games and power-ups? Players stay logged in.')) act({ type: 'resetScores' }, 'Reset done'); break;
       case 'resetAll': if (prompt('Type WIPE to delete all players, scores and edits') === 'WIPE') act({ type: 'resetAll' }, 'Wiped'); break;
-      case 'logout': store.del('dgn_host'); location.reload(); break;
+      case 'logout': store.del('dgn_host'); store.del('dgn_host_session'); location.href = '/host'; break;
       default:
     }
   });
@@ -520,7 +573,11 @@
     if (window._cue && window._cue.run && !window._cue.disabled) { window._cue.run(); App.toast(window._cue.label); }
   });
 
-  const tok = store.get('dgn_host');
-  if (tok) start(tok);
-  else loginView();
+  const saved = session();
+  const asked = App.roomFromQuery();
+  if (saved && saved.token && saved.code && (!asked || asked === saved.code)) {
+    App.room = saved.code;
+    if (asked !== saved.code) history.replaceState(null, '', '/host?room=' + saved.code);
+    start(saved.token);
+  } else loginView();
 })();

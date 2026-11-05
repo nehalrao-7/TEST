@@ -47,6 +47,7 @@ function freshState() {
       powerupsPerPlayer: 2,
       personalPct: 20,
       questionnaireOpen: true,
+      difficulty: 3,
       stealAmount: 150,
       swapCap: 300,
     },
@@ -95,8 +96,10 @@ function setState(s) {
     state.questionnaire = PZ.DEFAULT_PROMPTS.map((x) => ({ ...x })).concat(custom);
     state.questionnaireVersion = QV;
   }
+  if (!state.settings) state.settings = {};
   if (state.settings.personalPct == null) state.settings.personalPct = 20;
   if (state.settings.questionnaireOpen == null) state.settings.questionnaireOpen = true;
+  state.settings.difficulty = Math.max(1, Math.min(5, Math.round(Number(state.settings.difficulty) || 3)));
   if (!state.personalUsed) state.personalUsed = [];
   if (!state.stats) state.stats = {};
   if (!state.hookV2) {
@@ -395,6 +398,8 @@ function gamesList() {
 function basePublic(onlineSet) {
   return {
     serverNow: Date.now(),
+    code: state.code || '',
+    difficulty: state.settings.difficulty || 3,
     eventName: state.settings.eventName,
     powerupsEnabled: state.settings.powerupsEnabled,
     players: publicPlayers(onlineSet),

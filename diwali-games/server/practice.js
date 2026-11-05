@@ -69,4 +69,30 @@ function practiceContent(game) {
   return clone(game.content);
 }
 
-module.exports = { practiceContent };
+// 1 Warm uses the easy stand-in set. 2–5 use the real questions and only change the clock.
+const LEVELS = [
+  null,
+  { name: 'Warm', factor: 1.4, easy: true },
+  { name: 'Gentle', factor: 1.25, easy: false },
+  { name: 'Party', factor: 1, easy: false },
+  { name: 'Tricky', factor: 0.8, easy: false },
+  { name: 'Spicy', factor: 0.65, easy: false },
+];
+
+function scaleTimes(node, factor) {
+  if (factor === 1 || !node || typeof node !== 'object') return;
+  if (Array.isArray(node)) { node.forEach((x) => scaleTimes(x, factor)); return; }
+  if (typeof node.time === 'number') node.time = Math.max(8, Math.round(node.time * factor));
+  if (typeof node.performSeconds === 'number') node.performSeconds = Math.max(20, Math.min(60, Math.round(node.performSeconds * factor)));
+  Object.values(node).forEach((v) => { if (v && typeof v === 'object') scaleTimes(v, factor); });
+}
+
+function applyDifficulty(game, level) {
+  const n = Math.max(1, Math.min(5, Math.round(Number(level) || 3)));
+  const L = LEVELS[n];
+  const content = JSON.parse(JSON.stringify(L.easy ? practiceContent(game) : game.content));
+  scaleTimes(content, L.factor);
+  return { content, level: n, name: L.name };
+}
+
+module.exports = { practiceContent, applyDifficulty, LEVELS };

@@ -11,7 +11,7 @@ const { smsEnabled, sendSms } = require('./sms');
 const { parseYouTube } = require('./youtube');
 const P = require('./personalize');
 const Bots = require('./bots');
-const { practiceContent } = require('./practice');
+const { applyDifficulty } = require('./practice');
 
 const st = () => S.state;
 let ONLINE = new Set();
@@ -40,7 +40,7 @@ function liveView(viewer) {
   const found = st().games.find((g) => g.id === live.gameId);
   const game = found && playGame(found);
   if (!game) return null;
-  return { gameId: game.id, type: game.type, title: game.title, emoji: game.emoji, mode: game.mode, practice: Boolean(live.practice), ...engines[game.type].view(live, game, viewer) };
+  return { gameId: game.id, type: game.type, title: game.title, emoji: game.emoji, mode: game.mode, practice: Boolean(live.practice), difficulty: live.difficulty || null, difficultyName: live.difficultyName || '', ...engines[game.type].view(live, game, viewer) };
 }
 
 function playerView(p, base) {
@@ -109,14 +109,19 @@ function startGame(gid) {
     if (p.doublePending) { p.doubleArmed = true; p.doublePending = false; }
   }
   game.status = 'live';
-  // Practice mode: easy stand-in questions so the real set stays unseen; personal questions
-  // only use the bots' answers, so real guests' answers aren't revealed either.
+  // Difficulty is chosen on the host before Start and stays with the room.
+  // Warm uses the easy set. Practice mode still keeps real guests' answers out of the questions.
+  const level = Math.max(1, Math.min(5, Number(s.settings.difficulty) || (s.settings.practice ? 1 : 3)));
+  const tuned = applyDifficulty(game, level);
   let content, count;
-  if (s.settings.practice) {
+  if (level <= 1) {
+    content = tuned.content;
+    count = 0;
+  } else if (s.settings.practice) {
     const bots = Object.fromEntries(Object.entries(s.players).filter(([, p]) => p.bot));
-    ({ content, count } = P.personalize({ ...game, content: practiceContent(game) }, { ...s, players: bots, personalUsed: [] }));
-  } else ({ content, count } = P.personalize(game, s));
-  s.live = { gameId: gid, ...engines[game.type].init(game), content, personalCount: count, practice: Boolean(s.settings.practice) };
+    ({ content, count } = P.personalize({ ...game, content: tuned.content }, { ...s, players: bots, personalUsed: [] }));
+  } else ({ content, count } = P.personalize({ ...game, content: tuned.content }, s));
+  s.live = { gameId: gid, ...engines[game.type].init(game), content, personalCount: count, practice: level <= 1 || Boolean(s.settings.practice), difficulty: tuned.level, difficultyName: tuned.name };
   s.tv.view = 'game';
   const base = game.mode === 'team' ? 'Team game — huddle up!' : 'Every player for themselves!';
   // The intro scene is the title card. This line sits under it, so the open stays readable.
@@ -269,6 +274,7 @@ function hostAction(a) {
   const s = st();
   switch (a.type) {
     case 'settings': {
+      if (a.difficulty !== undefined) s.settings.difficulty = Math.max(1, Math.min(5, Math.round(Number(a.difficulty)) || 3));
       const allowed = ['eventName', 'powerupsEnabled', 'stealAmount', 'swapCap', 'powerupsPerPlayer', 'personalPct', 'questionnaireOpen', 'practice'];
       for (const k of allowed) if (a[k] !== undefined) s.settings[k] = typeof s.settings[k] === 'number' ? Number(a[k]) || 0 : a[k];
       break;
@@ -298,7 +304,7 @@ function hostAction(a) {
     }
     case 'undo': s.ledger = s.ledger.filter((e) => e.id !== a.entryId); break;
     case 'media': mediaAction(a); break;
-    case 'demoStart': Bots.create(s, Math.max(2, Math.min(14, Number(a.count) || 8))); s.settings.practice = true; break;
+    case 'demoStart': Bots.create(s, Math.max(2, Math.min(14, Number(a.count) || 8))); s.settings.practice = true; s.settings.difficulty = 1; break;
     case 'demoEnd': {
       Bots.remove(s);
       s.settings.practice = false;
@@ -380,7 +386,15 @@ function hostAction(a) {
     case 'resetScores': s.ledger = []; s.rankSnapshots = {}; s.stats = {}; s.personalUsed = []; s.awardsFrozen = null; s.awardsGiven = {}; s.live = null; s.games.forEach((g) => { g.status = 'pending'; });
       Object.values(s.players).forEach((p) => { p.doubleGameId = null; p.doubleArmed = false; p.doublePending = false; p.powerups = S.dealPowerups(s.settings.powerupsPerPlayer); });
       s.tv = { view: 'lobby', announce: null, compareGameId: null }; s.feed = []; break;
-    case 'resetAll': { const fresh = S.freshState(); fresh.hostTokens = s.hostTokens; S.setState(fresh); break; }
+    case 'resetAll': {
+      const fresh = S.freshState();
+      fresh.code = s.code;
+      fresh.hostTokens = s.hostTokens;
+      fresh.settings.eventName = s.settings.eventName;
+      fresh.settings.difficulty = s.settings.difficulty || 3;
+      S.setState(fresh);
+      break;
+    }
     default: throw new Error('Unknown action.');
   }
 }
@@ -426,15 +440,56 @@ function serial(fn) {
   return run;
 }
 
-function run(store, mutate) {
+const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+let ROOM = '';
+
+function canonRoom(raw) {
+  const s = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return /^[A-Z0-9]{4}$/.test(s) ? s : '';
+}
+
+function asEnvelope(data) {
+  if (!data || typeof data !== 'object') return { rooms: {} };
+  if (data.rooms && typeof data.rooms === 'object' && !Array.isArray(data.rooms) && !data.players) return data;
+  if (!data.players && !data.games) return { rooms: {} };
+  const code = canonRoom(data.code) || 'HOME';
+  return { rooms: { [code]: { ...data, code } } };
+}
+
+function newRoomCode(rooms) {
+  for (let n = 0; n < 40; n++) {
+    let s = '';
+    for (let i = 0; i < 4; i++) s += ROOM_ALPHABET[crypto.randomInt(ROOM_ALPHABET.length)];
+    if (!rooms[s]) return s;
+  }
+  throw new HttpError(503, 'Could not make a room code. Try again.');
+}
+
+function needRoom(body) {
+  const code = canonRoom(body && body.room);
+  if (!code) throw new HttpError(400, 'Enter a 4-character room code.');
+  return code;
+}
+
+// One saved document holds every room. Engines still see a single room as the game state.
+function run(store, roomCode, mutate) {
   return serial(async () => {
+    const code = canonRoom(roomCode);
+    if (!code) throw new HttpError(400, 'Enter a 4-character room code.');
     for (let attempt = 0; attempt < 30; attempt++) {
       const loaded = await store.load();
-      const fresh = !loaded.data;
-      S.setState(fresh ? S.freshState() : loaded.data);
-      // Demo bots count as online so "everyone answered" waits for them too.
-      ONLINE = new Set([...(loaded.online || []), ...Object.values(st().players).filter((p) => p.bot).map((p) => p.id)]);
-      const before = fresh ? null : JSON.stringify(st());
+      const env = asEnvelope(loaded.data);
+      const room = env.rooms[code];
+      if (!room) throw new HttpError(404, 'No room with that code. Check the letters and try again.');
+      room.code = code;
+      ROOM = code;
+      S.setState(room);
+      const prefix = code + ':';
+      ONLINE = new Set([
+        ...(loaded.online || []).filter((id) => String(id).startsWith(prefix)).map((id) => String(id).slice(prefix.length)),
+        ...Object.values(st().players).filter((p) => p.bot).map((p) => p.id),
+      ]);
+      const before = JSON.stringify(env.rooms[code]);
       Bots.takeReacts();
       tick(st());
       Bots.tick(st(), { engines, playGame, online: ONLINE, usePowerup: S.usePowerup });
@@ -442,10 +497,12 @@ function run(store, mutate) {
       let result;
       let error = null;
       try { result = await mutate(); } catch (e) { error = e; S.setState(JSON.parse(afterTick)); }
+      st().code = code;
       const after = JSON.stringify(st());
       let version = loaded.version;
       if (after !== before) {
-        const v = await store.save(loaded.version, st());
+        env.rooms[code] = st();
+        const v = await store.save(loaded.version, env);
         if (v == null) { await sleep(20 + Math.random() * 60 * (attempt + 1)); continue; }
         version = v;
       }
@@ -459,6 +516,48 @@ function run(store, mutate) {
     }
     throw new HttpError(503, 'The party is very busy — please tap again!');
   });
+}
+
+function createRoom(store, body) {
+  return serial(async () => {
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const loaded = await store.load();
+      const env = asEnvelope(loaded.data);
+      const code = newRoomCode(env.rooms);
+      const room = S.freshState();
+      room.code = code;
+      room.createdAt = Date.now();
+      const name = String((body && body.eventName) || '').trim().slice(0, 40);
+      if (name) room.settings.eventName = name;
+      room.settings.difficulty = 3;
+      const t = token();
+      room.hostTokens = [t];
+      env.rooms[code] = room;
+      const v = await store.save(loaded.version, env);
+      if (v == null) { await sleep(20 + Math.random() * 60 * (attempt + 1)); continue; }
+      return { code, token: t };
+    }
+    throw new HttpError(503, 'The party is very busy — please tap again!');
+  });
+}
+
+function joinPlayer(body) {
+  const name = String(body.name || '').trim().slice(0, 20);
+  const dev = String(body.deviceId || '').replace(/[^\w-]/g, '').slice(0, 40);
+  const phone = normalizePhone(body.cc, body.phone);
+  const ident = phone || (dev ? 'dev:' + dev : null);
+  if (!ident) throw new HttpError(400, 'Please refresh and try again.');
+  let p = Object.values(st().players).find((x) => x.phone === ident);
+  const returning = Boolean(p);
+  if (!p) {
+    if (!name) throw new HttpError(400, 'Please tell us your name.');
+    if (Object.values(st().players).some((x) => x.name.toLowerCase() === name.toLowerCase())) throw new HttpError(400, 'That name is taken — add an initial or a nickname!');
+    p = S.createPlayer({ name, phone: ident, avatar: body.avatar });
+    S.pushFeed({ emoji: p.avatar, text: `${p.name} joined the room!` });
+  }
+  const t = token();
+  p.tokens = [...(p.tokens || []).slice(-4), t];
+  return { token: t, returning, name: p.name, code: st().code };
 }
 
 function baseFor() {
@@ -475,7 +574,8 @@ function viewFor(role, tok) {
     return playerView(p, baseFor());
   }
   const tvExtra = st().tv.view === 'awards' ? { awards: computeAwards(), awardPoints: AWARD_POINTS } : {};
-  return { ...baseFor(), role: 'tv', live: liveView({ tv: true }), media: currentMedia(), ...tvExtra, reactions: LOCAL_REACTS.length ? LOCAL_REACTS : undefined };
+  const reactions = LOCAL_REACTS.filter((r) => !r.room || r.room === st().code);
+  return { ...baseFor(), role: 'tv', live: liveView({ tv: true }), media: currentMedia(), ...tvExtra, reactions: reactions.length ? reactions : undefined };
 }
 
 async function handle(store, method, path, body = {}, query = {}) {
@@ -488,14 +588,32 @@ async function handle(store, method, path, body = {}, query = {}) {
       return { svg: await QRCode.toString(text, { type: 'svg', margin: 1, color: { dark: '#2a0845', light: '#ffffff' } }) };
     }
     if (path === 'meta') {
-      const { result } = await run(store, () => st().settings.eventName);
-      return { json: { eventName: result, avatars: S.AVATARS, smsEnabled, realtime: store.realtime || null, openAccess: OPEN } };
+      const code = canonRoom((query && query.room) || '');
+      let roomExists = false;
+      let eventName = 'Diwali Game Night';
+      if (code) {
+        const loaded = await store.load();
+        const room = asEnvelope(loaded.data).rooms[code];
+        roomExists = Boolean(room);
+        if (room && room.settings && room.settings.eventName) eventName = room.settings.eventName;
+      }
+      return { json: { eventName, avatars: S.AVATARS, smsEnabled, realtime: store.realtime || null, openAccess: OPEN, room: code || null, roomExists } };
     }
     if (method !== 'POST') return { status: 405, json: { error: 'Method not allowed' } };
 
+    if (path === 'room/create') {
+      if (!OPEN && String(body.pin || '').trim() !== String(process.env.HOST_PIN || '')) throw new HttpError(401, 'Wrong host PIN.');
+      return { json: await createRoom(store, body) };
+    }
+
+    if (path === 'join') {
+      const { result } = await run(store, needRoom(body), () => joinPlayer(body));
+      return { json: { ok: true, ...result } };
+    }
+
     if (path === 'applause') {
       // The TV's microphone reports how loud the crowd cheered for a Hook Step dance.
-      await run(store, () => {
+      await run(store, needRoom(body), () => {
         const live = st().live;
         const game = live && st().games.find((g) => g.id === live.gameId);
         if (game && game.type === 'hookstep') engines.hookstep.applause(live, String(body.id || ''), body.level);
@@ -504,18 +622,19 @@ async function handle(store, method, path, body = {}, query = {}) {
     }
     if (path === 'react') {
       // Local mode only — hosted mode sends reactions peer-to-peer over Supabase Realtime.
-      const r = { at: Date.now(), id: String(body.id || Math.random()).slice(0, 20), emoji: String(body.emoji || '').slice(0, 8), name: String(body.name || '').slice(0, 20) };
+      const room = canonRoom(body.room);
+      const r = { at: Date.now(), id: String(body.id || Math.random()).slice(0, 20), emoji: String(body.emoji || '').slice(0, 8), name: String(body.name || '').slice(0, 20), room };
       if (r.emoji) { LOCAL_REACTS.push(r); if (LOCAL_REACTS.length > 30) LOCAL_REACTS.shift(); }
       return { json: { ok: true } };
     }
     if (path === 'view' || path === 'tick') {
-      const { result, version } = await run(store, () => viewFor(body.role, body.token));
-      if (result.role === 'player' && store.seen) await store.seen(result.me.id).catch(() => {});
+      const { result, version } = await run(store, needRoom(body), () => viewFor(body.role, body.token));
+      if (result.role === 'player' && store.seen) await store.seen(ROOM + ':' + result.me.id).catch(() => {});
       return { json: { ...result, version } };
     }
 
     if (path === 'act') {
-      const { result, version } = await run(store, () => {
+      const { result, version } = await run(store, needRoom(body), () => {
         if (body.role === 'host') {
           if (!isHostToken(body.token)) throw new HttpError(401, 'Please log in again.');
           hostAction(body.action || {});
@@ -530,42 +649,26 @@ async function handle(store, method, path, body = {}, query = {}) {
     }
 
     if (path === 'host/login') {
-      const { result } = await run(store, () => {
-        if (!OPEN && String(body.pin || '').trim() !== st().hostPin) throw new HttpError(401, 'Wrong host PIN.');
+      const { result } = await run(store, needRoom(body), () => {
+        if (!OPEN && String(body.pin || '').trim() !== String(st().hostPin)) throw new HttpError(401, 'Wrong host PIN.');
         const t = token();
         st().hostTokens = [...st().hostTokens.slice(-9), t];
-        return t;
+        return { token: t, code: st().code };
       });
-      return { json: { token: result } };
+      return { json: result };
     }
 
     if (path === 'otp/request' && OPEN) {
-      // Open access: join with just a name. Identity = phone if given, else this device.
-      const name = String(body.name || '').trim().slice(0, 20);
-      const dev = String(body.deviceId || '').replace(/[^\w-]/g, '').slice(0, 40);
-      const ident = normalizePhone(body.cc, body.phone) || (dev ? 'dev:' + dev : null);
-      if (!ident) throw new HttpError(400, 'Please refresh and try again.');
-      const { result } = await run(store, () => {
-        let p = Object.values(st().players).find((x) => x.phone === ident);
-        const returning = Boolean(p);
-        if (!p) {
-          if (!name) throw new HttpError(400, 'Please tell us your name.');
-          if (Object.values(st().players).some((x) => x.name.toLowerCase() === name.toLowerCase())) throw new HttpError(400, 'That name is taken — add an initial or a nickname!');
-          p = S.createPlayer({ name, phone: ident, avatar: body.avatar });
-          S.pushFeed({ emoji: p.avatar, text: `${p.name} joined the party!` });
-        }
-        const t = token();
-        p.tokens = [...p.tokens.slice(-4), t];
-        return { token: t, returning, name: p.name };
-      });
+      const { result } = await run(store, needRoom(body), () => joinPlayer(body));
       return { json: { ok: true, via: 'open', ...result } };
     }
 
     if (path === 'otp/request') {
       const phone = normalizePhone(body.cc, body.phone);
       const name = String(body.name || '').trim().slice(0, 20);
+      const roomCode = needRoom(body);
       if (!phone) throw new HttpError(400, 'Please enter a valid phone number.');
-      const { result } = await run(store, () => {
+      const { result } = await run(store, roomCode, () => {
         const existing = Object.values(st().players).find((p) => p.phone === phone);
         if (!existing && !name) throw new HttpError(400, 'Please tell us your name.');
         if (!existing && Object.values(st().players).some((p) => p.name.toLowerCase() === name.toLowerCase()))
@@ -581,7 +684,7 @@ async function handle(store, method, path, body = {}, query = {}) {
       if (smsEnabled) {
         try { await sendSms(phone, `${result.code} is your Diwali Game Night code 🪔`); via = 'sms'; } catch (e) {
           console.error('[sms]', e.message);
-          await run(store, () => { if (st().pending[phone]) st().pending[phone].via = 'host'; });
+          await run(store, roomCode, () => { if (st().pending[phone]) st().pending[phone].via = 'host'; });
         }
       }
       return { json: { ok: true, via, returning: result.returning, name: result.name } };
@@ -589,7 +692,7 @@ async function handle(store, method, path, body = {}, query = {}) {
 
     if (path === 'otp/verify') {
       const phone = normalizePhone(body.cc, body.phone);
-      const { result } = await run(store, () => {
+      const { result } = await run(store, needRoom(body), () => {
         const pend = phone && st().pending[phone];
         if (!pend || pend.expires < Date.now()) throw new HttpError(400, 'Code expired — request a new one.');
         if (pend.attempts >= 5) throw new HttpError(429, 'Too many tries — request a new code.');
@@ -603,7 +706,7 @@ async function handle(store, method, path, body = {}, query = {}) {
         if (!p) {
           p = S.createPlayer({ name: pend.name, phone, avatar: pend.avatar });
           isNew = true;
-          S.pushFeed({ emoji: p.avatar, text: `${p.name} joined the party!` });
+          S.pushFeed({ emoji: p.avatar, text: `${p.name} joined the room!` });
         }
         const t = token();
         p.tokens = [...p.tokens.slice(-4), t];

@@ -4,6 +4,14 @@ body.host { min-height: 100vh; }
 .qe input, .qe textarea, .qe select { background: var(--surface); }
 .hwrap { max-width: 720px; margin: 0 auto; padding: 16px; }
 .htop { display: flex; flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 14px; }
+.hbrand { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.room-pill { border: 0; background: var(--shell); color: var(--cream); font: 700 18px/1 var(--font, Poppins, sans-serif); letter-spacing: .18em; border-radius: 999px; min-height: 44px; padding: 0 16px; cursor: pointer; }
+.diff { margin: 0; background: var(--shell); border-radius: 22px; padding: 10px 14px 12px; }
+.diff-live { margin: 0; color: var(--cream); font-size: 14px; }
+.diff-top { display: flex; justify-content: space-between; align-items: baseline; }
+.diff input[type="range"] { width: 100%; accent-color: var(--accent); height: 32px; margin: 6px 0; }
+.diff-scale { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); }
+.login-card .code-input { font-size: 28px; letter-spacing: .35em; text-align: center; font-weight: 700; text-transform: uppercase; }
 .htabs { display: flex; gap: 6px; background: var(--shell); padding: 5px; border-radius: 999px; flex-wrap: wrap; }
 .htabs button { border: 0; background: none; color: var(--cream); font-weight: 500; font-size: 14px; min-height: 44px; padding: 8px 14px; border-radius: 999px; cursor: pointer; position: relative; }
 .htabs button.on { background: var(--accent); color: var(--on-accent); font-weight: 700; }

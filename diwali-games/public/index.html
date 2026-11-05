@@ -17,10 +17,13 @@
       <div class="breakout" id="mascot"></div>
       <p class="greet">Happy Diwali</p>
       <h1 id="eventName">Game Night</h1>
-      <p class="live-count" id="liveCount" hidden></p>
-      <a class="btn diya-btn big block" id="join" href="/play">Join the night</a>
+      <form id="joinForm">
+        <label class="field" for="room">Room code</label>
+        <input id="room" class="code-input" type="text" maxlength="4" autocapitalize="characters" autocomplete="off" placeholder="ABCD" aria-label="Room code" />
+        <button class="btn diya-btn big block" id="join" type="submit">Join the night</button>
+      </form>
     </div>
-    <p class="fine"><a href="/tv">TV</a> · <a href="/host">Host</a></p>
+    <p class="fine"><a href="/host">Host a room</a> · <a href="/tv">TV</a></p>
   </main>
   <script src="/js/common.js"></script>
   <script>
@@ -29,13 +32,16 @@
     fetch('/api/meta').then((r) => r.json()).then((m) => {
       if (m && m.eventName) document.getElementById('eventName').textContent = m.eventName;
     }).catch(() => {});
-    App.post('/api/view', { role: 'tv' }).then((v) => {
-      const n = (v.players || []).filter((p) => p.online).length;
-      const el = document.getElementById('liveCount');
-      if (!n) return;
-      el.hidden = false;
-      el.innerHTML = '<i></i>' + n + (n === 1 ? ' person here' : ' people here');
-    }).catch(() => {});
+    document.getElementById('joinForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const code = App.canonRoom(document.getElementById('room').value);
+      if (!code) { App.toast('Enter the 4-character room code.', true); return; }
+      try {
+        const m = await (await fetch('/api/meta?room=' + code)).json();
+        if (!m.roomExists) { App.toast('No room with that code.', true); return; }
+        location.href = '/play?room=' + code;
+      } catch { App.toast('Could not check that code.', true); }
+    };
   </script>
 </body>
 </html>

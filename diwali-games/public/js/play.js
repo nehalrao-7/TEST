@@ -19,83 +19,117 @@
   const revealed = new Set(JSON.parse(store.get('dgn_revealed') || '[]'));
 
   // =================== LOGIN ===================
-  const COUNTRIES = [['1', '🇨🇦 🇺🇸 +1'], ['91', '🇮🇳 +91'], ['44', '🇬🇧 +44'], ['61', '🇦🇺 +61'], ['971', '🇦🇪 +971'], ['65', '🇸🇬 +65'], ['64', '🇳🇿 +64'], ['49', '🇩🇪 +49'], ['353', '🇮🇪 +353'], ['27', '🇿🇦 +27']];
-  const L = { step: 'phone', name: '', avatar: '🪔', cc: store.get('dgn_cc') || '1', phone: '', via: null, returning: false, avatars: ['🪔', '🎆', '🐘', '🦚', '🐯', '🌺', '🪷', '🍬', '🎇', '🥭', '🌶️', '🦁', '🐒', '👑', '🪁', '🍵', '🌙', '⭐'], eventName: 'Diwali Game Night' };
+  const L = { step: 'room', room: '', name: '', avatar: '🪔', avatars: ['🪔', '🎆', '🐘', '🦚', '🐯', '🌺', '🪷', '🍬', '🎇', '🥭', '🌶️', '🦁', '🐒', '👑', '🪁', '🍵', '🌙', '⭐'], eventName: 'Diwali Game Night', note: '' };
+
+  function deviceId() {
+    let id = store.get('dgn_device');
+    if (!id) { id = Math.random().toString(36).slice(2) + Date.now().toString(36); store.set('dgn_device', id); }
+    return id;
+  }
+
+  function remember(room, token) {
+    App.room = room;
+    store.set('dgn_room', room);
+    store.set('dgn_token', token);
+    store.set('dgn_token_room', room);
+    const url = '/play?room=' + room;
+    if (location.pathname + location.search !== url) history.replaceState(null, '', url);
+  }
 
   async function startLogin() {
-    try { const m = await (await fetch('/api/meta')).json(); L.avatars = m.avatars; L.eventName = m.eventName; L.open = Boolean(m.openAccess); } catch { /* defaults */ }
+    dock.innerHTML = '';
+    const fromUrl = App.roomFromQuery();
+    const saved = App.canonRoom(store.get('dgn_room'));
+    const token = store.get('dgn_token');
+    const tokenRoom = App.canonRoom(store.get('dgn_token_room'));
+    const room = fromUrl || saved;
+    if (room && token && tokenRoom === room) {
+      remember(room, token);
+      start(token);
+      return;
+    }
+    L.room = room;
+    L.step = room ? 'name' : 'room';
+    if (room) {
+      try {
+        const m = await (await fetch('/api/meta?room=' + room)).json();
+        if (m.avatars) L.avatars = m.avatars;
+        if (m.eventName) L.eventName = m.eventName;
+        if (!m.roomExists) { L.step = 'room'; L.room = ''; L.note = 'No room with that code.'; App.room = ''; }
+        else App.room = room;
+      } catch { /* the form still works; join will say if the code is wrong */ }
+    }
     renderLogin();
   }
 
   function renderLogin() {
     dock.innerHTML = '';
     const greet = L.name.trim() ? `Happy Diwali, ${esc(L.name.trim())}!` : 'Happy Diwali';
-    if (L.step === 'phone') {
+    if (L.step === 'room') {
       app.innerHTML = `<div class="login">
         <div class="shell-card">
           <div class="breakout">${App.mascot()}</div>
           <p class="greet">${greet}</p>
-          <h1>${esc(L.eventName)}</h1>
-          <p class="live-count" id="liveCount" hidden></p>
+          <h1>Join a room</h1>
+          <p class="muted">Ask the host for the 4-character code.</p>
         </div>
-        <form class="card stack" id="f1">
-          <div><label class="field">Your name</label><input type="text" id="name" maxlength="20" placeholder="e.g. Priya" value="${esc(L.name)}" autocomplete="given-name" /></div>
-          <div><label class="field">Pick your avatar</label><div class="avatars">${L.avatars.map((a) => `<button type="button" data-av="${a}" class="${a === L.avatar ? 'on' : ''}" aria-label="Avatar ${a}">${a}</button>`).join('')}</div></div>
-          ${L.open ? '' : `<div><label class="field">Phone number</label><div class="phone-row">
-            <select id="cc">${COUNTRIES.map(([c, l]) => `<option value="${c}" ${c === L.cc ? 'selected' : ''}>${l}</option>`).join('')}</select>
-            <input type="tel" id="phone" inputmode="tel" placeholder="Phone number" value="${esc(L.phone)}" autocomplete="tel-national" /></div>
-            <div class="small muted" style="margin-top:6px">Returning on a new device? Use the same number.</div></div>`}
-          <button class="btn diya-btn big block" type="submit">${App.diya(true, 28)} ${L.open ? 'Join the night' : 'Send my code'}</button>
+        <form class="card stack" id="fRoom">
+          <div><label class="field" for="room">Room code</label>
+            <input type="text" id="room" class="code-input" maxlength="4" autocapitalize="characters" autocomplete="off" placeholder="ABCD" aria-label="Room code" value="${esc(L.room)}" /></div>
+          ${L.note ? `<p class="muted" style="margin:0">${esc(L.note)}</p>` : ''}
+          <button class="btn diya-btn big block" type="submit">${App.diya(true, 28)} Continue</button>
         </form>
-        <p class="fine">Host? <a href="/host">Open the console</a></p>
+        <p class="fine">Hosting? <a href="/host">Start a room</a></p>
       </div>`;
-      showLiveCount();
-      app.querySelectorAll('[data-av]').forEach((b) => b.onclick = () => { L.avatar = b.dataset.av; app.querySelectorAll('[data-av]').forEach((x) => x.classList.toggle('on', x === b)); });
-      app.querySelector('#f1').onsubmit = async (e) => {
+      const input = app.querySelector('#room');
+      input.focus();
+      app.querySelector('#fRoom').onsubmit = async (e) => {
         e.preventDefault();
-        L.name = app.querySelector('#name').value.trim();
-        const ccEl = app.querySelector('#cc'), phEl = app.querySelector('#phone');
-        L.cc = ccEl ? ccEl.value : L.cc;
-        L.phone = phEl ? phEl.value.trim() : '';
-        store.set('dgn_cc', L.cc);
+        const code = App.canonRoom(input.value);
+        if (!code) { App.toast('Enter the 4-character room code.', true); return; }
         const btn = e.submitter || app.querySelector('button[type=submit]');
         btn.disabled = true;
         try {
-          let deviceId = store.get('dgn_device');
-          if (!deviceId) { deviceId = Math.random().toString(36).slice(2) + Date.now().toString(36); store.set('dgn_device', deviceId); }
-          const r = await App.post('/api/otp/request', { name: L.name, cc: L.cc, phone: L.phone, avatar: L.avatar, deviceId });
-          if (r.token) { store.set('dgn_token', r.token); App.confetti(1); start(r.token); return; }
-          L.via = r.via; L.returning = r.returning; L.name = r.name; L.step = 'code';
-          renderLogin();
-        } catch (err) { App.toast(err.message, true); btn.disabled = false; }
+          const m = await (await fetch('/api/meta?room=' + code)).json();
+          if (!m.roomExists) { L.note = 'No room with that code.'; App.toast(L.note, true); btn.disabled = false; return; }
+          L.room = code; L.note = ''; L.eventName = m.eventName || L.eventName; if (m.avatars) L.avatars = m.avatars;
+          App.room = code; L.step = 'name'; renderLogin();
+        } catch (err) { App.toast(err.message || 'Could not check that code.', true); btn.disabled = false; }
       };
-    } else {
-      app.innerHTML = `<div class="login">
-        <div class="shell-card">
-          <div class="breakout">${App.mascot()}</div>
-          <p class="greet">Happy Diwali, ${esc(L.name)}!</p>
-          <h1>${L.returning ? 'Welcome back' : 'One more step'}</h1>
-          <p class="muted">${L.via === 'sms' ? 'Enter the code we texted you.' : 'Ask the host for your code.'}</p>
-        </div>
-        <form class="card stack" id="f2">
-          ${L.via === 'sms' ? `<p class="muted" style="margin:0">Sent to <b>+${esc(L.cc)} ${esc(L.phone)}</b>.</p>` : `<div class="relay">Your code is with the host. Ask them for the 4 digits.</div>`}
-          <input type="text" id="code" class="code-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="${L.via === 'sms' ? '••••••' : '••••'}" aria-label="Verification code" />
-          <button class="btn diya-btn big block" type="submit">${App.diya(true, 28)} Join the night</button>
-          <button class="btn ghost block" type="button" id="back">Change number</button>
-        </form></div>`;
-      const code = app.querySelector('#code');
-      code.focus();
-      app.querySelector('#back').onclick = () => { L.step = 'phone'; renderLogin(); };
-      app.querySelector('#f2').onsubmit = async (e) => {
-        e.preventDefault();
-        try {
-          const r = await App.post('/api/otp/verify', { cc: L.cc, phone: L.phone, code: code.value });
-          store.set('dgn_token', r.token);
-          App.confetti(1);
-          start(r.token);
-        } catch (err) { App.toast(err.message, true); code.classList.add('shake'); setTimeout(() => code.classList.remove('shake'), 500); }
-      };
+      return;
     }
+    app.innerHTML = `<div class="login">
+      <div class="shell-card">
+        <div class="breakout">${App.mascot()}</div>
+        <p class="greet">${greet}</p>
+        <h1>${esc(L.eventName)}</h1>
+        <p class="live-count" id="liveCount" hidden></p>
+      </div>
+      <form class="card stack" id="f1">
+        <div class="room-known"><span class="field">Room</span><b class="room-chip">${esc(L.room)}</b><button type="button" class="btn ghost small" id="changeRoom">Change</button></div>
+        <div><label class="field" for="name">Your name</label><input type="text" id="name" maxlength="20" placeholder="e.g. Priya" value="${esc(L.name)}" autocomplete="given-name" /></div>
+        <div><label class="field">Pick your avatar</label><div class="avatars">${L.avatars.map((a) => `<button type="button" data-av="${a}" class="${a === L.avatar ? 'on' : ''}" aria-label="Avatar ${a}">${a}</button>`).join('')}</div></div>
+        <p class="small muted" style="margin:0">This phone keeps your score in this room.</p>
+        <button class="btn diya-btn big block" type="submit">${App.diya(true, 28)} Join the night</button>
+      </form>
+      <p class="fine">Host? <a href="/host?room=${esc(L.room)}">Open the console</a></p>
+    </div>`;
+    showLiveCount();
+    app.querySelector('#changeRoom').onclick = () => { L.step = 'room'; L.note = ''; renderLogin(); };
+    app.querySelectorAll('[data-av]').forEach((b) => b.onclick = () => { L.avatar = b.dataset.av; app.querySelectorAll('[data-av]').forEach((x) => x.classList.toggle('on', x === b)); });
+    app.querySelector('#f1').onsubmit = async (e) => {
+      e.preventDefault();
+      L.name = app.querySelector('#name').value.trim();
+      const btn = e.submitter || app.querySelector('button[type=submit]');
+      btn.disabled = true;
+      try {
+        App.room = L.room;
+        const r = await App.post('/api/join', { room: L.room, name: L.name, avatar: L.avatar, deviceId: deviceId() });
+        remember(r.code || L.room, r.token);
+        App.confetti(1);
+        start(r.token);
+      } catch (err) { App.toast(err.message, true); btn.disabled = false; }
+    };
   }
 
   // =================== MAIN ===================
@@ -117,9 +151,10 @@
     app.innerHTML = `<header class="ctl-head" id="hdr"></header><main class="moment-wrap"><div id="moment"><p class="greet">Lighting the diyas…</p></div></main>`;
     sock = App.connect('player', token, (s) => onState(s), (msg) => {
       store.del('dgn_token');
+      store.del('dgn_token_room');
       if (sock) sock.disconnect();
       App.toast(msg, true);
-      L.step = 'phone';
+      L.step = App.room ? 'name' : 'room';
       startLogin();
     });
   }
@@ -186,7 +221,7 @@
     const score = `<div class="ring ring-sm" style="--p:${me.score ? pct : 0}" role="img" aria-label="${fmt(me.score)} points"><div><b id="scoreNum">${fmt(shownScore == null ? me.score : shownScore)}</b><small>pts</small></div></div>`;
     const here = S.players.filter((p) => p.online).length;
     App.patch(document.getElementById('hdr'), `<p class="greet">Happy Diwali, ${esc(me.name)}!</p>
-      <div class="head-row">${score}<div class="who"><b>${esc(me.name)}</b>${t ? `<span class="team-pill">${esc(t.emoji)} ${esc(t.name)}</span>` : `<span class="muted">${here} here</span>`}</div></div>`);
+      <div class="head-row">${score}<div class="who"><div class="who-line"><b>${esc(me.name)}</b><span class="room-chip">${esc(S.code || '')}</span></div>${t ? `<span class="team-pill">${esc(t.emoji)} ${esc(t.name)}</span>` : `<span class="muted">${here} here</span>`}</div></div>`);
     if (shownScore !== me.score) {
       const el = document.getElementById('scoreNum');
       if (shownScore != null && el) { App.countUp(el, me.score, 800, shownScore); const ring = el.closest('.ring'); if (ring) { ring.classList.remove('bump'); void ring.offsetWidth; ring.classList.add('bump'); } }
@@ -515,12 +550,11 @@
       confirmSheet(`<div class="center"><h3>Lock kiya jaaye?</h3><p style="font-size:20px"><b>${App.letters[i]}. ${esc(q.options[i])}</b></p></div>`, '🔒 Lock it', () => game({ type: 'lock', choice: i }));
     } else if (act === 'walk') confirmSheet('<h3>Walk away?</h3><p class="muted">You keep the points you have secured.</p>', '🚶 Walk away', () => game({ type: 'walk' }));
     else if (act === 'about') { modal.innerHTML = ''; openQuestionnaire(); }
-    else if (act === 'logout') confirmSheet('<h3>Log out?</h3><p class="muted">Your points are safe.</p>', 'Log out', () => { store.del('dgn_token'); location.reload(); });
+    else if (act === 'logout') confirmSheet('<h3>Leave this phone?</h3><p class="muted">Your score stays in the room. Join again with the same code.</p>', 'Leave', () => { store.del('dgn_token'); store.del('dgn_token_room'); location.reload(); });
   }
   app.addEventListener('click', handle);
   dock.addEventListener('click', handle);
   modal.addEventListener('click', handle);
 
-  const tok = store.get('dgn_token');
-  if (tok) start(tok); else startLogin();
+  startLogin();
 })();
