@@ -18,23 +18,23 @@
   function session() {
     try { return JSON.parse(store.get('dgn_host_session') || 'null'); } catch { return null; }
   }
-  function saveSession(code, token) {
-    store.set('dgn_host_session', JSON.stringify({ code, token }));
+  function saveSession(code, token, pin) {
+    const prev = session();
+    store.set('dgn_host_session', JSON.stringify({ code, token, pin: pin || (prev && prev.code === code ? prev.pin : '') || '' }));
     store.set('dgn_host', token);
   }
   async function loginView() {
-    let open = false;
-    try { open = Boolean((await (await fetch('/api/meta')).json()).openAccess); } catch { /* PIN form still works */ }
     const preset = App.roomFromQuery() || (session() && session().code) || '';
     app.innerHTML = `<div class="login-card card stack">
       <div class="center"><div style="font-size:52px">🪔</div><h2 style="font-size:28px">Host a room</h2><p class="muted">Each room is its own game. Scores stay in the room.</p></div>
       <button class="btn diya-btn big block" id="newRoom" type="button">${App.diya(true, 28)} Start a new room</button>
-      ${open ? '' : '<input type="password" id="pin" inputmode="numeric" placeholder="Host PIN" autocomplete="current-password" />'}
       <form id="lf" class="stack">
         <label class="field" for="room">Open an existing room</label>
         <input type="text" id="room" class="code-input" maxlength="4" autocapitalize="characters" autocomplete="off" placeholder="ABCD" aria-label="Room code" value="${esc(preset)}" />
+        <input type="password" id="pin" inputmode="numeric" placeholder="Host PIN" autocomplete="current-password" aria-label="Host PIN" />
         <button class="btn block" type="submit">Open room</button>
       </form>
+      <p class="fine">Guests confirm a phone code. Texts use Twilio when it is set up. Fonts load from Google.</p>
       <p class="fine"><a href="/">Join as a player</a> · <a href="/tv">TV</a></p>
     </div>`;
     const pin = () => (app.querySelector('#pin') ? app.querySelector('#pin').value : '');
@@ -42,8 +42,8 @@
       const btn = app.querySelector('#newRoom');
       btn.disabled = true;
       try {
-        const r = await App.post('/api/room/create', { pin: pin() });
-        saveSession(r.code, r.token);
+        const r = await App.post('/api/room/create', {});
+        saveSession(r.code, r.token, r.pin);
         App.room = r.code;
         history.replaceState(null, '', '/host?room=' + r.code);
         start(r.token);
@@ -56,7 +56,7 @@
       try {
         App.room = code;
         const r = await App.post('/api/host/login', { room: code, pin: pin() });
-        saveSession(r.code || code, r.token);
+        saveSession(r.code || code, r.token, pin());
         history.replaceState(null, '', '/host?room=' + (r.code || code));
         start(r.token);
       } catch (err) { App.toast(err.message, true); }
@@ -65,7 +65,7 @@
 
   function start(token) {
     App.sparkles(14);
-    app.innerHTML = `<div class="htop"><div class="hbrand"><div class="logo"><span class="diya">🪔</span><b>Host <span>Console</span></b></div><button class="room-pill" id="roomPill" type="button" data-a="copyCode" title="Copy room code"></button></div><div id="diffSlot"></div><div class="htabs" id="tabs"></div></div><div id="main"></div>`;
+    app.innerHTML = `<div class="htop"><div class="hbrand"><div class="logo"><span class="diya">🪔</span><b>Host <span>Console</span></b></div><button class="room-pill" id="roomPill" type="button" data-a="copyCode" title="Copy room code"></button></div><div id="pinSlot"></div><div id="diffSlot"></div><div class="htabs" id="tabs"></div></div><div id="main"></div>`;
     sock = App.connect('host', token, (s) => { S = s; const pill = document.getElementById('roomPill'); if (pill && s.code) pill.textContent = s.code; render(); }, () => { store.del('dgn_host'); store.del('dgn_host_session'); if (sock) sock.disconnect(); loginView(); });
   }
 
@@ -81,6 +81,8 @@
     const pend = S.pending.length;
     App.patch(document.getElementById('tabs'), [['live', '🎮 Live'], ['games', '🗂 Games'], ['questions', '✏️ Questions'], ['players', `👥 Players${pend ? `<span class="dot">${pend}</span>` : ''}`], ['scores', '📊 Scores & Settings']]
       .map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? 'on' : ''}">${l}</button>`).join(''));
+    const pinSlot = document.getElementById('pinSlot');
+    if (pinSlot) App.patch(pinSlot, pinBanner());
     const diffSlot = document.getElementById('diffSlot');
     if (diffSlot) {
       const liveName = S.live && (S.live.difficultyName || 'Party');
@@ -175,6 +177,12 @@
     return `<div class="cue-bar"><div class="ros">${steps.map(([k, l, on, done]) => `<span class="ros-step ${on ? 'on' : ''} ${done ? 'done' : ''}">${esc(l)}</span>`).join('<i></i>')}</div>
       <div class="cue-main"><div class="cue-hint"><span class="eyebrow">Next cue</span><b>${esc(cue.hint || '')}</b></div>
       <button class="btn big cue-btn" data-a="cue" ${cue.disabled ? 'disabled' : ''}>${esc(cue.label)}<kbd>Space</kbd></button></div></div>`;
+  }
+
+  function pinBanner() {
+    const sess = session();
+    if (!sess || !sess.pin || !S || sess.code !== S.code) return '';
+    return `<div class="pin-banner"><span>Host PIN</span><b>${esc(sess.pin)}</b><span>Write this down to open the room again</span></div>`;
   }
 
   function demoCard() {

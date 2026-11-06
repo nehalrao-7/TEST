@@ -89,6 +89,7 @@
     $('stage').innerHTML = `<div class="gate"><div class="em">${App.diya(true)}</div><h1>Which room?</h1><p>Enter the 4-character code from the host.</p>
       <form id="tvGate"><input id="tvRoom" class="code-input" type="text" maxlength="4" autocapitalize="characters" autocomplete="off" placeholder="ABCD" aria-label="Room code" />
       <button class="btn big" type="submit">Open the room</button></form>
+      <p class="fine">Dance videos play from YouTube. Fonts load from Google. Live updates may use Supabase.</p>
       ${msg ? `<p class="gate-err">${esc(msg)}</p>` : ''}</div>`;
     const input = $('tvRoom');
     input.focus();
@@ -96,11 +97,7 @@
       e.preventDefault();
       const code = App.canonRoom(input.value);
       if (!code) { showGate('Enter the 4-character room code.'); return; }
-      try {
-        const m = await (await fetch('/api/meta?room=' + code)).json();
-        if (!m.roomExists) { showGate('No room with that code.'); return; }
-        enterRoom(code);
-      } catch { showGate('Could not open that room.'); }
+      enterRoom(code);
     };
   }
   function bootTv() {

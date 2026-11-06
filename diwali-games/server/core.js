@@ -17,10 +17,13 @@ const st = () => S.state;
 let ONLINE = new Set();
 const LOCAL_REACTS = [];
 const token = () => crypto.randomBytes(24).toString('base64url');
-// OPEN_ACCESS=true skips the host PIN and the phone code (for rehearsals). Turn it off for the party.
-// A public party: anyone with the room code can play. Set OPEN_ACCESS=false to require the host PIN.
-const OPEN = !/^(0|false|no|off)$/i.test(String(process.env.OPEN_ACCESS || 'true'));
 const findPlayerByToken = (t) => t && Object.values(st().players).find((p) => p.tokens.includes(t));
+const OTP_SENT = new Map();
+function pinsEqual(given, expected) {
+  const a = crypto.createHash('sha256').update(String(given || '').trim()).digest();
+  const b = crypto.createHash('sha256').update(String(expected || '').trim()).digest();
+  return crypto.timingSafeEqual(a, b);
+}
 const isHostToken = (t) => t && st().hostTokens.includes(t);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -390,10 +393,12 @@ function hostAction(a) {
     case 'resetAll': {
       const fresh = S.freshState();
       fresh.code = s.code;
+      fresh.hostPin = s.hostPin;
       fresh.hostTokens = s.hostTokens;
       fresh.settings.eventName = s.settings.eventName;
       fresh.settings.difficulty = s.settings.difficulty || 3;
       S.setState(fresh);
+      if (!process.env.HOST_PIN) fresh.hostPin = s.hostPin;
       break;
     }
     default: throw new Error('Unknown action.');
@@ -536,29 +541,10 @@ function createRoom(store, body) {
       env.rooms[code] = room;
       const v = await store.save(loaded.version, env);
       if (v == null) { await sleep(20 + Math.random() * 60 * (attempt + 1)); continue; }
-      return { code, token: t };
+      return { code, token: t, pin: room.hostPin };
     }
     throw new HttpError(503, 'The party is very busy — please tap again!');
   });
-}
-
-function joinPlayer(body) {
-  const name = String(body.name || '').trim().slice(0, 20);
-  const dev = String(body.deviceId || '').replace(/[^\w-]/g, '').slice(0, 40);
-  const phone = normalizePhone(body.cc, body.phone);
-  const ident = phone || (dev ? 'dev:' + dev : null);
-  if (!ident) throw new HttpError(400, 'Please refresh and try again.');
-  let p = Object.values(st().players).find((x) => x.phone === ident);
-  const returning = Boolean(p);
-  if (!p) {
-    if (!name) throw new HttpError(400, 'Please tell us your name.');
-    if (Object.values(st().players).some((x) => x.name.toLowerCase() === name.toLowerCase())) throw new HttpError(400, 'That name is taken — add an initial or a nickname!');
-    p = S.createPlayer({ name, phone: ident, avatar: body.avatar });
-    S.pushFeed({ emoji: p.avatar, text: `${p.name} joined the room!` });
-  }
-  const t = token();
-  p.tokens = [...(p.tokens || []).slice(-4), t];
-  return { token: t, returning, name: p.name, code: st().code };
 }
 
 function baseFor() {
@@ -589,27 +575,16 @@ async function handle(store, method, path, body = {}, query = {}) {
       return { svg: await QRCode.toString(text, { type: 'svg', margin: 1, color: { dark: '#2a0845', light: '#ffffff' } }) };
     }
     if (path === 'meta') {
-      const code = canonRoom((query && query.room) || '');
-      let roomExists = false;
-      let eventName = 'Diwali Game Night';
-      if (code) {
-        const loaded = await store.load();
-        const room = asEnvelope(loaded.data).rooms[code];
-        roomExists = Boolean(room);
-        if (room && room.settings && room.settings.eventName) eventName = room.settings.eventName;
-      }
-      return { json: { eventName, avatars: S.AVATARS, smsEnabled, realtime: store.realtime || null, openAccess: OPEN, room: code || null, roomExists } };
+      return { json: { eventName: 'Diwali Game Night', avatars: S.AVATARS, smsEnabled, realtime: store.realtime || null } };
     }
     if (method !== 'POST') return { status: 405, json: { error: 'Method not allowed' } };
 
     if (path === 'room/create') {
-      if (!OPEN && String(body.pin || '').trim() !== String(process.env.HOST_PIN || '')) throw new HttpError(401, 'Wrong host PIN.');
       return { json: await createRoom(store, body) };
     }
 
     if (path === 'join') {
-      const { result } = await run(store, needRoom(body), () => joinPlayer(body));
-      return { json: { ok: true, ...result } };
+      return { status: 401, json: { error: 'Verify the code sent to your phone before joining.' } };
     }
 
     if (path === 'applause') {
@@ -650,8 +625,12 @@ async function handle(store, method, path, body = {}, query = {}) {
     }
 
     if (path === 'host/login') {
-      const { result } = await run(store, needRoom(body), () => {
-        if (!OPEN && String(body.pin || '').trim() !== String(st().hostPin)) throw new HttpError(401, 'Wrong host PIN.');
+      const code = canonRoom(body.room);
+      if (!code) throw new HttpError(400, 'Enter a 4-character room code.');
+      const loaded = await store.load();
+      const room = asEnvelope(loaded.data).rooms[code];
+      if (!room || !pinsEqual(body.pin, room.hostPin)) throw new HttpError(401, 'Wrong room code or host PIN.');
+      const { result } = await run(store, code, () => {
         const t = token();
         st().hostTokens = [...st().hostTokens.slice(-9), t];
         return { token: t, code: st().code };
@@ -659,45 +638,53 @@ async function handle(store, method, path, body = {}, query = {}) {
       return { json: result };
     }
 
-    if (path === 'otp/request' && OPEN) {
-      const { result } = await run(store, needRoom(body), () => joinPlayer(body));
-      return { json: { ok: true, via: 'open', ...result } };
-    }
-
     if (path === 'otp/request') {
       const phone = normalizePhone(body.cc, body.phone);
       const name = String(body.name || '').trim().slice(0, 20);
-      const roomCode = needRoom(body);
+      const roomCode = canonRoom(body.room);
+      if (!roomCode) throw new HttpError(400, 'Enter a 4-character room code.');
       if (!phone) throw new HttpError(400, 'Please enter a valid phone number.');
+      if (!name) throw new HttpError(400, 'Please tell us your name.');
+      const sentAt = OTP_SENT.get(phone) || 0;
+      if (Date.now() - sentAt < 20000) throw new HttpError(429, 'Code just sent — wait a few seconds before asking again.');
+      OTP_SENT.set(phone, Date.now());
+      const loaded = await store.load();
+      const viaPublic = smsEnabled ? 'sms' : 'host';
+      if (!asEnvelope(loaded.data).rooms[roomCode]) return { json: { ok: true, via: viaPublic } };
       const { result } = await run(store, roomCode, () => {
         const existing = Object.values(st().players).find((p) => p.phone === phone);
-        if (!existing && !name) throw new HttpError(400, 'Please tell us your name.');
         if (!existing && Object.values(st().players).some((p) => p.name.toLowerCase() === name.toLowerCase()))
           throw new HttpError(400, 'That name is taken — add an initial or a nickname!');
-        const prev = st().pending[phone];
-        if (prev && Date.now() - prev.at < 20000) throw new HttpError(429, 'Code just sent — wait a few seconds before asking again.');
         for (const [k, v] of Object.entries(st().pending)) if (v.expires < Date.now()) delete st().pending[k];
+        const livePending = Object.values(st().pending).filter((v) => v.expires > Date.now()).length;
+        if (!st().pending[phone] && livePending >= 30) throw new HttpError(429, 'Too many codes at once. Ask the host to clear them.');
         const code = String(crypto.randomInt(smsEnabled ? 100000 : 1000, smsEnabled ? 1000000 : 10000));
         st().pending[phone] = { code, name: existing ? existing.name : name, avatar: body.avatar, expires: Date.now() + 10 * 60000, attempts: 0, at: Date.now(), via: smsEnabled ? 'sms' : 'host' };
-        return { code, returning: Boolean(existing), name: existing ? existing.name : name };
+        return { code };
       });
-      let via = 'host';
+      let via = viaPublic;
       if (smsEnabled) {
         try { await sendSms(phone, `${result.code} is your Diwali Game Night code 🪔`); via = 'sms'; } catch (e) {
-          console.error('[sms]', e.message);
+          console.error('[sms] text failed');
+          via = 'host';
           await run(store, roomCode, () => { if (st().pending[phone]) st().pending[phone].via = 'host'; });
         }
       }
-      return { json: { ok: true, via, returning: result.returning, name: result.name } };
+      return { json: { ok: true, via } };
     }
 
     if (path === 'otp/verify') {
       const phone = normalizePhone(body.cc, body.phone);
-      const { result } = await run(store, needRoom(body), () => {
+      const roomCode = canonRoom(body.room);
+      if (!roomCode) throw new HttpError(400, 'Enter a 4-character room code.');
+      if (!phone) throw new HttpError(400, 'Please enter a valid phone number.');
+      const loaded = await store.load();
+      if (!asEnvelope(loaded.data).rooms[roomCode]) throw new HttpError(400, 'That code is not right. Try again!');
+      const { result } = await run(store, roomCode, () => {
         const pend = phone && st().pending[phone];
         if (!pend || pend.expires < Date.now()) throw new HttpError(400, 'Code expired — request a new one.');
         if (pend.attempts >= 5) throw new HttpError(429, 'Too many tries — request a new code.');
-        if (String(body.code || '').trim() !== pend.code) {
+        if (!pinsEqual(body.code, pend.code)) {
           pend.attempts++;
           return { wrong: true };
         }

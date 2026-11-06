@@ -75,6 +75,7 @@ let state = null;
 function setState(s) {
   state = s;
   if (process.env.HOST_PIN) state.hostPin = process.env.HOST_PIN;
+  else if (!state.hostPin) state.hostPin = String(crypto.randomInt(100000, 1000000));
   // Fill in fields added after a saved game was created.
   const PZ = require('./personalize');
   if (!state.questionnaire) state.questionnaire = PZ.DEFAULT_PROMPTS.map((x) => ({ ...x }));

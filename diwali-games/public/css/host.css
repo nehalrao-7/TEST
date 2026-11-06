@@ -6,6 +6,9 @@ body.host { min-height: 100vh; }
 .htop { display: flex; flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 14px; }
 .hbrand { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .room-pill { border: 0; background: var(--shell); color: var(--cream); font: 700 18px/1 var(--font, Poppins, sans-serif); letter-spacing: .18em; border-radius: 999px; min-height: 44px; padding: 0 16px; cursor: pointer; }
+.pin-banner { display: flex; align-items: center; gap: 10px; background: var(--shell); color: var(--cream); border-radius: 16px; padding: 8px 14px; min-height: 44px; }
+.pin-banner b { font-size: 22px; letter-spacing: .16em; }
+.pin-banner span:last-child { color: var(--text-muted); font-size: 12px; line-height: 1.3; }
 .diff { margin: 0; background: var(--shell); border-radius: 22px; padding: 10px 14px 12px; }
 .diff-live { margin: 0; color: var(--cream); font-size: 14px; }
 .diff-top { display: flex; justify-content: space-between; align-items: baseline; }

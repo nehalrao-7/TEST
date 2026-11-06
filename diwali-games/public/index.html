@@ -36,11 +36,7 @@
       e.preventDefault();
       const code = App.canonRoom(document.getElementById('room').value);
       if (!code) { App.toast('Enter the 4-character room code.', true); return; }
-      try {
-        const m = await (await fetch('/api/meta?room=' + code)).json();
-        if (!m.roomExists) { App.toast('No room with that code.', true); return; }
-        location.href = '/play?room=' + code;
-      } catch { App.toast('Could not check that code.', true); }
+      location.href = '/play?room=' + code;
     };
   </script>
 </body>

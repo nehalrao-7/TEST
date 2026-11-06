@@ -10,6 +10,8 @@ body.play:has(#dock:not(:empty)) .pwrap { padding-bottom: 108px; }
 /* ---------- Login ---------- */
 .login { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: 12px; overflow: hidden; }
 .login .shell-card { margin-top: 52px; padding: 52px 18px 14px; flex: none; }
+.login .shell-card.slim { margin-top: 12px; padding: 16px 18px 12px; }
+.login .fine { font-size: 12px; line-height: 1.35; }
 .login .shell-card h1 { font-size: 28px; }
 .login form.card { flex: none; display: flex; flex-direction: column; gap: 10px; }
 .hero { text-align: center; color: var(--cream); }

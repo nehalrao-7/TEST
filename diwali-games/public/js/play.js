@@ -19,13 +19,8 @@
   const revealed = new Set(JSON.parse(store.get('dgn_revealed') || '[]'));
 
   // =================== LOGIN ===================
-  const L = { step: 'room', room: '', name: '', avatar: '🪔', avatars: ['🪔', '🎆', '🐘', '🦚', '🐯', '🌺', '🪷', '🍬', '🎇', '🥭', '🌶️', '🦁', '🐒', '👑', '🪁', '🍵', '🌙', '⭐'], eventName: 'Diwali Game Night', note: '' };
-
-  function deviceId() {
-    let id = store.get('dgn_device');
-    if (!id) { id = Math.random().toString(36).slice(2) + Date.now().toString(36); store.set('dgn_device', id); }
-    return id;
-  }
+  const L = { step: 'room', room: '', name: '', avatar: '🪔', cc: '1', phone: '', otp: '', via: 'host', avatars: ['🪔', '🎆', '🐘', '🦚', '🐯', '🌺', '🪷', '🍬', '🎇', '🥭', '🌶️', '🦁', '🐒', '👑', '🪁', '🍵', '🌙', '⭐'], eventName: 'Diwali Game Night', note: '' };
+  const COUNTRY_CODES = [['1', '+1'], ['91', '+91'], ['44', '+44'], ['971', '+971'], ['61', '+61'], ['65', '+65']];
 
   function remember(room, token) {
     App.room = room;
@@ -51,13 +46,12 @@
     L.room = room;
     L.step = room ? 'name' : 'room';
     if (room) {
+      App.room = room;
       try {
-        const m = await (await fetch('/api/meta?room=' + room)).json();
+        const m = await (await fetch('/api/meta')).json();
         if (m.avatars) L.avatars = m.avatars;
         if (m.eventName) L.eventName = m.eventName;
-        if (!m.roomExists) { L.step = 'room'; L.room = ''; L.note = 'No room with that code.'; App.room = ''; }
-        else App.room = room;
-      } catch { /* the form still works; join will say if the code is wrong */ }
+      } catch { /* the form still works */ }
     }
     renderLogin();
   }
@@ -87,45 +81,92 @@
         e.preventDefault();
         const code = App.canonRoom(input.value);
         if (!code) { App.toast('Enter the 4-character room code.', true); return; }
+        L.room = code; L.note = ''; App.room = code; L.step = 'name'; renderLogin();
+      };
+      return;
+    }
+    if (L.step === 'name') {
+      app.innerHTML = `<div class="login">
+        <div class="shell-card">
+          <div class="breakout">${App.mascot()}</div>
+          <p class="greet">${greet}</p>
+          <h1>${esc(L.eventName)}</h1>
+        </div>
+        <form class="card stack" id="f1">
+          <div class="room-known"><span class="field">Room</span><b class="room-chip">${esc(L.room)}</b><button type="button" class="btn ghost small" id="changeRoom">Change</button></div>
+          <div><label class="field" for="name">Your name</label><input type="text" id="name" maxlength="20" placeholder="e.g. Priya" value="${esc(L.name)}" autocomplete="given-name" /></div>
+          <div><label class="field">Pick your avatar</label><div class="avatars">${L.avatars.map((a) => `<button type="button" data-av="${a}" class="${a === L.avatar ? 'on' : ''}" aria-label="Avatar ${a}">${a}</button>`).join('')}</div></div>
+          <button class="btn diya-btn big block" type="submit">${App.diya(true, 28)} Continue</button>
+        </form>
+      </div>`;
+      app.querySelector('#changeRoom').onclick = () => { L.step = 'room'; L.note = ''; renderLogin(); };
+      app.querySelectorAll('[data-av]').forEach((b) => b.onclick = () => { L.avatar = b.dataset.av; app.querySelectorAll('[data-av]').forEach((x) => x.classList.toggle('on', x === b)); });
+      app.querySelector('#f1').onsubmit = (e) => {
+        e.preventDefault();
+        L.name = app.querySelector('#name').value.trim();
+        if (!L.name) { App.toast('Please tell us your name.', true); return; }
+        L.step = 'phone';
+        renderLogin();
+      };
+      return;
+    }
+    if (L.step === 'phone') {
+      app.innerHTML = `<div class="login">
+        <div class="shell-card slim">
+          <p class="greet">${greet}</p>
+          <h1>Your phone</h1>
+          <p class="muted">We send a code so this phone keeps your score.</p>
+        </div>
+        <form class="card stack" id="fPhone">
+          <div class="room-known"><span class="field">Room</span><b class="room-chip">${esc(L.room)}</b></div>
+          <div class="phone-row">
+            <select id="cc" aria-label="Country code">${COUNTRY_CODES.map(([v, label]) => `<option value="${v}" ${v === L.cc ? 'selected' : ''}>${label}</option>`).join('')}</select>
+            <input type="tel" id="phone" inputmode="tel" autocomplete="tel" placeholder="Phone number" value="${esc(L.phone)}" aria-label="Phone number" />
+          </div>
+          <button class="btn diya-btn big block" type="submit">${App.diya(true, 28)} Text me a code</button>
+          <p class="fine">Texts use Twilio when texting is on. Otherwise the host reads the code aloud. Fonts load from Google, and the live board may use Supabase.</p>
+        </form>
+        <button class="btn ghost small" type="button" id="backName">Back</button>
+      </div>`;
+      app.querySelector('#backName').onclick = () => { L.step = 'name'; renderLogin(); };
+      app.querySelector('#fPhone').onsubmit = async (e) => {
+        e.preventDefault();
+        L.cc = app.querySelector('#cc').value;
+        L.phone = app.querySelector('#phone').value.trim();
         const btn = e.submitter || app.querySelector('button[type=submit]');
         btn.disabled = true;
         try {
-          const m = await (await fetch('/api/meta?room=' + code)).json();
-          if (!m.roomExists) { L.note = 'No room with that code.'; App.toast(L.note, true); btn.disabled = false; return; }
-          L.room = code; L.note = ''; L.eventName = m.eventName || L.eventName; if (m.avatars) L.avatars = m.avatars;
-          App.room = code; L.step = 'name'; renderLogin();
-        } catch (err) { App.toast(err.message || 'Could not check that code.', true); btn.disabled = false; }
+          App.room = L.room;
+          const r = await App.post('/api/otp/request', { room: L.room, name: L.name, avatar: L.avatar, cc: L.cc, phone: L.phone });
+          L.via = r.via || 'host';
+          L.step = 'code';
+          renderLogin();
+        } catch (err) { App.toast(err.message, true); btn.disabled = false; }
       };
       return;
     }
     app.innerHTML = `<div class="login">
-      <div class="shell-card">
-        <div class="breakout">${App.mascot()}</div>
+      <div class="shell-card slim">
         <p class="greet">${greet}</p>
-        <h1>${esc(L.eventName)}</h1>
-        <p class="live-count" id="liveCount" hidden></p>
+        <h1>Enter your code</h1>
+        <p class="muted">${L.via === 'sms' ? 'Check the text on this phone.' : 'Ask the host to read the code from their console.'}</p>
       </div>
-      <form class="card stack" id="f1">
-        <div class="room-known"><span class="field">Room</span><b class="room-chip">${esc(L.room)}</b><button type="button" class="btn ghost small" id="changeRoom">Change</button></div>
-        <div><label class="field" for="name">Your name</label><input type="text" id="name" maxlength="20" placeholder="e.g. Priya" value="${esc(L.name)}" autocomplete="given-name" /></div>
-        <div><label class="field">Pick your avatar</label><div class="avatars">${L.avatars.map((a) => `<button type="button" data-av="${a}" class="${a === L.avatar ? 'on' : ''}" aria-label="Avatar ${a}">${a}</button>`).join('')}</div></div>
-        <p class="small muted" style="margin:0">This phone keeps your score in this room.</p>
+      <form class="card stack" id="fCode">
+        <input type="text" id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="Code" aria-label="Verification code" value="${esc(L.otp)}" />
         <button class="btn diya-btn big block" type="submit">${App.diya(true, 28)} Join the night</button>
       </form>
-      <p class="fine">Host? <a href="/host?room=${esc(L.room)}">Open the console</a></p>
+      <button class="btn ghost small" type="button" id="resend">Send a new code</button>
     </div>`;
-    showLiveCount();
-    app.querySelector('#changeRoom').onclick = () => { L.step = 'room'; L.note = ''; renderLogin(); };
-    app.querySelectorAll('[data-av]').forEach((b) => b.onclick = () => { L.avatar = b.dataset.av; app.querySelectorAll('[data-av]').forEach((x) => x.classList.toggle('on', x === b)); });
-    app.querySelector('#f1').onsubmit = async (e) => {
+    app.querySelector('#resend').onclick = () => { L.step = 'phone'; renderLogin(); };
+    app.querySelector('#fCode').onsubmit = async (e) => {
       e.preventDefault();
-      L.name = app.querySelector('#name').value.trim();
+      L.otp = app.querySelector('#otp').value.trim();
       const btn = e.submitter || app.querySelector('button[type=submit]');
       btn.disabled = true;
       try {
         App.room = L.room;
-        const r = await App.post('/api/join', { room: L.room, name: L.name, avatar: L.avatar, deviceId: deviceId() });
-        remember(r.code || L.room, r.token);
+        const r = await App.post('/api/otp/verify', { room: L.room, cc: L.cc, phone: L.phone, code: L.otp });
+        remember(L.room, r.token);
         App.confetti(1);
         start(r.token);
       } catch (err) { App.toast(err.message, true); btn.disabled = false; }
@@ -136,17 +177,6 @@
   // =================== CONTROLLER ===================
   // The TV is the source of truth. The phone shows one "moment" at a time: only what you
   // need to act on right now. Moments cross-fade when they change.
-  async function showLiveCount() {
-    try {
-      const v = await App.post('/api/view', { role: 'tv' });
-      const n = (v.players || []).filter((p) => p.online).length;
-      const el = document.getElementById('liveCount');
-      if (!el || !n) return;
-      el.hidden = false;
-      el.innerHTML = `<i></i>${n} ${n === 1 ? 'person' : 'people'} here`;
-    } catch { /* the count stays hidden when the room can't be read */ }
-  }
-
   function start(token) {
     app.innerHTML = `<header class="ctl-head" id="hdr"></header><main class="moment-wrap"><div id="moment"><p class="greet">Lighting the diyas…</p></div></main>`;
     sock = App.connect('player', token, (s) => onState(s), (msg) => {
@@ -550,7 +580,7 @@
       confirmSheet(`<div class="center"><h3>Lock kiya jaaye?</h3><p style="font-size:20px"><b>${App.letters[i]}. ${esc(q.options[i])}</b></p></div>`, '🔒 Lock it', () => game({ type: 'lock', choice: i }));
     } else if (act === 'walk') confirmSheet('<h3>Walk away?</h3><p class="muted">You keep the points you have secured.</p>', '🚶 Walk away', () => game({ type: 'walk' }));
     else if (act === 'about') { modal.innerHTML = ''; openQuestionnaire(); }
-    else if (act === 'logout') confirmSheet('<h3>Leave this phone?</h3><p class="muted">Your score stays in the room. Join again with the same code.</p>', 'Leave', () => { store.del('dgn_token'); store.del('dgn_token_room'); location.reload(); });
+    else if (act === 'logout') confirmSheet('<h3>Leave this phone?</h3><p class="muted">Your score stays in the room. Join again with the same phone number.</p>', 'Leave', () => { store.del('dgn_token'); store.del('dgn_token_room'); location.reload(); });
   }
   app.addEventListener('click', handle);
   dock.addEventListener('click', handle);
