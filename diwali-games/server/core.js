@@ -20,9 +20,21 @@ const token = () => crypto.randomBytes(24).toString('base64url');
 const findPlayerByToken = (t) => t && Object.values(st().players).find((p) => p.tokens.includes(t));
 const OTP_SENT = new Map();
 function pinsEqual(given, expected) {
-  const a = crypto.createHash('sha256').update(String(given || '').trim()).digest();
-  const b = crypto.createHash('sha256').update(String(expected || '').trim()).digest();
+  const norm = (s) => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const a = crypto.createHash('sha256').update(norm(given)).digest();
+  const b = crypto.createHash('sha256').update(norm(expected)).digest();
   return crypto.timingSafeEqual(a, b);
+}
+const PIN_LOCK_MS = 15 * 60 * 1000;
+const pinMisses = new Map();
+let sizeWarned = false;
+function guardSize(env) {
+  const bytes = JSON.stringify(env).length;
+  if (bytes > 800000 && !sizeWarned) {
+    sizeWarned = true;
+    console.warn('[dgn] saved game is ' + bytes + ' bytes');
+  }
+  if (bytes > 1500000) throw new HttpError(503, 'This party is full.');
 }
 const isHostToken = (t) => t && st().hostTokens.includes(t);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -86,6 +98,7 @@ function hostView(base) {
     personalPreview: P.preview(s, 6),
     personalCount: s.live ? s.live.personalCount || 0 : 0,
     demo: s.demo && s.demo.on ? { bots: Object.values(s.players).filter((p) => p.bot).length } : null,
+    tvSecret: s.tvSecret || '',
   };
 }
 const maskPhone = (ph) => (ph ? ph.slice(0, 3) + ' ••• ' + ph.slice(-4) : '');
@@ -394,11 +407,15 @@ function hostAction(a) {
       const fresh = S.freshState();
       fresh.code = s.code;
       fresh.hostPin = s.hostPin;
+      fresh.tvSecret = s.tvSecret;
+      fresh.hostPinFails = 0;
+      fresh.hostPinLockedUntil = 0;
       fresh.hostTokens = s.hostTokens;
       fresh.settings.eventName = s.settings.eventName;
       fresh.settings.difficulty = s.settings.difficulty || 3;
       S.setState(fresh);
-      if (!process.env.HOST_PIN) fresh.hostPin = s.hostPin;
+      fresh.hostPin = s.hostPin;
+      fresh.tvSecret = s.tvSecret;
       break;
     }
     default: throw new Error('Unknown action.');
@@ -508,6 +525,7 @@ function run(store, roomCode, mutate) {
       let version = loaded.version;
       if (after !== before) {
         env.rooms[code] = st();
+        guardSize(env);
         const v = await store.save(loaded.version, env);
         if (v == null) { await sleep(20 + Math.random() * 60 * (attempt + 1)); continue; }
         version = v;
@@ -529,6 +547,11 @@ function createRoom(store, body) {
     for (let attempt = 0; attempt < 30; attempt++) {
       const loaded = await store.load();
       const env = asEnvelope(loaded.data);
+      const now = Date.now();
+      env.creates = (Array.isArray(env.creates) ? env.creates : []).filter((t) => now - t < 10 * 60 * 1000);
+      if (env.creates.length >= 8) throw new HttpError(429, 'Too many new rooms. Wait a few minutes.');
+      if (Object.keys(env.rooms).length >= 30) throw new HttpError(429, 'Too many rooms are open.');
+      env.creates.push(now);
       const code = newRoomCode(env.rooms);
       const room = S.freshState();
       room.code = code;
@@ -539,6 +562,7 @@ function createRoom(store, body) {
       const t = token();
       room.hostTokens = [t];
       env.rooms[code] = room;
+      guardSize(env);
       const v = await store.save(loaded.version, env);
       if (v == null) { await sleep(20 + Math.random() * 60 * (attempt + 1)); continue; }
       return { code, token: t, pin: room.hostPin };
@@ -550,7 +574,7 @@ function createRoom(store, body) {
 function baseFor() {
   return { ...S.basePublic(ONLINE), nextDeadline: nextDeadline(st()) };
 }
-function viewFor(role, tok) {
+function viewFor(role, tok, tvSecret) {
   if (role === 'host') {
     if (!isHostToken(tok)) throw new HttpError(401, 'Please log in again.');
     return { ...hostView(baseFor()), media: currentMedia(), awardsCount: computeAwards().length };
@@ -560,6 +584,7 @@ function viewFor(role, tok) {
     if (!p) throw new HttpError(401, 'Please log in again.');
     return playerView(p, baseFor());
   }
+  if (!st().tvSecret || !pinsEqual(tvSecret, st().tvSecret)) throw new HttpError(401, 'Open the TV from the host console.');
   const tvExtra = st().tv.view === 'awards' ? { awards: computeAwards(), awardPoints: AWARD_POINTS } : {};
   const reactions = LOCAL_REACTS.filter((r) => !r.room || r.room === st().code);
   return { ...baseFor(), role: 'tv', live: liveView({ tv: true }), media: currentMedia(), ...tvExtra, reactions: reactions.length ? reactions : undefined };
@@ -590,6 +615,7 @@ async function handle(store, method, path, body = {}, query = {}) {
     if (path === 'applause') {
       // The TV's microphone reports how loud the crowd cheered for a Hook Step dance.
       await run(store, needRoom(body), () => {
+        if (!st().tvSecret || !pinsEqual(body.tvSecret, st().tvSecret)) throw new HttpError(401, 'Open the TV from the host console.');
         const live = st().live;
         const game = live && st().games.find((g) => g.id === live.gameId);
         if (game && game.type === 'hookstep') engines.hookstep.applause(live, String(body.id || ''), body.level);
@@ -604,7 +630,7 @@ async function handle(store, method, path, body = {}, query = {}) {
       return { json: { ok: true } };
     }
     if (path === 'view' || path === 'tick') {
-      const { result, version } = await run(store, needRoom(body), () => viewFor(body.role, body.token));
+      const { result, version } = await run(store, needRoom(body), () => viewFor(body.role, body.token, body.tvSecret));
       if (result.role === 'player' && store.seen) await store.seen(ROOM + ':' + result.me.id).catch(() => {});
       return { json: { ...result, version } };
     }
@@ -619,7 +645,7 @@ async function handle(store, method, path, body = {}, query = {}) {
           if (!p) throw new HttpError(401, 'Please log in again.');
           playerAction(p, body.action || {});
         }
-        return viewFor(body.role, body.token);
+        return viewFor(body.role, body.token, body.tvSecret);
       });
       return { json: { ok: true, view: { ...result, version } } };
     }
@@ -629,12 +655,36 @@ async function handle(store, method, path, body = {}, query = {}) {
       if (!code) throw new HttpError(400, 'Enter a 4-character room code.');
       const loaded = await store.load();
       const room = asEnvelope(loaded.data).rooms[code];
-      if (!room || !pinsEqual(body.pin, room.hostPin)) throw new HttpError(401, 'Wrong room code or host PIN.');
+      const miss = pinMisses.get(code) || { fails: 0, lockedUntil: 0 };
+      if ((room && room.hostPinLockedUntil > Date.now()) || miss.lockedUntil > Date.now()) {
+        throw new HttpError(429, 'Too many tries. Wait a few minutes and try again.');
+      }
+      if (!room) {
+        miss.fails += 1;
+        if (miss.fails >= 5) { miss.lockedUntil = Date.now() + PIN_LOCK_MS; miss.fails = 0; }
+        pinMisses.set(code, miss);
+        throw new HttpError(miss.lockedUntil > Date.now() ? 429 : 401, miss.lockedUntil > Date.now() ? 'Too many tries. Wait a few minutes and try again.' : 'Wrong room code or host PIN.');
+      }
       const { result } = await run(store, code, () => {
+        if (st().hostPinLockedUntil > Date.now()) return { locked: true };
+        if (!pinsEqual(body.pin, st().hostPin)) {
+          st().hostPinFails = (st().hostPinFails || 0) + 1;
+          if (st().hostPinFails >= 5) {
+            st().hostPinLockedUntil = Date.now() + PIN_LOCK_MS;
+            st().hostPinFails = 0;
+            return { locked: true };
+          }
+          return { bad: true };
+        }
+        st().hostPinFails = 0;
+        st().hostPinLockedUntil = 0;
         const t = token();
         st().hostTokens = [...st().hostTokens.slice(-9), t];
         return { token: t, code: st().code };
       });
+      if (result.locked) throw new HttpError(429, 'Too many tries. Wait a few minutes and try again.');
+      if (result.bad) throw new HttpError(401, 'Wrong room code or host PIN.');
+      pinMisses.delete(code);
       return { json: result };
     }
 
@@ -658,7 +708,7 @@ async function handle(store, method, path, body = {}, query = {}) {
         for (const [k, v] of Object.entries(st().pending)) if (v.expires < Date.now()) delete st().pending[k];
         const livePending = Object.values(st().pending).filter((v) => v.expires > Date.now()).length;
         if (!st().pending[phone] && livePending >= 30) throw new HttpError(429, 'Too many codes at once. Ask the host to clear them.');
-        const code = String(crypto.randomInt(smsEnabled ? 100000 : 1000, smsEnabled ? 1000000 : 10000));
+        const code = String(crypto.randomInt(100000, 1000000));
         st().pending[phone] = { code, name: existing ? existing.name : name, avatar: body.avatar, expires: Date.now() + 10 * 60000, attempts: 0, at: Date.now(), via: smsEnabled ? 'sms' : 'host' };
         return { code };
       });

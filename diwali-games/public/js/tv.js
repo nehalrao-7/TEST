@@ -72,10 +72,17 @@
   }
 
   let sock = null;
+  function readTvSecret() {
+    const q = new URLSearchParams(location.search).get('tv') || '';
+    if (q) { try { sessionStorage.setItem('dgn_tv_secret', q); } catch { /* private mode */ } return q; }
+    try { return sessionStorage.getItem('dgn_tv_secret') || ''; } catch { return ''; }
+  }
   function enterRoom(code) {
     App.room = code;
+    App.tvSecret = readTvSecret();
     try { localStorage.setItem('dgn_tv_room', code); } catch { /* private mode */ }
-    history.replaceState(null, '', '/tv?room=' + code);
+    const qs = '?room=' + encodeURIComponent(code) + (App.tvSecret ? '&tv=' + encodeURIComponent(App.tvSecret) : '');
+    history.replaceState(null, '', '/tv' + qs);
     document.body.classList.remove('tv-gate');
     if (sock) sock.disconnect();
     sock = App.connect('tv', null, (s) => { S = s; render(); }, (msg) => {
@@ -86,23 +93,14 @@
   }
   function showGate(msg) {
     document.body.classList.add('tv-gate');
-    $('stage').innerHTML = `<div class="gate"><div class="em">${App.diya(true)}</div><h1>Which room?</h1><p>Enter the 4-character code from the host.</p>
-      <form id="tvGate"><input id="tvRoom" class="code-input" type="text" maxlength="4" autocapitalize="characters" autocomplete="off" placeholder="ABCD" aria-label="Room code" />
-      <button class="btn big" type="submit">Open the room</button></form>
+    $('stage').innerHTML = `<div class="gate"><div class="em">${App.diya(true)}</div><h1>Open the TV</h1><p>Use the TV link from the host console. The room code alone does not open this screen.</p>
       <p class="fine">Dance videos play from YouTube. Fonts load from Google. Live updates may use Supabase.</p>
       ${msg ? `<p class="gate-err">${esc(msg)}</p>` : ''}</div>`;
-    const input = $('tvRoom');
-    input.focus();
-    $('tvGate').onsubmit = async (e) => {
-      e.preventDefault();
-      const code = App.canonRoom(input.value);
-      if (!code) { showGate('Enter the 4-character room code.'); return; }
-      enterRoom(code);
-    };
   }
   function bootTv() {
     const code = App.roomFromQuery() || App.canonRoom((() => { try { return localStorage.getItem('dgn_tv_room'); } catch { return ''; } })());
-    if (!code) showGate();
+    const secret = readTvSecret();
+    if (!code || !secret) showGate();
     else enterRoom(code);
   }
   bootTv();
@@ -551,7 +549,7 @@
     stream.getTracks().forEach((t) => t.stop());
     const score = Math.round(0.6 * peak + 0.4 * (sum / Math.max(1, n)));
     App.sfx('ding'); App.fireworks(score / 80);
-    fetch('/api/applause', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, level: score, room: App.room }) }).catch(() => {});
+    fetch('/api/applause', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, level: score, room: App.room, tvSecret: App.tvSecret || '' }) }).catch(() => {});
   }
 
   function customScene(L) {

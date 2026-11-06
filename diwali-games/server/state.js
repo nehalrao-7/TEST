@@ -38,6 +38,13 @@ const shuffle = (arr) => {
   return a;
 };
 
+function partySecret() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for (let i = 0; i < 12; i++) s += alphabet[crypto.randomInt(alphabet.length)];
+  return s;
+}
+
 function freshState() {
   return {
     version: 1,
@@ -51,7 +58,10 @@ function freshState() {
       stealAmount: 150,
       swapCap: 300,
     },
-    hostPin: process.env.HOST_PIN || String(crypto.randomInt(100000, 1000000)),
+    hostPin: partySecret(),
+    tvSecret: partySecret(),
+    hostPinFails: 0,
+    hostPinLockedUntil: 0,
     hostTokens: [],
     players: {},
     teams: {},
@@ -74,8 +84,11 @@ let state = null;
 // The state object for the request being handled (requests are serialised by server/core.js).
 function setState(s) {
   state = s;
-  if (process.env.HOST_PIN) state.hostPin = process.env.HOST_PIN;
-  else if (!state.hostPin) state.hostPin = String(crypto.randomInt(100000, 1000000));
+  // Each room keeps its own long PIN. A shared environment PIN is never applied.
+  if (!state.hostPin || String(state.hostPin).length < 12) state.hostPin = partySecret();
+  if (!state.tvSecret || String(state.tvSecret).length < 12) state.tvSecret = partySecret();
+  if (state.hostPinFails == null) state.hostPinFails = 0;
+  if (state.hostPinLockedUntil == null) state.hostPinLockedUntil = 0;
   // Fill in fields added after a saved game was created.
   const PZ = require('./personalize');
   if (!state.questionnaire) state.questionnaire = PZ.DEFAULT_PROMPTS.map((x) => ({ ...x }));
@@ -418,7 +431,7 @@ function basePublic(onlineSet) {
 
 module.exports = {
   get state() { return state; },
-  setState, freshState, id, shuffle,
+  setState, freshState, partySecret, id, shuffle,
   AVATARS, POWERUPS, TEAM_PRESETS,
   stat, createPlayer, dealPowerups, makeTeams, teamMembers, scores, ranking,
   award, awardEntity, parseEntity, entityKeyFor, entityInfo,

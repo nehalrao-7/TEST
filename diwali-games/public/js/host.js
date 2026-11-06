@@ -182,7 +182,8 @@
   function pinBanner() {
     const sess = session();
     if (!sess || !sess.pin || !S || sess.code !== S.code) return '';
-    return `<div class="pin-banner"><span>Host PIN</span><b>${esc(sess.pin)}</b><span>Write this down to open the room again</span></div>`;
+    const shown = String(sess.pin).replace(/(.{4})(?=.)/g, '$1 ');
+    return `<div class="pin-banner"><span>Host PIN</span><b>${esc(shown)}</b><span>Write this down to open the room again</span></div>`;
   }
 
   function demoCard() {
@@ -242,7 +243,8 @@
   function linksHtml() {
     const o = location.origin;
     const q = S.code ? '?room=' + encodeURIComponent(S.code) : '';
-    return `<div class="links stack">${[['Players join', o + '/play' + q], ['TV display', o + '/tv' + q], ['Host', o + '/host' + q]].map(([l, u]) => `<div class="row"><span style="width:100px" class="small muted">${l}</span><input type="text" readonly value="${esc(u)}" class="grow" style="flex:1"/><button class="btn small ghost" data-a="copy" data-u="${esc(u)}">Copy</button></div>`).join('')}</div>`;
+    const tv = q + (S.tvSecret ? '&tv=' + encodeURIComponent(S.tvSecret) : '');
+    return `<div class="links stack">${[['Players join', o + '/play' + q], ['TV display', o + '/tv' + tv], ['Host', o + '/host' + q]].map(([l, u]) => `<div class="row"><span style="width:100px" class="small muted">${l}</span><input type="text" readonly value="${esc(u)}" class="grow" style="flex:1"/><button class="btn small ghost" data-a="copy" data-u="${esc(u)}">Copy</button></div>`).join('')}</div>`;
   }
 
   function pendingCard() {

@@ -17,7 +17,7 @@
     // timer runs out. Returns an object with a socket-like emit(kind, action, cb).
     connect(role, token, onState, onAuthError) {
       let version = 0, stopped = false, inflight = false, again = false, debounce = null, deadlineTimer = null, failures = 0;
-      const body = (extra) => JSON.stringify({ role, token, room: App.room, ...extra });
+      const body = (extra) => JSON.stringify({ role, token, room: App.room, tvSecret: App.tvSecret || '', ...extra });
       const apply = (v) => {
         if (stopped || !v) return;
         App.offset = v.serverNow - Date.now();
