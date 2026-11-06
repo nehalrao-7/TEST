@@ -236,7 +236,7 @@ function autoMedia() {
   }
   if (game.type === 'hookstep' && live.perf && live.perf.songIndex != null && (live.phase === 'perform' || live.phase === 'judge')) {
     const song = (c.songs || [])[live.perf.songIndex];
-    // Visible the whole dance. The TV blurs it until the clock hits zero, then replays it sharp.
+    // Full screen for the dance. The TV blurs it until the clock hits zero, then the same clip plays on, sharp, with sound.
     return mk(song, `song${live.perf.songIndex}-${live.results.length}`, true, song ? song.title : '');
   }
   return null;

@@ -10,16 +10,40 @@
   const shownAnnounce = new Set();
   const lbAnimated = new Set();
 
-  $('soundBtn').onclick = () => { App.enableSound(); App.sfx('arrive'); $('soundBtn').remove(); mediaSig = ''; syncMedia(); };
+  function unlockYouTube() {
+    App.enableSound();
+    if ($('soundBtn')) $('soundBtn').remove();
+    if (ytReady && yt) {
+      try { yt.unMute(); yt.setVolume(100); yt.playVideo(); } catch { /* the clip starts on the next sync */ }
+    }
+  }
+  $('soundBtn').onclick = () => { unlockYouTube(); App.sfx('arrive'); mediaSig = ''; syncMedia(); };
+  document.addEventListener('pointerdown', () => unlockYouTube(), { once: true });
   App.onReact((r) => { if (r.room && App.room && r.room !== App.room) return; App.showReaction(r); App.sfx('pop'); });
 
   // ---------- YouTube music / video ----------
+  // YouTube rejects the player (error 153) unless the embed request carries a Referer.
+  const createEl = document.createElement.bind(document);
+  document.createElement = function (tag, options) {
+    const el = createEl(tag, options);
+    if (String(tag).toLowerCase() === 'iframe') el.referrerPolicy = 'strict-origin-when-cross-origin';
+    return el;
+  };
   let yt = null, ytReady = false, mediaSig = '';
   window.onYouTubeIframeAPIReady = () => {
     yt = new YT.Player('ytPlayer', {
       width: '100%', height: '100%',
       playerVars: { autoplay: 0, controls: 0, rel: 0, modestbranding: 1, playsinline: 1, disablekb: 1, fs: 0, iv_load_policy: 3 },
-      events: { onReady: () => { ytReady = true; syncMedia(); } },
+      events: {
+        onReady: () => {
+          ytReady = true;
+          const frame = yt.getIframe && yt.getIframe();
+          if (frame) frame.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture');
+          syncMedia();
+          requestAnimationFrame(fitPlayer);
+          setTimeout(fitPlayer, 400);
+        },
+      },
     });
   };
   function syncMedia() {
@@ -40,35 +64,64 @@
           const opts = { videoId: m.videoId, startSeconds: m.start || 0 };
           if (m.end) opts.endSeconds = m.end;
           yt.loadVideoById(opts);
-          if (App.soundOn) { yt.unMute(); yt.setVolume(100); } else yt.mute();
+          hearYouTube(hookLive());
+          requestAnimationFrame(fitPlayer);
+          setTimeout(fitPlayer, 500);
         }
       }
     }
     syncHookVeil();
   }
 
-  // Hook Step: the original stays blurred for the dance, then replays sharp so the room can judge.
-  let hookRevealed = '';
+  function hookLive() {
+    const L = S && S.live;
+    const m = S && S.media;
+    return Boolean(L && L.type === 'hookstep' && m && !m.stopped && m.videoId && m.show && (L.phase === 'perform' || L.phase === 'judge'));
+  }
+  function hearYouTube(on) {
+    if (!ytReady || !yt) return;
+    try {
+      if (on || App.soundOn) { yt.unMute(); yt.setVolume(100); }
+      else yt.mute();
+    } catch { /* the player is still starting */ }
+  }
+
+  // The iframe API sizes itself once. Tell it the box it should fill after the layout changes.
+  function fitPlayer() {
+    if (!ytReady || !yt || !yt.setSize) return false;
+    const box = $('mediaBox');
+    const w = box.clientWidth;
+    const h = box.clientHeight;
+    const full = hookLive();
+    if (full && (w < window.innerWidth * 0.9 || h < window.innerHeight * 0.9)) return false;
+    if (w < 20 || h < 20) return false;
+    try { yt.setSize(w, h); return true; } catch { return false; }
+  }
+
+  let hookFit = false;
+  let playerFitted = false;
+  // Hook Step fills the screen. A blur sits on top until the dance clock hits zero, then lifts. The clip keeps playing.
   function syncHookVeil() {
     const box = $('mediaBox');
     const L = S && S.live;
-    const m = S && S.media;
-    const hook = Boolean(L && L.type === 'hookstep' && m && !m.stopped && m.videoId && m.show);
+    const hook = hookLive();
     const dancing = hook && L.phase === 'perform' && App.now() < L.until;
-    const clear = hook && (L.phase === 'judge' || (L.phase === 'perform' && App.now() >= L.until));
     box.classList.toggle('hook-veiled', dancing);
-    box.classList.toggle('hook-clear', clear);
-    document.body.classList.toggle('hook-ref', clear);
-    if (dancing) $('mediaLabel').textContent = 'Hidden until the timer ends';
-    else if (clear) $('mediaLabel').textContent = 'Original — judge the hook';
-    if (!clear) return;
-    const perfKey = `${m.key}|${m.nonce}`;
-    if (hookRevealed === perfKey || !ytReady || !yt) return;
-    hookRevealed = perfKey;
-    const opts = { videoId: m.videoId, startSeconds: m.start || 0 };
-    if (m.end) opts.endSeconds = m.end;
-    yt.loadVideoById(opts);
-    if (App.soundOn) { yt.unMute(); yt.setVolume(100); } else yt.mute();
+    document.body.classList.toggle('hook-screen', hook);
+    if (hook !== hookFit) {
+      hookFit = hook;
+      playerFitted = false;
+      if (hook && $('soundBtn')) $('soundBtn').textContent = '🔊 Tap once to play the video with sound';
+    }
+    if (hook && !playerFitted) playerFitted = fitPlayer();
+    if (!hook) playerFitted = false;
+    if (hook) {
+      $('mediaLabel').textContent = '';
+      if (!syncHookVeil.heard || App.now() - syncHookVeil.heard > 1000) {
+        syncHookVeil.heard = App.now();
+        hearYouTube(true);
+      }
+    }
   }
 
   let sock = null;
@@ -499,7 +552,8 @@
         <h1 class="brave">Who's brave enough? Come up!</h1>${songHtml}${dancers(perf.dancers)}</div></div></div>`, 'hook-ready-' + (song ? song.title : '')];
     }
     if (L.phase === 'perform') {
-      return [`<div class="gframe">${head}${timerBar(L.startedAt, L.until)}<div class="hook"><div class="perf">${songHtml}<div class="big-count" data-count="${L.until}"></div><div class="hand-note">The original reveals at zero.</div>${perf.dancers.length ? dancers(perf.dancers) : ''}</div></div></div>`, 'hook-perform'];
+      const veiled = App.now() < L.until;
+      return [`<div class="gframe">${head}${timerBar(L.startedAt, L.until)}<div class="hook"><div class="perf">${songHtml}<div class="big-count" data-count="${L.until}"></div>${veiled ? '<div class="hand-note">The original reveals at zero.</div>' : ''}${perf.dancers.length ? dancers(perf.dancers) : ''}</div></div></div>`, 'hook-perform'];
     }
     if (L.phase === 'judge') {
       const stars = perf.stars || 0;

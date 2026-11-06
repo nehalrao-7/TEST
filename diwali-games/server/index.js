@@ -7,6 +7,7 @@ const { handle } = require('./core');
 const { getStore } = require('./stores');
 
 const app = express();
+app.use((req, res, next) => { res.set('Referrer-Policy', 'strict-origin-when-cross-origin'); next(); });
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public'), { extensions: ['html'] }));
 
