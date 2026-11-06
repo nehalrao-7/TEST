@@ -6,8 +6,6 @@ const express = require('express');
 const { handle } = require('./core');
 const { getStore } = require('./stores');
 
-if (!process.env.HOST_PIN) process.env.HOST_PIN = '1234';
-
 const app = express();
 app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, '..', 'public'), { extensions: ['html'] }));
@@ -22,6 +20,5 @@ app.all('/api/*', async (req, res) => {
 
 const PORT = Number(process.env.PORT) || 3000;
 app.listen(PORT, () => {
-  console.log(`\n🪔  Diwali Game Night on http://localhost:${PORT}  (players /play · host /host · TV /tv)`);
-  console.log(`   Host PIN: ${process.env.HOST_PIN}\n`);
+  console.log(`\n🪔  Diwali Game Night on http://localhost:${PORT}  (players /play · host /host · TV /tv)\n`);
 });
