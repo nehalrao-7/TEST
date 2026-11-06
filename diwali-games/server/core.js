@@ -18,7 +18,8 @@ let ONLINE = new Set();
 const LOCAL_REACTS = [];
 const token = () => crypto.randomBytes(24).toString('base64url');
 // OPEN_ACCESS=true skips the host PIN and the phone code (for rehearsals). Turn it off for the party.
-const OPEN = /^(1|true|yes|on)$/i.test(process.env.OPEN_ACCESS || '');
+// A public party: anyone with the room code can play. Set OPEN_ACCESS=false to require the host PIN.
+const OPEN = !/^(0|false|no|off)$/i.test(String(process.env.OPEN_ACCESS || 'true'));
 const findPlayerByToken = (t) => t && Object.values(st().players).find((p) => p.tokens.includes(t));
 const isHostToken = (t) => t && st().hostTokens.includes(t);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

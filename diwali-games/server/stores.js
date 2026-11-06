@@ -61,9 +61,73 @@ function fileStore() {
   };
 }
 
+function postgresStore() {
+  const { Pool } = require('pg');
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: /localhost|127\.0\.0\.1/.test(process.env.DATABASE_URL) ? false : { rejectUnauthorized: false },
+    max: 4,
+  });
+  const ready = pool.query(`
+    CREATE TABLE IF NOT EXISTS dgn_document (
+      id boolean PRIMARY KEY DEFAULT true,
+      version integer NOT NULL,
+      data jsonb NOT NULL,
+      CONSTRAINT dgn_document_one CHECK (id)
+    );
+    CREATE TABLE IF NOT EXISTS dgn_seen (
+      player_id text PRIMARY KEY,
+      seen_at bigint NOT NULL
+    );
+  `);
+  const q = (text, params) => ready.then(() => pool.query(text, params));
+  return {
+    realtime: null,
+    async load() {
+      const now = Date.now();
+      await q('DELETE FROM dgn_seen WHERE seen_at < $1', [now - 25000]);
+      const onlineRows = await q('SELECT player_id FROM dgn_seen WHERE seen_at >= $1', [now - 25000]);
+      const doc = await q('SELECT version, data FROM dgn_document WHERE id = true');
+      const row = doc.rows[0];
+      return {
+        version: row ? row.version : 0,
+        data: row ? row.data : null,
+        online: onlineRows.rows.map((r) => r.player_id),
+      };
+    },
+    async save(v, d) {
+      const body = JSON.stringify(d);
+      if (v === 0) {
+        const ins = await q(
+          `INSERT INTO dgn_document (id, version, data) VALUES (true, 1, $1::jsonb)
+           ON CONFLICT (id) DO NOTHING RETURNING version`,
+          [body]
+        );
+        if (ins.rowCount === 1) return ins.rows[0].version;
+      }
+      const upd = await q(
+        'UPDATE dgn_document SET version = version + 1, data = $2::jsonb WHERE id = true AND version = $1 RETURNING version',
+        [v, body]
+      );
+      return upd.rowCount === 1 ? upd.rows[0].version : null;
+    },
+    async seen(id) {
+      await q(
+        `INSERT INTO dgn_seen (player_id, seen_at) VALUES ($1, $2)
+         ON CONFLICT (player_id) DO UPDATE SET seen_at = EXCLUDED.seen_at`,
+        [id, Date.now()]
+      );
+    },
+  };
+}
+
 let store = null;
 function getStore() {
-  if (!store) store = process.env.SUPABASE_URL && process.env.DGN_SECRET ? supabaseStore() : fileStore();
+  if (!store) {
+    if (process.env.DATABASE_URL) store = postgresStore();
+    else if (process.env.SUPABASE_URL && process.env.DGN_SECRET) store = supabaseStore();
+    else store = fileStore();
+  }
   return store;
 }
 
