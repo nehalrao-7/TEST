@@ -55,7 +55,7 @@ function freshState() {
       powerupsEnabled: true,
       powerupsPerPlayer: 3,
       personalPct: 20,
-      questionnaireOpen: true,
+      questionnaireOpen: false,
       difficulty: 3,
       stealAmount: 150,
       swapCap: 300,
@@ -116,7 +116,12 @@ function setState(s) {
   // The party was renamed; rooms saved with the old default pick up the new one.
   if (/game night/i.test(state.settings.eventName || '')) state.settings.eventName = '2026 Diwali Party';
   if (state.settings.personalPct == null) state.settings.personalPct = 20;
-  if (state.settings.questionnaireOpen == null) state.settings.questionnaireOpen = true;
+  // The quick questions now wait for the host to send them once everyone has joined.
+  if (state.settings.questionnaireOpen == null || state.questionnaireGate == null) {
+    if (state.questionnaireGate == null && !Object.values(state.players || {}).some((p) => !p.bot && p.answers && Object.keys(p.answers).length)) state.settings.questionnaireOpen = false;
+    if (state.settings.questionnaireOpen == null) state.settings.questionnaireOpen = false;
+    state.questionnaireGate = 1;
+  }
   state.settings.difficulty = Math.max(1, Math.min(5, Math.round(Number(state.settings.difficulty) || 3)));
   if (!state.personalUsed) state.personalUsed = [];
   if (!state.stats) state.stats = {};

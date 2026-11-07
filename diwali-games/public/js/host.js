@@ -119,7 +119,7 @@
       left = `<div class="card"><h3>${esc(L.emoji)} ${esc(L.title)} <span class="chip live">LIVE</span><span class="chip">${L.mode}</span>${L.difficultyName ? `<span class="chip">${esc(L.difficultyName)}</span>` : ''}${L.practice ? '<span class="chip">🧪 practice questions</span>' : ''}${S.personalCount ? `<span class="chip gold">✨ ${S.personalCount} personalised</span>` : ''}
         <button class="btn red small" style="margin-left:auto" data-a="end">🏁 End game → leaderboard</button></h3>${fn(L)}</div>`;
     }
-    return `${cueBar()}<div class="hgrid"><div>${demoCard()}${left}${tvCard()}</div><div>${pendingCard()}${awardCard()}${feedCard()}</div></div>`;
+    return `${cueBar()}<div class="hgrid"><div>${S.live ? '' : quizSendCard()}${demoCard()}${left}${tvCard()}</div><div>${pendingCard()}${awardCard()}${feedCard()}</div></div>`;
   }
 
   // ---------- Run of show + the single "next cue" (a stage manager's cue list) ----------
@@ -183,6 +183,21 @@
     if (!sess || !sess.pin || !S || sess.code !== S.code) return '';
     const shown = String(sess.pin).replace(/(.{4})(?=.)/g, '$1 ');
     return `<div class="pin-banner"><span>Host PIN</span><b>${esc(shown)}</b><span>Write this down to open the room again</span></div>`;
+  }
+
+  // The quick questions stay closed until the host sends them, so latecomers don't miss out.
+  function quizSendCard() {
+    const humans = S.players.filter((p) => !p.bot);
+    const online = humans.filter((p) => p.online).length;
+    const q = S.questionnaire || {};
+    if (!S.settings.questionnaireOpen) {
+      return `<div class="card"><div class="row"><span style="font-size:30px">📝</span><div class="grow"><b>Quick questions</b>
+        <div class="small muted">${humans.length} joined · ${online} online. Send once everyone is in.</div></div>
+        <button class="btn gold" data-a="sendQuiz" ${humans.length ? '' : 'disabled'}>📲 Send to phones</button></div></div>`;
+    }
+    return `<div class="card"><div class="row"><span style="font-size:30px">📝</span><div class="grow"><b>Quick questions sent</b>
+      <div class="small muted">${q.done || 0} of ${S.players.length} answered</div></div>
+      <button class="btn small ghost" data-a="closeQuiz">Close</button></div></div>`;
   }
 
   function demoCard() {
@@ -547,6 +562,8 @@
       case 'saveSettings': act({ type: 'settings', eventName: document.getElementById('sName').value, powerupsEnabled: document.getElementById('sPU').checked, stealAmount: document.getElementById('sSteal').value, swapCap: document.getElementById('sSwap').value }, 'Saved ✓'); break;
       case 'resetScores': if (confirm('Reset ALL scores, games and power-ups? Players stay logged in.')) act({ type: 'resetScores' }, 'Reset done'); break;
       case 'resetAll': if (prompt('Type WIPE to delete all players, scores and edits') === 'WIPE') act({ type: 'resetAll' }, 'Wiped'); break;
+      case 'sendQuiz': act({ type: 'questionnaire', open: true }, '📲 Sent to every phone'); break;
+      case 'closeQuiz': act({ type: 'questionnaire', open: false }, 'Closed'); break;
       case 'logout': store.del('dgn_host'); store.del('dgn_host_session'); location.href = '/host'; break;
       default:
     }

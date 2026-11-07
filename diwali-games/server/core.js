@@ -405,6 +405,12 @@ function hostAction(a) {
     }
     case 'undo': s.ledger = s.ledger.filter((e) => e.id !== a.entryId); break;
     case 'media': mediaAction(a); break;
+    case 'questionnaire': {
+      // Host sends the quick questions to every phone at once, after everyone has joined.
+      s.settings.questionnaireOpen = Boolean(a.open);
+      if (a.open) S.announce({ emoji: '📝', title: 'Check your phones!', text: 'A few quick questions — some answers become tonight’s questions.', kind: 'info', ms: 5000 });
+      break;
+    }
     case 'demoStart': Bots.create(s, Math.max(2, Math.min(14, Number(a.count) || 8))); s.settings.practice = true; s.settings.difficulty = 1; break;
     case 'demoEnd': {
       Bots.remove(s);
