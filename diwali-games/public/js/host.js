@@ -15,24 +15,53 @@
   const ui = { awardTarget: '', awardReason: '', awardAmount: '100', performer: '', song: '', judge: '100', seat: '', teamCount: '3', newType: 'quiz', newTitle: '', newMode: 'individual', annTitle: '', annText: '' };
 
   // ---------- login ----------
-  // Open access (OPEN_ACCESS=true on the server): no PIN needed — log straight in.
-  let triedOpen = false;
+  function session() {
+    try { return JSON.parse(store.get('dgn_host_session') || 'null'); } catch { return null; }
+  }
+  function saveSession(code, token, pin) {
+    const prev = session();
+    store.set('dgn_host_session', JSON.stringify({ code, token, pin: pin || (prev && prev.code === code ? prev.pin : '') || '' }));
+    store.set('dgn_host', token);
+  }
   async function loginView() {
-    if (!triedOpen) {
-      triedOpen = true;
-      try {
-        const m = await (await fetch('/api/meta')).json();
-        if (m.openAccess) { const r = await App.post('/api/host/login', { pin: '' }); store.set('dgn_host', r.token); start(r.token); return; }
-      } catch { /* fall through to the PIN form */ }
-    }
+    const preset = App.roomFromQuery() || (session() && session().code) || '';
     app.innerHTML = `<div class="login-card card stack">
-      <div class="center"><div style="font-size:52px">🪔</div><h2 style="font-size:28px">Host console</h2><p class="muted">Enter the host PIN (printed in the server log, or set with HOST_PIN).</p></div>
-      <form id="lf" class="stack"><input type="password" id="pin" inputmode="numeric" placeholder="Host PIN" autocomplete="current-password" /><button class="btn diya-btn big block">${App.diya(true, 28)} Enter</button></form></div>`;
+      <div class="center"><div style="font-size:52px">🪔</div><h2 style="font-size:28px">Host a room</h2><p class="muted">Each room is its own game. Scores stay in the room.</p></div>
+      <label class="field" for="createKey">Host key</label>
+      <input type="password" id="createKey" autocomplete="current-password" aria-label="Host key" />
+      <button class="btn diya-btn big block" id="newRoom" type="button">${App.diya(true, 28)} Start a new room</button>
+      <form id="lf" class="stack">
+        <label class="field" for="room">Open an existing room</label>
+        <input type="text" id="room" class="code-input" maxlength="4" autocapitalize="characters" autocomplete="off" placeholder="ABCD" aria-label="Room code" value="${esc(preset)}" />
+        <input type="password" id="pin" inputmode="numeric" placeholder="Host PIN" autocomplete="current-password" aria-label="Host PIN" />
+        <button class="btn block" type="submit">Open room</button>
+      </form>
+      <p class="fine">Starting a room needs the host key. Guests confirm a phone code. Texts use Twilio when it is set up. Fonts load from Google.</p>
+      <p class="fine"><a href="/">Join as a player</a> · <a href="/tv">TV</a></p>
+    </div>`;
+    const pin = () => (app.querySelector('#pin') ? app.querySelector('#pin').value : '');
+    app.querySelector('#newRoom').onclick = async () => {
+      const btn = app.querySelector('#newRoom');
+      btn.disabled = true;
+      try {
+        const key = (app.querySelector('#createKey') || {}).value || '';
+        if (!key) { App.toast('Enter the host key.', true); btn.disabled = false; return; }
+        const r = await App.post('/api/room/create', { key });
+        saveSession(r.code, r.token, r.pin);
+        App.room = r.code;
+        history.replaceState(null, '', '/host?room=' + r.code);
+        start(r.token);
+      } catch (err) { App.toast(err.message, true); btn.disabled = false; }
+    };
     app.querySelector('#lf').onsubmit = async (e) => {
       e.preventDefault();
+      const code = App.canonRoom(app.querySelector('#room').value);
+      if (!code) { App.toast('Enter the 4-character room code.', true); return; }
       try {
-        const r = await App.post('/api/host/login', { pin: app.querySelector('#pin').value });
-        store.set('dgn_host', r.token);
+        App.room = code;
+        const r = await App.post('/api/host/login', { room: code, pin: pin() });
+        saveSession(r.code || code, r.token, pin());
+        history.replaceState(null, '', '/host?room=' + (r.code || code));
         start(r.token);
       } catch (err) { App.toast(err.message, true); }
     };
@@ -40,8 +69,8 @@
 
   function start(token) {
     App.sparkles(14);
-    app.innerHTML = `<div class="htop"><div class="logo"><span class="diya">🪔</span><b>Host <span>Console</span></b></div><div class="htabs" id="tabs"></div></div><div id="main"></div>`;
-    sock = App.connect('host', token, (s) => { S = s; render(); }, () => { store.del('dgn_host'); sock.disconnect(); loginView(); });
+    app.innerHTML = `<div class="htop"><div class="hbrand"><div class="logo"><span class="diya">🪔</span><b>Host <span>Console</span></b></div><button class="room-pill" id="roomPill" type="button" data-a="copyCode" title="Copy room code"></button></div><div id="pinSlot"></div><div id="diffSlot"></div><div class="htabs" id="tabs"></div></div><div id="main"></div>`;
+    sock = App.connect('host', token, (s) => { S = s; const pill = document.getElementById('roomPill'); if (pill && s.code) pill.textContent = s.code; render(); }, () => { store.del('dgn_host'); store.del('dgn_host_session'); if (sock) sock.disconnect(); loginView(); });
   }
 
   const editor = window.createEditor({ send: (a, cb) => sock.emit('host', a, cb), toast: App.toast, rerender: (force) => render(force) });
@@ -56,6 +85,13 @@
     const pend = S.pending.length;
     App.patch(document.getElementById('tabs'), [['live', '🎮 Live'], ['games', '🗂 Games'], ['questions', '✏️ Questions'], ['players', `👥 Players${pend ? `<span class="dot">${pend}</span>` : ''}`], ['scores', '📊 Scores & Settings']]
       .map(([k, l]) => `<button data-tab="${k}" class="${tab === k ? 'on' : ''}">${l}</button>`).join(''));
+    const pinSlot = document.getElementById('pinSlot');
+    if (pinSlot) App.patch(pinSlot, pinBanner());
+    const diffSlot = document.getElementById('diffSlot');
+    if (diffSlot) {
+      const liveName = S.live && (S.live.difficultyName || 'Party');
+      App.patch(diffSlot, tab === 'live' ? (S.live ? `<p class="diff-live">This round is <b>${esc(liveName)}</b></p>` : diffControl()) : '');
+    }
     const main = document.getElementById('main');
     const html = { live: liveTab, games: gamesTab, questions: () => editor.html(S), players: playersTab, scores: scoresTab }[tab]();
     App.patch(main, html, force);
@@ -80,7 +116,7 @@
       </div>`;
     } else {
       const fn = { quiz: quizCtl, jeopardy: jeoCtl, kbc: kbcCtl, hookstep: hookCtl, custom: () => '<p class="muted">Award points with the panel on the right. End the game when you are done.</p>' }[L.type];
-      left = `<div class="card"><h3>${esc(L.emoji)} ${esc(L.title)} <span class="chip live">LIVE</span><span class="chip">${L.mode}</span>${L.practice ? '<span class="chip">🧪 practice questions</span>' : ''}${S.personalCount ? `<span class="chip gold">✨ ${S.personalCount} personalised</span>` : ''}
+      left = `<div class="card"><h3>${esc(L.emoji)} ${esc(L.title)} <span class="chip live">LIVE</span><span class="chip">${L.mode}</span>${L.difficultyName ? `<span class="chip">${esc(L.difficultyName)}</span>` : ''}${L.practice ? '<span class="chip">🧪 practice questions</span>' : ''}${S.personalCount ? `<span class="chip gold">✨ ${S.personalCount} personalised</span>` : ''}
         <button class="btn red small" style="margin-left:auto" data-a="end">🏁 End game → leaderboard</button></h3>${fn(L)}</div>`;
     }
     return `${cueBar()}<div class="hgrid"><div>${demoCard()}${left}${tvCard()}</div><div>${pendingCard()}${awardCard()}${feedCard()}</div></div>`;
@@ -109,20 +145,15 @@
       return end;
     }
     if (L.type === 'jeopardy') {
-      if (L.phase === 'board') return L.categories.every((c) => c.clues.every((x) => x.used)) ? end : wait('👇 Tap the clue they call', `${L.control ? L.control.name : 'The team in control'} picks next`);
-      if (L.phase === 'dd') return { label: '💎 Lock the wager', hint: 'Enter it below', run: () => gameAct({ type: 'wager', amount: Number(ui.wager || 500) }) };
-      if (L.phase === 'clue' && !L.buzzOpen && !L.dd) return g({ type: 'openBuzz' }, '🔔 Open buzzers', 'After you have read the clue aloud');
-      if (L.phase === 'clue') return L.active ? g({ type: 'correct' }, `✓ Correct — ${L.active.name}`, 'Or tap ✗ Wrong below') : g({ type: 'reveal' }, '🙊 Nobody? Reveal the answer', 'Waiting for buzzes…');
-      return g({ type: 'board' }, '↩ Back to the board', L.control ? `${L.control.name} picks next` : '');
+      const who = L.turn ? L.turn.name : 'The next team';
+      if (L.phase === 'board') return L.categories.every((c) => c.clues.every((x) => x.used)) ? end : wait('👇 Tap the clue they call', `${who} is up`);
+      if (L.phase === 'clue') return wait('Mark it below', `${who} answers out loud. A right answer pays everyone on the team.`);
+      return g({ type: 'board' }, '↩ Next team', who ? `${who} is up` : '');
     }
     if (L.type === 'kbc') {
-      if (L.phase === 'idle') return g({ type: 'ff' }, '⚡ Fastest Finger First', 'Everyone answers on their phone');
-      if (L.phase === 'ff') return g({ type: 'ffClose' }, '⏩ Close Fastest Finger', `${L.ff.answered} answered`);
-      if (L.phase === 'ff-result') return L.ff.result.winner ? g({ type: 'seat' }, `🪑 Seat ${pname(L.ff.result.winner).replace(/<[^>]+>/g, '')}`, 'Into the hot seat') : g({ type: 'ff' }, '⚡ Another Fastest Finger', 'Nobody got it right');
-      const h = L.hot;
-      if (h.qPhase === 'question') return h.locked == null ? wait('⏳ Waiting for the lock', 'Or lock for them below') : g({ type: 'reveal' }, '🎯 Reveal the answer', 'Lock kiya jaaye…');
-      if (h.qPhase === 'reveal') return g({ type: 'nextQ' }, '▶ Next question', `For ${fmt(L.ladder[h.level].points)}`);
-      return g({ type: 'ff' }, '⚡ Next Fastest Finger', 'Or end the game');
+      if (L.phase === 'question') return g({ type: 'reveal' }, '⏩ Reveal now', `${L.answered} answered · fastest gets full points`);
+      if (L.phase === 'done' || (L.phase === 'reveal' && L.qIndex + 1 >= L.total)) return end;
+      return g({ type: 'next' }, L.phase === 'idle' ? '▶ First question' : '▶ Next question', 'Open to everyone. Later places get less.');
     }
     if (L.type === 'hookstep') {
       const p = L.perf;
@@ -133,7 +164,7 @@
       }
       if (L.phase === 'spin') return wait('🎰 Spinning…', '');
       if (L.phase === 'ready') return p.song ? g({ type: 'perform' }, '▶ Start the dance', `🎵 ${p.song.title}`) : g({ type: 'spin' }, '🎰 Spin a song on the TV', 'Builds suspense');
-      if (L.phase === 'perform') return g({ type: 'stop' }, '⏹ Stop — time to judge', `${p.dancers.length} dancers tapped in`);
+      if (L.phase === 'perform') return g({ type: 'stop' }, '▶ Next — judge the dance', 'The video keeps playing');
       return p.stars ? g({ type: 'score' }, '🏅 Award the points', `${p.stars} diyas · ${p.dancers.length} dancers`) : wait('🪔 Rate the dance below', 'Tap 1–5 diyas, then measure the crowd');
     }
     return end;
@@ -147,11 +178,18 @@
       <button class="btn big cue-btn" data-a="cue" ${cue.disabled ? 'disabled' : ''}>${esc(cue.label)}<kbd>Space</kbd></button></div></div>`;
   }
 
+  function pinBanner() {
+    const sess = session();
+    if (!sess || !sess.pin || !S || sess.code !== S.code) return '';
+    const shown = String(sess.pin).replace(/(.{4})(?=.)/g, '$1 ');
+    return `<div class="pin-banner"><span>Host PIN</span><b>${esc(shown)}</b><span>Write this down to open the room again</span></div>`;
+  }
+
   function demoCard() {
     if (S.demo && S.live) return `<div class="demo-slim">🤖 Demo: ${S.demo.bots} bots playing along${S.settings.practice ? ' · 🧪 practice questions' : ''}<span class="grow"></span><button class="btn small red" data-a="demoEnd">End demo & reset</button></div>`;
     if (S.demo) {
       return `<div class="card demo-on"><div class="row"><span style="font-size:30px">🤖</span><div class="grow"><b>Demo mode: ${S.demo.bots} bots are playing along</b>
-        <div class="small muted">They answer, buzz, vote, rate dances, use power-ups and send reactions. Run any game from the list below.</div></div>
+        <div class="small muted">They answer, dance, use power-ups and send reactions. Run any game from the list below.</div></div>
         <button class="btn red small" data-a="demoEnd">End demo & reset for the party</button></div>${practiceRow()}</div>`;
     }
     if (S.games.some((g) => g.status === 'live')) return '';
@@ -159,6 +197,16 @@
       <div class="small muted">Adds bot guests with questionnaire answers (couples, best friends, group votes) and teams. Join as a player in another tab or on your phone, then run the games from here. One click removes them afterwards.</div></div>
       <select data-ui="demoCount" style="width:auto">${[6, 8, 10, 12].map((n) => opt(n, `${n} bots`, ui.demoCount || 8)).join('')}</select>
       <button class="btn rani" data-a="demoStart">🤖 Start demo</button></div>${practiceRow()}</div>`;
+  }
+
+  const DIFF_NAMES = ['', 'Warm', 'Gentle', 'Party', 'Tricky', 'Spicy'];
+  const DIFF_BLURB = ['', 'Easy stand-in questions, more time.', 'Your questions, a little more time.', 'Your questions, the usual clock.', 'Your questions, a shorter clock.', 'Your questions, the shortest clock.'];
+  function diffControl() {
+    const n = Math.max(1, Math.min(5, Number(S.settings && S.settings.difficulty) || 3));
+    return `<div class="diff"><div class="diff-top"><span class="field">Question difficulty</span><b>${DIFF_NAMES[n]}</b></div>
+      <input type="range" min="1" max="5" step="1" value="${n}" data-a="difficulty" aria-valuemin="1" aria-valuemax="5" aria-valuenow="${n}" aria-label="Question difficulty" />
+      <div class="diff-scale"><span>Warm</span><span>Gentle</span><span>Party</span><span>Tricky</span><span>Spicy</span></div>
+      <p class="small muted">${DIFF_BLURB[n]} Set it before you start. The room remembers it.</p></div>`;
   }
 
   function practiceRow() {
@@ -183,7 +231,7 @@
   function mediaHtml() {
     const m = S.media;
     const now = m && !m.stopped
-      ? `<div class="kv"><span>🎵 <b>${esc(m.label || 'Clip')}</b> <span class="small muted">from ${window.fmtTime(m.start || 0)}${m.end ? ' to ' + window.fmtTime(m.end) : ''} · ${m.show ? (S.live && S.live.type === 'hookstep' && S.live.phase === 'perform' ? 'blurred until the timer ends' : 'video showing') : 'audio only'}</span></span></div>
+      ? `<div class="kv"><span>🎵 <b>${esc(m.label || 'Clip')}</b> <span class="small muted">from ${window.fmtTime(m.start || 0)}${m.end ? ' to ' + window.fmtTime(m.end) : ''} · ${m.show ? (S.live && S.live.type === 'hookstep' ? (S.live.phase === 'perform' && S.live.until > Date.now() ? 'blurred until the timer ends, then it keeps playing' : 'playing until you move on') : 'video showing') : 'audio only'}</span></span></div>
         <div class="btn-row" style="margin-top:8px"><button class="btn small" data-a="media" data-op="replay">↺ Replay from start</button><button class="btn small ghost" data-a="media" data-op="${m.show ? 'hide' : 'show'}">${m.show ? '🙈 Hide video' : '👁 Show video'}</button><button class="btn small red" data-a="media" data-op="stop">⏹ Stop</button></div>`
       : m && m.stopped ? `<div class="kv"><span>⏹ Stopped: ${esc(m.label || '')}</span><button class="btn small" data-a="media" data-op="replay">↺ Play again</button></div>`
       : '<p class="small muted" style="margin:4px 0">Nothing playing. Clips on questions, clues and songs start automatically.</p>';
@@ -193,7 +241,10 @@
 
   function linksHtml() {
     const o = location.origin;
-    return `<div class="links stack">${[['Players join', o + '/play'], ['TV display', o + '/tv'], ['Host', o + '/host']].map(([l, u]) => `<div class="row"><span style="width:100px" class="small muted">${l}</span><input type="text" readonly value="${u}" class="grow" style="flex:1"/><button class="btn small ghost" data-a="copy" data-u="${u}">Copy</button></div>`).join('')}</div>`;
+    const q = S.code ? '?room=' + encodeURIComponent(S.code) : '';
+    // The TV key goes after "#", so it is never sent to a server, logged, or passed on as a referrer.
+    const tv = q + (S.tvSecret ? '#tv=' + encodeURIComponent(S.tvSecret) : '');
+    return `<div class="links stack">${[['Players join', o + '/play' + q], ['TV display', o + '/tv' + tv], ['Host', o + '/host' + q]].map(([l, u]) => `<div class="row"><span style="width:100px" class="small muted">${l}</span><input type="text" readonly value="${esc(u)}" class="grow" style="flex:1"/><button class="btn small ghost" data-a="copy" data-u="${esc(u)}">Copy</button></div>`).join('')}</div>`;
   }
 
   function pendingCard() {
@@ -236,66 +287,42 @@
 
   // ---------- jeopardy ----------
   function jeoCtl(L) {
-    const ctlSel = `<div class="row"><span class="small muted">In control:</span><select data-a="setControl" style="width:auto">${(L.mode === 'team' ? S.teams.map((t) => ['t:' + t.id, `${t.emoji} ${t.name}`]) : S.players.map((p) => ['p:' + p.id, `${p.avatar} ${p.name}`])).map(([k, l]) => opt(k, esc(l), L.control ? L.control.key : '')).join('')}</select></div>`;
+    const who = L.turn ? `${esc(L.turn.emoji)} ${esc(L.turn.name)}` : 'Nobody yet';
+    const turnSel = `<div class="row"><span class="small muted">Up now:</span><select data-a="setTurn" style="width:auto" ${L.phase === 'board' ? '' : 'disabled'}>${(L.mode === 'team' ? S.teams.map((t) => ['t:' + t.id, `${t.emoji} ${t.name}`]) : S.players.map((p) => ['p:' + p.id, `${p.avatar} ${p.name}`])).map(([k, l]) => opt(k, esc(l), L.turn ? L.turn.key : '')).join('')}</select></div>`;
     if (L.phase === 'board') {
       const cats = L.categories;
       const rows = Math.max(...cats.map((c) => c.clues.length));
       let cells = cats.map((c) => `<div class="jc">${esc(c.name)}</div>`).join('');
-      for (let i = 0; i < rows; i++) cells += cats.map((c, ci) => c.clues[i] ? `<button data-g="pick" data-c="${ci}" data-i="${i}" ${c.clues[i].used ? 'disabled' : ''} class="${c.clues[i].dd && !c.clues[i].used ? 'dd' : ''}">${c.clues[i].value}${c.clues[i].dd && !c.clues[i].used ? ' 💎' : ''}</button>` : '<span></span>').join('');
-      return `<p class="muted"><b>${L.control ? `${esc(L.control.emoji)} ${esc(L.control.name)}` : 'The team in control'}</b> picks next — tap the clue they call. 💎 = hidden Daily Double (only you can see it).</p>${ctlSel}<div class="jgrid" style="grid-template-columns:repeat(${cats.length},1fr);margin-top:10px">${cells}</div>`;
+      for (let i = 0; i < rows; i++) cells += cats.map((c, ci) => c.clues[i] ? `<button data-g="pick" data-c="${ci}" data-i="${i}" ${c.clues[i].used ? 'disabled' : ''}>${c.clues[i].value}</button>` : '<span></span>').join('');
+      return `<p class="muted"><b>${who}</b> is up. Tap the clue they call. A right answer pays <b>every person on that team</b>.</p>${turnSel}<div class="jgrid" style="grid-template-columns:repeat(${cats.length},1fr);margin-top:10px">${cells}</div>`;
     }
     const c = L.clue;
-    if (L.phase === 'dd') {
-      const max = L.maxWager || 500;
-      return `<div class="qbox"><div class="small muted">💎 Daily Double · ${esc(c.category)}</div><div class="q">Ask ${esc(L.control ? L.control.name : 'the team')} for their wager (100–${fmt(max)})</div></div>
-        <div class="row"><input type="number" data-ui="wager" value="${esc(ui.wager || Math.min(500, max))}" min="100" max="${max}" step="50" style="width:140px"/>
-        ${[200, 500, max].filter((v, i, a) => a.indexOf(v) === i).map((v) => `<button class="btn small ghost" data-a="wagerSet" data-v="${v}">${fmt(v)}</button>`).join('')}
-        <button class="btn" data-a="wager">Lock wager & show clue</button></div>`;
-    }
-    const queue = L.buzzes.map((b, i) => `<div class="row ${L.active && L.active.key === b.key ? 'active' : ''} ${L.locked.includes(b.key) ? 'locked' : ''}">${i + 1}. ${esc(b.emoji)} ${esc(b.name)} ${b.kind === 'team' ? `<span class="small muted">(${esc(b.buzzerName)})</span>` : ''}<span class="small muted" style="margin-left:auto">${(b.ms / 1000).toFixed(2)}s</span></div>`).join('');
-    const reading = L.phase === 'clue' && !L.buzzOpen && !L.dd;
-    return `<div class="qbox"><div class="small muted">${esc(c.category)} · ${fmt(c.value)}${L.dd ? ' · 💎 Daily Double' : ''}</div><div class="q">${esc(c.q)}</div></div>
+    return `<div class="qbox"><div class="small muted">${esc(c.category)} · ${fmt(c.value)} · ${who}</div><div class="q">${esc(c.q)}</div></div>
       <div class="answer-key">Answer: ${esc(c.a)}</div>
-      ${reading ? `<div class="cue-inline">Read the clue aloud, then <button class="btn big gold" data-g="openBuzz">🔔 Open buzzers</button></div><p class="small muted">Anyone who buzzes before you open gets a short lockout.</p>` : ''}
-      ${L.dd && L.phase === 'clue' ? `<p><b>${esc(L.control ? L.control.name : '')}</b> answers for <b>${fmt(L.wager)}</b> — no buzzers.</p>` : ''}
-      ${!L.dd ? `<div class="sec-title">Buzz queue</div><div class="queue">${queue || `<p class="muted">${L.buzzOpen ? 'Waiting for buzzes…' : 'Buzzers armed.'}</p>`}</div>` : ''}
+      <p class="small muted">They answer out loud. Correct gives ${fmt(c.value)} to each teammate.</p>
       ${L.phase === 'clue' ? `<div class="btn-row" style="margin-top:12px">
-        <button class="btn green" data-g="correct" ${L.active ? '' : 'disabled'}>✓ Correct${L.active ? ' — ' + esc(L.active.name) : ''}</button>
-        <button class="btn red" data-g="wrong" ${L.active ? '' : 'disabled'}>✗ Wrong</button>
-        <button class="btn ghost" data-g="reveal">Reveal answer (no points)</button></div>`
-      : `<div class="btn-row" style="margin-top:12px"><button class="btn big" data-g="board">↩ Back to board</button></div>`}`;
+        <button class="btn green" data-g="correct">✓ Correct — pay the team</button>
+        <button class="btn red" data-g="wrong">✗ Wrong</button>
+        <button class="btn ghost" data-g="reveal">Reveal (no points)</button></div>`
+      : `<p>${L.last && L.last.correct ? `<b>+${fmt(L.last.value)} each</b> for ${esc(L.last.info.name)}.` : `${esc(L.last && L.last.info ? L.last.info.name : 'They')} missed it.`}</p>
+        <div class="btn-row" style="margin-top:12px"><button class="btn big" data-g="board">↩ Next team</button></div>`}`;
   }
 
   // ---------- KBC ----------
   function kbcCtl(L) {
-    const seatSel = `<div class="row" style="margin-top:10px"><select data-ui="seat" style="flex:1"><option value="">— or pick anyone —</option>${S.players.map((p) => opt(p.id, `${esc(p.avatar)} ${esc(p.name)}`, ui.seat)).join('')}</select><button class="btn small gold" data-a="seatPick">🪑 Seat</button></div>`;
-    const hist = L.history.length ? `<div class="sec-title">Hot seat history</div>${L.history.map((h) => `<div class="kv"><span>${pname(h.pid)}</span><b>${fmt(h.winnings)}</b></div>`).join('')}` : '';
-    if (L.phase === 'idle') return `<p class="muted">Run Fastest Finger First to pick a contestant, or seat someone directly.</p><button class="btn big" data-g="ff">⚡ Fastest Finger First</button>${seatSel}${hist}`;
-    if (L.phase === 'ff') return `<div class="qbox"><div class="q">${esc(L.ff.question.q)}</div></div><p><b>${L.ff.answered}</b> answered · <span data-count="${L.ff.deadline}"></span>s</p><button class="btn" data-g="ffClose">⏩ Close now</button>`;
-    if (L.phase === 'ff-result') {
-      const r = L.ff.result;
-      return `<p>Winner: <b>${r.winner ? pname(r.winner) : 'nobody got it right'}</b></p>
-        ${r.ranking.slice(0, 5).map((x, i) => `<div class="kv"><span>${i + 1}. ${pname(x.id)}</span><span>${(x.ms / 1000).toFixed(2)}s</span></div>`).join('')}
-        <div class="btn-row" style="margin-top:10px">${r.winner ? `<button class="btn big gold" data-g="seat">🪑 Seat ${pname(r.winner)}</button>` : ''}<button class="btn ghost" data-g="ff">⚡ Another FFF</button></div>${seatSel}`;
+    if (L.phase === 'idle') return `<p class="muted">Solo round. Every question is open to the whole room. Fastest correct answer gets the full points, and each place after gets less.</p><button class="btn big" data-g="next">▶ First question</button>`;
+    if (L.phase === 'done') return `<p>That was the last question.</p><button class="btn big red" data-a="end">🏁 End game & show leaderboard</button>`;
+    const q = L.question;
+    const n = `${L.qIndex + 1} / ${L.total}`;
+    if (L.phase === 'question') {
+      return `<p>Q${n} · full value <b>${fmt(L.points)}</b> · <b>${L.answered}</b> answered · <span data-count="${L.deadline}"></span>s</p>
+        <div class="qbox">${q.personal ? '<span class="chip gold">✨ From guests\' answers</span>' : ''}<div class="q">${esc(q.q)}</div><ol type="A">${q.options.map((o, i) => `<li class="${i === L.answerKey ? 'ok' : ''}">${esc(o)}${i === L.answerKey ? ' ✓' : ''}</li>`).join('')}</ol></div>
+        <button class="btn" data-g="reveal">⏩ Reveal now</button>`;
     }
-    const h = L.hot;
-    const q = h.question;
-    let ctl = '';
-    if (h.qPhase === 'question') {
-      ctl = `<p>Locked: <b>${h.locked != null ? letters[h.locked] : '— waiting for contestant (or lock for them) —'}</b></p>
-        <div class="btn-row">${q.options.map((o, i) => `<button class="btn small ${h.locked === i ? 'gold' : 'ghost'}" data-g="lock" data-i="${i}" ${h.removed.includes(i) ? 'disabled' : ''}>Lock ${letters[i]}</button>`).join('')}${h.locked != null ? '<button class="btn small ghost" data-g="unlock">Unlock</button>' : ''}</div>
-        <div class="btn-row" style="margin-top:10px"><button class="btn big" data-g="reveal" ${h.locked == null ? 'disabled' : ''}>🎯 Reveal answer</button><button class="btn ghost" data-g="walk">🚶 Walk away</button></div>
-        <div class="sec-title">Lifelines</div><div class="btn-row">${[['fifty', '✂️ 50:50'], ['poll', '📊 Audience poll'], ['phone', '📞 Phone a friend']].map(([k, l]) => `<button class="btn small teal" data-g="lifeline" data-name="${k}" ${h.lifelines[k] ? '' : 'disabled'}>${l}</button>`).join('')}</div>
-        ${h.poll ? `<p class="small">Poll ${h.poll.open ? '(open)' : '(closed)'}: ${h.poll.counts.map((c, i) => `${letters[i]} ${c}`).join(' · ')}</p>` : ''}
-        <p class="small muted">🔮 Audience predictions: ✅ ${(h.predCounts || {}).sahi || 0} Sahi · ❌ ${(h.predCounts || {}).galat || 0} Galat (correct calls earn +25)</p>`;
-    } else if (h.qPhase === 'reveal') {
-      ctl = `<p>✅ Correct! Now at level ${h.level}.</p><button class="btn big" data-g="nextQ">▶ Next question (${fmt(L.ladder[h.level].points)})</button>`;
-    } else {
-      ctl = `<p><b>${h.status === 'won' ? '🏆 Won the ladder' : h.status === 'walked' ? '🚶 Walked away' : '💔 Wrong answer'}</b> — awarded ${fmt(h.winnings)} points.</p>
-        <div class="btn-row"><button class="btn big" data-g="ff">⚡ Next Fastest Finger</button><button class="btn ghost" data-g="idle">KBC lobby</button></div>${seatSel}`;
-    }
-    return `<p>🪑 <b>${pname(h.pid)}</b> · Q${h.questionLevel + 1} for <b>${fmt(L.ladder[h.questionLevel].points)}</b> · safe ${fmt(h.safe)}</p>
-      <div class="qbox">${q.personal ? '<span class="chip gold">✨ From guests\' answers</span>' : ''}<div class="q">${esc(q.q)}</div><ol type="A">${q.options.map((o, i) => `<li class="${i === h.answerKey ? 'ok' : ''}" style="${h.removed.includes(i) ? 'text-decoration:line-through;opacity:.4' : ''}">${esc(o)}${i === h.answerKey ? ' ✓' : ''}</li>`).join('')}</ol></div>${ctl}${hist}`;
+    const rows = (L.result && L.result.ranking || []).map((r) => `<div class="kv"><span>${r.rank}. ${pname(r.id)}</span><b>+${fmt(r.points)}</b></div>`).join('') || '<p class="muted">Nobody got it right.</p>';
+    const last = L.qIndex + 1 >= L.total;
+    return `<p>Q${n} · answer <b>${letters[L.result.answer]}</b></p>${rows}
+      <button class="btn big" data-g="next" style="margin-top:12px">${last ? '🏁 Finish round' : '▶ Next question'}</button>`;
   }
 
   // ---------- hook step ----------
@@ -304,15 +331,16 @@
     const teamSel = L.mode === 'team'
       ? `<select data-ui="hookTeam" style="width:auto">${S.teams.map((t) => opt('t:' + t.id, `${esc(t.emoji)} ${esc(t.name)}`, ui.hookTeam || (perf && perf.team ? perf.team.key : ''))).join('')}</select>` : '<span class="chip">Open floor (solo mode)</span>';
     const songSel = `<select data-ui="song" style="flex:1"><option value="">🎰 Random — spin on the TV</option>${L.songs.map((x, i) => opt(i, esc(x), ui.song)).join('')}</select>`;
+    const hintBtn = `<button class="btn small ${L.showStep ? 'gold' : 'ghost'}" data-g="showStep">${L.showStep ? 'Dance hint is on the TV' : 'Show dance hint on the TV'}</button>`;
     let body = `<div class="steps"><div class="step-row"><span class="step-n">1</span><b>Call a team up</b></div>
-      <div class="row">${teamSel}${songSel}<button class="btn" data-a="hookSetup">📣 Call them up</button></div>`;
+      <div class="row">${teamSel}${songSel}<button class="btn" data-a="hookSetup">📣 Call them up</button>${hintBtn}</div>`;
     if (!perf) return body + resultsHtml(L) + '</div>';
     const phase = L.phase;
     const team = perf.team;
     body += `<div class="step-row"><span class="step-n">2</span><b>Song</b><span class="muted small">${perf.song ? `🎵 ${esc(perf.song.title)} — ${esc(perf.song.step)}` : phase === 'spin' ? 'spinning…' : 'none yet'}</span></div>
       <div class="btn-row">${!perf.song ? '<button class="btn gold" data-g="spin">🎰 Spin a song on the TV</button>' : '<button class="btn small ghost" data-g="spin">🎰 Re-spin</button>'}
         <button class="btn" data-g="perform" ${perf.song && phase === 'ready' ? '' : 'disabled'}>▶ Start the dance (music plays)</button>
-        ${phase === 'perform' ? '<button class="btn ghost" data-g="stop">⏹ Stop — judge it</button>' : ''}</div>
+        ${phase === 'perform' ? '<button class="btn ghost" data-g="stop">▶ Next — judge the dance</button>' : ''}</div>
       <div class="step-row"><span class="step-n">3</span><b>Tap everyone who's dancing</b><span class="muted small">+${L.bonus} Himmat bonus each</span></div>
       <div class="dancer-grid">${S.players.map((p) => { const on = perf.dancers.some((d) => d.id === p.id); const mine = team && p.teamId && 't:' + p.teamId === team.key; return `<button class="dz ${on ? 'on' : ''} ${mine ? 'team' : ''}" data-g="dancer" data-pid="${p.id}"><span class="avatar" style="--c:${p.color}">${esc(p.avatar)}</span>${esc(p.name)}</button>`; }).join('')}</div>
       <div class="step-row"><span class="step-n">4</span><b>Rate it</b><span class="muted small">${team ? 'team gets 100 per diya + crowd bonus' : 'each dancer gets 100 per diya + crowd'}</span></div>
@@ -332,7 +360,7 @@
     const typeNames = { quiz: 'Quiz (Kahoot / Guess the Movie)', jeopardy: 'Jeopardy', kbc: 'KBC', hookstep: 'Hook Step', custom: 'Custom (host-scored)' };
     return `<div class="hgrid"><div><div class="card"><h3>🗂 Game lineup</h3>
       ${S.games.map((g, i) => `<div class="game-row ${g.status === 'live' ? 'live' : ''}"><span class="em">${esc(g.emoji)}</span><div class="grow"><div class="nm">${esc(g.title)}</div><div class="small muted">${typeNames[g.type]}</div></div>
-        <select data-a="mode" data-id="${g.id}" style="width:auto" ${g.status === 'live' ? 'disabled' : ''}>${opt('individual', '👤 Solo', g.mode)}${opt('team', '👥 Teams', g.mode)}</select>
+        ${g.type === 'kbc' ? '<span class="chip">👤 Solo</span>' : `<select data-a="mode" data-id="${g.id}" style="width:auto" ${g.status === 'live' ? 'disabled' : ''}>${opt('individual', '👤 Solo', g.mode)}${opt('team', '👥 Teams', g.mode)}</select>`}
         <span class="chip ${g.status === 'live' ? 'live' : g.status === 'done' ? 'done' : ''}">${g.status}</span>
         <div class="btn-row">
           ${g.status === 'live' ? '<button class="btn small red" data-a="end">End</button>' : `<button class="btn small" data-a="start" data-id="${g.id}">${g.status === 'done' ? 'Replay' : 'Start'}</button>`}
@@ -356,8 +384,8 @@
     if (!g) return;
     const help = {
       quiz: 'questions: [{ q, options: [4 strings], answer: index 0–3, time: seconds, clue?: "emoji clue", image?: "https://…" }]',
-      jeopardy: 'categories: [{ name, clues: [{ value, q, a }] }], wrongPenalty: true/false',
-      kbc: 'ladder: [{ points, safe?: true, questions: [{ q, options, answer }] }], fastestFinger: [{ q, options, answer, time }]',
+      jeopardy: 'categories: [{ name, clues: [{ value, q, a }] }]',
+      kbc: 'ladder: [{ points, questions: [{ q, options, answer, time? }] }]',
       hookstep: 'songs: [{ title, step }], performSeconds, votingSeconds',
       custom: 'description: "Shown on the TV"',
     }[g.type];
@@ -432,13 +460,24 @@
   }
 
   // ---------- events ----------
-  app.addEventListener('input', (e) => { if (e.target.dataset && e.target.dataset.eg && !/radio|checkbox/.test(e.target.type) && e.target.tagName !== 'SELECT') { editor.onInput(e); return; } const k = e.target.dataset && e.target.dataset.ui; if (k) ui[k] = e.target.value; });
+  app.addEventListener('input', (e) => {
+    if (e.target.dataset && e.target.dataset.a === 'difficulty') {
+      const n = Number(e.target.value);
+      const box = e.target.closest('.diff');
+      if (box) { const b = box.querySelector('b'); if (b) b.textContent = DIFF_NAMES[n] || ''; const p = box.querySelector('p'); if (p) p.textContent = (DIFF_BLURB[n] || '') + ' Set it before you start. The room remembers it.'; }
+      e.target.setAttribute('aria-valuenow', String(n));
+      return;
+    }
+    if (e.target.dataset && e.target.dataset.eg && !/radio|checkbox/.test(e.target.type) && e.target.tagName !== 'SELECT') { editor.onInput(e); return; }
+    const k = e.target.dataset && e.target.dataset.ui; if (k) ui[k] = e.target.value;
+  });
   app.addEventListener('change', (e) => {
     const t = e.target;
     if (t.dataset && t.dataset.eg) { if (/radio|checkbox/.test(t.type) || t.tagName === 'SELECT') editor.onInput(e); return; }
+    if (t.dataset.a === 'difficulty') { act({ type: 'settings', difficulty: Number(t.value) }); return; }
     if (t.dataset.ui) { ui[t.dataset.ui] = t.value; render(); return; }
     if (t.dataset.a === 'mode') act({ type: 'editGame', gameId: t.dataset.id, mode: t.value });
-    if (t.dataset.a === 'setControl') gameAct({ type: 'setControl', key: t.value });
+    if (t.dataset.a === 'setTurn') gameAct({ type: 'setTurn', key: t.value });
     if (t.dataset.a === 'setTeam') act({ type: 'setTeam', playerId: t.dataset.id, teamId: t.value });
   });
 
@@ -479,6 +518,7 @@
       }
       case 'clearAnswer': act({ type: 'clearAnswer', playerId: id, promptId: b.dataset.q }); break;
       case 'copy': navigator.clipboard && navigator.clipboard.writeText(b.dataset.u).then(() => App.toast('Copied!')); break;
+      case 'copyCode': if (S && S.code && navigator.clipboard) navigator.clipboard.writeText(S.code).then(() => App.toast('Room code copied')); break;
       case 'award': {
         if (!ui.awardTarget) return App.toast('Pick a player or team first', true);
         const n = b.dataset.n ? Number(b.dataset.n) : Number(ui.awardAmount);
@@ -509,7 +549,7 @@
       case 'saveSettings': act({ type: 'settings', eventName: document.getElementById('sName').value, powerupsEnabled: document.getElementById('sPU').checked, stealAmount: document.getElementById('sSteal').value, swapCap: document.getElementById('sSwap').value }, 'Saved ✓'); break;
       case 'resetScores': if (confirm('Reset ALL scores, games and power-ups? Players stay logged in.')) act({ type: 'resetScores' }, 'Reset done'); break;
       case 'resetAll': if (prompt('Type WIPE to delete all players, scores and edits') === 'WIPE') act({ type: 'resetAll' }, 'Wiped'); break;
-      case 'logout': store.del('dgn_host'); location.reload(); break;
+      case 'logout': store.del('dgn_host'); store.del('dgn_host_session'); location.href = '/host'; break;
       default:
     }
   });
@@ -520,7 +560,11 @@
     if (window._cue && window._cue.run && !window._cue.disabled) { window._cue.run(); App.toast(window._cue.label); }
   });
 
-  const tok = store.get('dgn_host');
-  if (tok) start(tok);
-  else loginView();
+  const saved = session();
+  const asked = App.roomFromQuery();
+  if (saved && saved.token && saved.code && (!asked || asked === saved.code)) {
+    App.room = saved.code;
+    if (asked !== saved.code) history.replaceState(null, '', '/host?room=' + saved.code);
+    start(saved.token);
+  } else loginView();
 })();

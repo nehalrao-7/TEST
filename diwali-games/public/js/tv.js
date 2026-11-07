@@ -10,16 +10,40 @@
   const shownAnnounce = new Set();
   const lbAnimated = new Set();
 
-  $('soundBtn').onclick = () => { App.enableSound(); App.sfx('arrive'); $('soundBtn').remove(); mediaSig = ''; syncMedia(); };
-  App.onReact((r) => { App.showReaction(r); App.sfx('pop'); });
+  function unlockYouTube() {
+    App.enableSound();
+    if ($('soundBtn')) $('soundBtn').remove();
+    if (ytReady && yt) {
+      try { yt.unMute(); yt.setVolume(100); yt.playVideo(); } catch { /* the clip starts on the next sync */ }
+    }
+  }
+  $('soundBtn').onclick = () => { unlockYouTube(); App.sfx('arrive'); mediaSig = ''; syncMedia(); };
+  document.addEventListener('pointerdown', () => unlockYouTube(), { once: true });
+  App.onReact((r) => { if (r.room && App.room && r.room !== App.room) return; App.showReaction(r); App.sfx('pop'); });
 
   // ---------- YouTube music / video ----------
+  // YouTube rejects the player (error 153) unless the embed request carries a Referer.
+  const createEl = document.createElement.bind(document);
+  document.createElement = function (tag, options) {
+    const el = createEl(tag, options);
+    if (String(tag).toLowerCase() === 'iframe') el.referrerPolicy = 'strict-origin-when-cross-origin';
+    return el;
+  };
   let yt = null, ytReady = false, mediaSig = '';
   window.onYouTubeIframeAPIReady = () => {
     yt = new YT.Player('ytPlayer', {
       width: '100%', height: '100%',
       playerVars: { autoplay: 0, controls: 0, rel: 0, modestbranding: 1, playsinline: 1, disablekb: 1, fs: 0, iv_load_policy: 3 },
-      events: { onReady: () => { ytReady = true; syncMedia(); } },
+      events: {
+        onReady: () => {
+          ytReady = true;
+          const frame = yt.getIframe && yt.getIframe();
+          if (frame) frame.setAttribute('allow', 'autoplay; encrypted-media; picture-in-picture');
+          syncMedia();
+          requestAnimationFrame(fitPlayer);
+          setTimeout(fitPlayer, 400);
+        },
+      },
     });
   };
   function syncMedia() {
@@ -40,38 +64,102 @@
           const opts = { videoId: m.videoId, startSeconds: m.start || 0 };
           if (m.end) opts.endSeconds = m.end;
           yt.loadVideoById(opts);
-          if (App.soundOn) { yt.unMute(); yt.setVolume(100); } else yt.mute();
+          hearYouTube(hookLive());
+          requestAnimationFrame(fitPlayer);
+          setTimeout(fitPlayer, 500);
         }
       }
     }
     syncHookVeil();
   }
 
-  // Hook Step: the original stays blurred for the dance, then replays sharp so the room can judge.
-  let hookRevealed = '';
+  function hookLive() {
+    const L = S && S.live;
+    const m = S && S.media;
+    return Boolean(L && L.type === 'hookstep' && m && !m.stopped && m.videoId && m.show && (L.phase === 'perform' || L.phase === 'judge'));
+  }
+  function hearYouTube(on) {
+    if (!ytReady || !yt) return;
+    try {
+      if (on || App.soundOn) { yt.unMute(); yt.setVolume(100); }
+      else yt.mute();
+    } catch { /* the player is still starting */ }
+  }
+
+  // The iframe API sizes itself once. Tell it the box it should fill after the layout changes.
+  function fitPlayer() {
+    if (!ytReady || !yt || !yt.setSize) return false;
+    const box = $('mediaBox');
+    const w = box.clientWidth;
+    const h = box.clientHeight;
+    const full = hookLive();
+    if (full && (w < window.innerWidth * 0.9 || h < window.innerHeight * 0.9)) return false;
+    if (w < 20 || h < 20) return false;
+    try { yt.setSize(w, h); return true; } catch { return false; }
+  }
+
+  let hookFit = false;
+  let playerFitted = false;
+  // Hook Step fills the screen. A blur sits on top until the dance clock hits zero, then lifts. The clip keeps playing.
   function syncHookVeil() {
     const box = $('mediaBox');
     const L = S && S.live;
-    const m = S && S.media;
-    const hook = Boolean(L && L.type === 'hookstep' && m && !m.stopped && m.videoId && m.show);
+    const hook = hookLive();
     const dancing = hook && L.phase === 'perform' && App.now() < L.until;
-    const clear = hook && (L.phase === 'judge' || (L.phase === 'perform' && App.now() >= L.until));
     box.classList.toggle('hook-veiled', dancing);
-    box.classList.toggle('hook-clear', clear);
-    document.body.classList.toggle('hook-ref', clear);
-    if (dancing) $('mediaLabel').textContent = 'Hidden until the timer ends';
-    else if (clear) $('mediaLabel').textContent = 'Original — judge the hook';
-    if (!clear) return;
-    const perfKey = `${m.key}|${m.nonce}`;
-    if (hookRevealed === perfKey || !ytReady || !yt) return;
-    hookRevealed = perfKey;
-    const opts = { videoId: m.videoId, startSeconds: m.start || 0 };
-    if (m.end) opts.endSeconds = m.end;
-    yt.loadVideoById(opts);
-    if (App.soundOn) { yt.unMute(); yt.setVolume(100); } else yt.mute();
+    document.body.classList.toggle('hook-screen', hook);
+    document.body.classList.toggle('hook-dancing', Boolean(hook && L.phase === 'perform'));
+    if (hook !== hookFit) {
+      hookFit = hook;
+      playerFitted = false;
+      if (hook && $('soundBtn')) $('soundBtn').textContent = '🔊 Tap once to play the video with sound';
+    }
+    if (hook && !playerFitted) playerFitted = fitPlayer();
+    if (!hook) playerFitted = false;
+    if (hook) {
+      $('mediaLabel').textContent = '';
+      if (!syncHookVeil.heard || App.now() - syncHookVeil.heard > 1000) {
+        syncHookVeil.heard = App.now();
+        hearYouTube(true);
+      }
+    }
   }
 
-  App.connect('tv', null, (s) => { S = s; render(); });
+  let sock = null;
+  // The TV key arrives once in the link's #fragment (or ?tv= from older links), is kept on this
+  // device for that room, and is wiped from the address bar so it isn't shown on screen or shared.
+  function readTvSecret(code) {
+    const fromLink = new URLSearchParams(location.hash.slice(1)).get('tv') || new URLSearchParams(location.search).get('tv') || '';
+    const k = 'dgn_tv_secret:' + (code || '');
+    if (fromLink) { try { localStorage.setItem(k, fromLink); } catch { /* private mode */ } return fromLink; }
+    try { return localStorage.getItem(k) || sessionStorage.getItem('dgn_tv_secret') || ''; } catch { return ''; }
+  }
+  function enterRoom(code) {
+    App.room = code;
+    App.tvSecret = readTvSecret(code);
+    try { localStorage.setItem('dgn_tv_room', code); } catch { /* private mode */ }
+    history.replaceState(null, '', '/tv?room=' + encodeURIComponent(code));
+    document.body.classList.remove('tv-gate');
+    if (sock) sock.disconnect();
+    sock = App.connect('tv', null, (s) => { S = s; render(); }, (msg) => {
+      try { localStorage.removeItem('dgn_tv_room'); localStorage.removeItem('dgn_tv_secret:' + code); } catch { /* ignore */ }
+      App.room = '';
+      showGate(msg);
+    });
+  }
+  function showGate(msg) {
+    document.body.classList.add('tv-gate');
+    $('stage').innerHTML = `<div class="gate"><div class="em">${App.diya(true)}</div><h1>Open the TV</h1><p>Use the TV link from the host console. The room code alone does not open this screen.</p>
+      <p class="fine">Dance videos play from YouTube. Fonts load from Google. Live updates may use Supabase.</p>
+      ${msg ? `<p class="gate-err">${esc(msg)}</p>` : ''}</div>`;
+  }
+  function bootTv() {
+    const code = App.roomFromQuery() || App.canonRoom((() => { try { return localStorage.getItem('dgn_tv_room'); } catch { return ''; } })());
+    const secret = readTvSecret(code);
+    if (!code || !secret) showGate();
+    else enterRoom(code);
+  }
+  bootTv();
 
   const player = (id) => S.players.find((p) => p.id === id);
   const team = (id) => S.teams.find((t) => t.id === id);
@@ -79,7 +167,7 @@
   const entAv = (e) => `<span class="avatar" style="--c:${e.color}">${esc(e.emoji)}</span>`;
   const timerBar = (start, end) => `<div class="timer" data-start="${start}" data-end="${end}"><i></i></div>`;
   const shapeK = (i) => `<span class="k"><span class="shape">${App.shapes[i] || ''}</span><span class="tick">✓</span></span>`;
-  const joinUrl = () => location.origin + '/play';
+  const joinUrl = () => location.origin + '/play?room=' + encodeURIComponent(App.room || (S && S.code) || '');
   const flame = (n) => (n >= 2 ? ` <span class="flame-chip">🔥${n}</span>` : '');
   const medalCount = (deadline, start) => `<span class="medal burn" data-burn="${deadline}" data-burn-start="${start}"><span data-count="${deadline}" data-tick="1"></span></span>`;
 
@@ -98,7 +186,7 @@
   function render() {
     document.title = `${S.eventName} — TV`;
     App.patch($('eventName'), S.eventName.split(' ').length > 2 ? esc(S.eventName).replace(/(\S+\s+\S+)$/, '<span>$1</span>') : esc(S.eventName));
-    App.patch($('nowPlaying'), S.live ? `<span class="plaque">${esc(S.live.emoji)} ${esc(S.live.title)} · ${S.live.mode === 'team' ? 'Teams' : 'Solo'}${S.live.practice ? ' · 🧪 Practice' : ''}</span>` : '');
+    App.patch($('nowPlaying'), S.live ? `<span class="plaque">${esc(S.live.emoji)} ${esc(S.live.title)} · ${S.live.mode === 'team' ? 'Teams' : 'Solo'}${S.live.difficultyName ? ' · ' + esc(S.live.difficultyName) : ''}${S.live.practice ? ' · 🧪 Practice' : ''}</span>` : `<span class="plaque">Room ${esc(S.code || '')}</span>`);
     const mini = S.live && S.live.mode === 'team' && S.teams.length
       ? [...S.teams].sort((a, b) => (b.gamePoints - a.gamePoints) || (b.total - a.total)).filter((t) => (t.gamePoints || t.total) > 0).slice(0, 3)
         .map((t, i) => `<div class="m">${['🥇', '🥈', '🥉'][i]} <span class="avatar" style="--c:${t.color}">${esc(t.emoji)}</span> ${esc(String(t.name).replace(/^Team /, ''))} · ${fmt(t.gamePoints || t.total)}</div>`).join('')
@@ -107,7 +195,7 @@
     const line = S.feed[0];
     App.patch($('ticker'), line
       ? `<span class="chyron">${esc(line.emoji || '✨')} ${esc(line.text)}</span>`
-      : `<span class="chyron">Join at <b>${esc(joinUrl())}</b></span>`);
+      : `<span class="chyron">Room <b>${esc(S.code || '')}</b></span>`);
     detectArrivals();
 
     let view = S.tv.view;
@@ -194,13 +282,13 @@
         <div class="tv-mascot">${App.mascot()}</div>
         <div class="title-big">${esc(S.eventName.replace(/ Game Night$/i, '') || 'Diwali')}</div>
         <div class="title-hand">Game Night ✨</div>
-        <div class="sub">Scan · verify your phone · unwrap your <b>secret power-ups</b> 🎁</div>
+        <div class="sub">Type the room code on your phone. Your score stays in this room.</div>
         <div class="join-box paper">
           <img src="/api/qr.svg?u=${encodeURIComponent(url)}" alt="QR code to join" />
-          <div><div class="step">Scan or type on your phone</div><div class="url">${esc(url.replace(/^https?:\/\//, ''))}</div>
+          <div><div class="step">Room code</div><div class="room-code">${esc(S.code || '')}</div>
           <div class="games">${S.games.map((g) => esc(g.emoji)).join(' ')}</div></div>
         </div>
-        ${S.questionnaire && S.questionnaire.open ? `<div class="q-note">📝 <b>${S.questionnaire.done}</b> of ${ps.length} guests have spilled the beans in “About me”. Some answers become tonight's questions 👀</div>` : ''}
+        ${S.questionnaire && S.questionnaire.open && ps.length ? `<div class="q-note">📝 <b>${S.questionnaire.done}</b> of ${ps.length} guests have answered. Some of those answers become tonight's questions.</div>` : ''}
       </div>
       <div>
         <div class="guest-head"><h2>The Guest List</h2><span class="hand-note">${ps.length} ${ps.length === 1 ? 'diya' : 'diyas'} lit</span></div>
@@ -308,7 +396,10 @@
     const fn = { quiz: quizScene, jeopardy: jeopardyScene, kbc: kbcScene, hookstep: hookScene, custom: customScene }[L.type];
     return fn(L);
   }
-  const intro = (L, sub, rules = []) => `<div class="intro"><div><div class="em">${esc(L.emoji)}</div><h1>${esc(L.title)}</h1><p>${sub}</p>${rules.length ? `<div class="rules">${rules.map((r) => `<span>${r}</span>`).join('')}</div>` : ''}</div></div>`;
+  const intro = (L, sub, rules = []) => {
+    const all = L && L.difficultyName ? rules.concat([`🎚️ ${L.difficultyName}`]) : rules;
+    return `<div class="intro"><div><div class="em">${esc(L.emoji)}</div><h1>${esc(L.title)}</h1><p>${sub}</p>${all.length ? `<div class="rules">${all.map((r) => `<span>${r}</span>`).join('')}</div>` : ''}</div></div>`;
+  };
   const lockins = (ids) => {
     const on = new Set(ids || []);
     return `<div class="lockins">${S.players.filter((p) => p.online || on.has(p.id)).map((p) => `<div class="lk ${on.has(p.id) ? 'on' : ''}">${av(p)}${App.diya(on.has(p.id))}<small>${esc(p.name)}</small></div>`).join('')}</div>`;
@@ -354,8 +445,8 @@
   }
 
   function jeopardyScene(L) {
-    const ctl = L.control;
-    const head = `<div class="ghead"><span class="pill gold">🧠 ${esc(L.title)}</span>${ctl ? `<span class="pill control" style="--tc:${ctl.color}">${esc(ctl.emoji)} ${esc(ctl.name)} ${L.phase === 'board' ? 'picks next' : 'in control'}</span>` : ''}</div>`;
+    const who = L.turn;
+    const head = `<div class="ghead"><span class="pill gold">🧠 ${esc(L.title)}</span>${who ? `<span class="pill control" style="--tc:${who.color}">${esc(who.emoji)} ${esc(who.name)} ${L.phase === 'clue' ? 'answers' : 'is up'}</span>` : ''}</div>`;
     if (L.phase === 'board') {
       const cats = L.categories;
       const rows = Math.max(...cats.map((c) => c.clues.length));
@@ -368,83 +459,31 @@
           return `<div class="jcell" style="animation-delay:${0.2 + (i * cats.length + ci) * 0.025}s">${cl.value}</div>`;
         }).join('');
       }
-      return [`<div class="gframe">${head}<div class="jboard" style="grid-template-columns:repeat(${cats.length},1fr);grid-template-rows:auto repeat(${rows},1fr)">${cells}</div></div>`, 'j-board'];
+      return [`<div class="gframe">${head}<div class="jboard" style="grid-template-columns:repeat(${cats.length},1fr);grid-template-rows:auto repeat(${rows},1fr)">${cells}</div></div>`, 'j-board-' + (who ? who.key : '')];
     }
     const c = L.clue;
-    if (L.phase === 'dd') {
-      return [`<div class="gframe">${head}<div class="dd-stage"><div class="dd-gem">💎</div><h1>Daily Double!</h1><p>${ctl ? `${esc(ctl.emoji)} ${esc(ctl.name)}` : 'The team in control'} — how much will you wager?</p><div class="dd-cat">${esc(c.category)}</div></div></div>`, `j-dd-${L.cur.c}-${L.cur.i}`];
-    }
-    const queue = L.buzzes.map((b) => `<div class="lrow ${L.active && L.active.key === b.key ? 'active' : ''} ${L.locked.includes(b.key) ? 'locked' : ''}"><span class="avatar" style="--c:${b.color}">${esc(b.emoji)}</span>${esc(b.name)}${b.kind === 'team' ? ` <span class="small" style="opacity:.7">(${esc(b.buzzerName)})</span>` : ''}<span class="pts">${(b.ms / 1000).toFixed(2)}s</span></div>`).join('');
     const answer = L.phase === 'answer';
     const correct = answer && L.last && L.last.correct;
-    if (L.active && !answer && prev.buzzKey !== L.active.key) App.sfx('buzz');
-    prev.buzzKey = L.active ? L.active.key : null;
-    let status;
-    if (L.dd) status = `<div class="buzz-state dd">💎 ${esc(ctl ? ctl.name : '')} · wager ${fmt(L.wager)}</div>`;
-    else if (answer) status = correct ? `<div class="buzz-state win">+${fmt(L.last.value)} to ${esc(L.last.info.name)}!</div>` : '';
-    else if (!L.buzzOpen) status = `<div class="buzz-state armed">🔒 Buzzers armed<small>listen to the host…</small></div>`;
-    else if (L.active && L.answerUntil) status = `<div class="buzz-state open">${esc(L.active.name)} · <span data-count="${L.answerUntil}" data-tick="1"></span>s</div>`;
-    else if (!L.buzzes.length) status = `<div class="buzz-state open">🔔 BUZZ NOW!</div>`;
-    else status = '';
-    const side = `<div class="list-card bq"><h3>🔔 Buzzers</h3>${status}${queue}</div>`;
-    return [`<div class="gframe">${head}<div class="jclue"><div class="qcard paper ${L.buzzOpen && !answer ? 'live' : ''}"><div class="cat">${esc(c.category)} · ${fmt(c.value)}${L.dd ? ' · 💎 Daily Double' : ''}</div><div class="q">${esc(c.q)}</div>${answer ? `<div class="ans pop">✨ ${esc(c.a)}</div>` : ''}</div>${side}</div></div>`, `j-clue-${L.cur.c}-${L.cur.i}${answer ? (correct ? '-answer-correct' : '-answer') : ''}`];
+    const side = answer
+      ? `<div class="list-card"><h3>${correct ? '✓ Team scores' : '✗ No points'}</h3><div class="lrow">${L.last && L.last.info ? `${esc(L.last.info.emoji)} ${esc(L.last.info.name)}` : ''}<span class="pts">${correct ? `+${fmt(L.last.value)} each` : '—'}</span></div></div>`
+      : `<div class="list-card"><h3>This turn</h3><div class="lrow">${who ? `${esc(who.emoji)} ${esc(who.name)}` : ''}</div><p class="small" style="margin:.6vw 0 0">Answer out loud. Everyone on the team scores.</p></div>`;
+    return [`<div class="gframe">${head}<div class="jclue"><div class="qcard paper"><div class="cat">${esc(c.category)} · ${fmt(c.value)}</div><div class="q">${esc(c.q)}</div>${answer ? `<div class="ans pop">✨ ${esc(c.a)}</div>` : ''}</div>${side}</div></div>`, `j-clue-${L.cur.c}-${L.cur.i}${answer ? (correct ? '-answer-correct' : '-answer') : ''}`];
   }
 
-  function ladderHtml(L, curLevel, doneUpTo) {
-    return `<div class="ladder">${L.ladder.map((l, i) => `<div class="lv ${l.safe ? 'safe' : ''} ${i === curLevel ? 'cur' : ''} ${i < doneUpTo ? 'done' : ''}"><span>${i + 1}</span><span>${l.safe ? '★ ' : ''}${fmt(l.points)}</span></div>`).join('')}</div>`;
-  }
-  function predBar(h) {
-    const pc = h.predCounts || { sahi: 0, galat: 0 };
-    const tot = pc.sahi + pc.galat;
-    if (!tot) return h.qPhase === 'question' ? '<div class="pred-bar empty">🔮 Audience — call it on your phones: Sahi or Galat?</div>' : '';
-    const res = h.predResult && h.qPhase !== 'question' ? `<b class="called">🔮 ${h.predResult.right.length} called it · +25 each</b>` : '';
-    return `<div class="pred-bar"><span class="ps" style="flex:${pc.sahi || 0.001}">✅ ${pc.sahi} Sahi</span><span class="pg" style="flex:${pc.galat || 0.001}">${pc.galat} Galat ❌</span></div>${res}`;
-  }
   function kbcScene(L) {
-    const head = `<div class="ghead"><span class="pill gold">💰 Kaun Banega Crorepati</span></div>`;
-    if (L.phase === 'idle') {
-      const hist = L.history.map((h) => { const p = player(h.pid); return p ? `<div class="lrow">${av(p)}${esc(p.name)}<span class="pts">${fmt(h.winnings)}</span></div>` : ''; }).join('');
-      return [`<div class="gframe">${head}<div class="kbc"><div class="intro"><div><div class="em">💰</div><h1>Kaun Banega Crorepati</h1><p>Fastest Finger First decides who takes the hot seat!</p>${hist ? `<div class="list-card" style="margin-top:2vw;text-align:left"><h3>Hot seat winnings</h3>${hist}</div>` : ''}</div></div>${ladderHtml(L, -1, 0)}</div></div>`, 'kbc-idle'];
+    const head = `<div class="ghead"><span class="pill gold">💰 ${esc(L.title || 'Kaun Banega Crorepati')}</span><span class="pill">Solo · fastest takes the full ${L.points ? fmt(L.points) : 'points'}</span></div>`;
+    if (L.phase === 'idle' || L.phase === 'done') {
+      return [`<div class="gframe">${head}<div class="kbc"><div class="intro"><div><div class="em">💰</div><h1>Kaun Banega Crorepati</h1><p>${L.phase === 'done' ? 'That is the round.' : 'Every question is open to everyone. Fastest correct answer wins the full points. Each place after gets less.'}</p></div></div></div></div>`, 'kbc-' + L.phase];
     }
-    if (L.phase === 'ff' || L.phase === 'ff-result') {
-      const f = L.ff;
-      const q = f.question;
-      const waiting = L.phase === 'ff' && App.now() < f.opensAt;
-      if (waiting) setTimeout(render, f.opensAt - App.now() + 30);
-      const res = f.result;
-      const opts = waiting ? `<div class="countdown-big" data-count="${f.opensAt}"></div>` : `<div class="kbc-opts">${q.options.map((o, i) => `<div class="kbc-opt ${res ? (i === res.answer ? 'right' : '') : ''}"><span class="k">${App.letters[i]}:</span>${esc(o)}${res ? `<span class="pc">${res.counts[i]}</span>` : ''}</div>`).join('')}</div>`;
-      const side = res
-        ? `<div class="list-card"><h3>⚡ Fastest correct</h3>${res.ranking.slice(0, 8).map((r, i) => { const p = player(r.id); return p ? `<div class="lrow" ${i === 0 ? 'style="color:var(--haldi)"' : ''}>${i === 0 ? '👑' : i + 1 + '.'} ${av(p)}${esc(p.name)}<span class="pts">${(r.ms / 1000).toFixed(2)}s</span></div>` : ''; }).join('') || '<div class="lrow">Nobody got it right!</div>'}</div>`
-        : `<div class="list-card"><h3>Fastest Finger First</h3>${lockins(f.answeredIds)}</div>`;
-      return [`<div class="gframe">${head}${L.phase === 'ff' && !waiting ? timerBar(f.opensAt, f.deadline) : ''}<div class="kbc"><div class="kbc-main"><div class="kbc-banner">FASTEST FINGER FIRST ${L.phase === 'ff' && !waiting ? `· <span data-count="${f.deadline}" data-tick="1"></span>` : ''}</div><div class="kbc-q">${esc(q.q)}</div>${opts}</div>${side}</div></div>`, `ff-q-${L.ff.question.q}${res ? '-ff-result' : ''}${waiting ? '-w' : ''}`];
-    }
-    const h = L.hot;
-    const p = player(h.pid);
-    const q = h.question;
-    const pollHtml = h.poll ? (() => {
-      const total = h.poll.counts.reduce((a, b) => a + b, 0) || 1;
-      return `<div class="list-card"><h3>📊 Audience Poll${h.poll.open ? ` · <span data-count="${h.poll.deadline}"></span>s` : ''}</h3><div class="small" style="margin:-.6vw 0 .6vw;opacity:.8">${h.poll.votes} votes</div><div class="poll">${h.poll.counts.map((c, i) => `<div class="b"><span>${Math.round((c / total) * 100)}%</span><i style="height:${(c / total) * 100}%"></i><span>${App.letters[i]}</span></div>`).join('')}</div></div>`;
-    })() : '';
-    const phone = h.phoneUntil && h.phoneUntil > App.now() ? `<div class="kbc-banner">📞 Phone a friend · <span data-count="${h.phoneUntil}" data-tick="1"></span>s</div>` : '';
-    const opts = `<div class="kbc-opts">${q.options.map((o, i) => {
-      let cls = '';
-      if (h.removed.includes(i)) cls = 'gone';
-      else if (h.answer != null && i === h.answer) cls = 'right';
-      else if (h.answer != null && i === h.locked) cls = 'wrong';
-      else if (h.locked === i) cls = 'locked';
-      return `<div class="kbc-opt ${cls}"><span class="k">${App.letters[i]}:</span>${esc(o)}</div>`;
-    }).join('')}</div>`;
-    let banner = '';
-    if (h.qPhase === 'over') banner = `<div class="kbc-banner pop" style="font-size:3vw">${h.status === 'won' ? '🏆 CROREPATI! ' : h.status === 'walked' ? '🚶 Walked away with ' : '💔 Takes home '}${fmt(h.winnings)} points</div>`;
-    else if (h.qPhase === 'reveal' && h.correct) banner = `<div class="kbc-banner pop" style="font-size:3vw">✅ Sahi jawab! ${fmt(L.ladder[h.questionLevel].points)} points secured</div>`;
-    else if (h.locked != null) banner = `<div class="kbc-banner">🔒 Lock kiya jaaye…</div>`;
-    const lifelines = `<div class="lifelines"><span class="${h.lifelines.fifty ? '' : 'used'}">50:50</span><span class="${h.lifelines.poll ? '' : 'used'}">📊</span><span class="${h.lifelines.phone ? '' : 'used'}">📞</span></div>`;
-    const lvl = h.questionLevel;
-    const key = `hot-${h.pid}-${lvl}-${h.qPhase}${h.qPhase === 'over' ? (h.status === 'won' ? '-won' : '-wrong') : ''}${h.qPhase === 'reveal' ? '-reveal-kbc' : ''}`;
-    return [`<div class="gframe">${head}<div class="kbc"><div class="kbc-main">
-      <div class="kbc-hot">${av(p)} ${esc(p ? p.name : '')} in the hot seat · Question ${lvl + 1} for ${fmt(L.ladder[lvl].points)}${q.personal ? ' · <span class="pill personal">✨ About our guests</span>' : ''}</div>
-      <div class="kbc-q">${esc(q.q)}</div>${opts}${banner}${phone}${predBar(h)}
-      </div><div class="kbc-side">${lifelines}${pollHtml && h.qPhase === 'question' ? pollHtml : ladderHtml(L, h.qPhase === 'over' ? -1 : lvl, h.level)}</div></div></div>`, key];
+    const q = L.question;
+    const waiting = L.phase === 'question' && App.now() < L.opensAt;
+    if (waiting) setTimeout(render, L.opensAt - App.now() + 30);
+    const res = L.result;
+    const opts = waiting ? `<div class="countdown-big" data-count="${L.opensAt}"></div>` : `<div class="kbc-opts">${q.options.map((o, i) => `<div class="kbc-opt ${res ? (i === res.answer ? 'right' : '') : ''}"><span class="k">${App.letters[i]}:</span>${esc(o)}${res ? `<span class="pc">${res.counts[i]}</span>` : ''}</div>`).join('')}</div>`;
+    const side = res
+      ? `<div class="list-card"><h3>⚡ Places</h3>${res.ranking.slice(0, 8).map((r) => { const p = player(r.id); return p ? `<div class="lrow" ${r.rank === 1 ? 'style="color:var(--haldi)"' : ''}>${r.rank === 1 ? '👑' : r.rank + '.'} ${av(p)}${esc(p.name)}<span class="pts">+${fmt(r.points)}</span></div>` : ''; }).join('') || '<div class="lrow">Nobody got it right!</div>'}</div>`
+      : `<div class="list-card"><h3>Locked in</h3>${lockins(L.answeredIds)}</div>`;
+    return [`<div class="gframe">${head}${L.phase === 'question' && !waiting ? timerBar(L.opensAt, L.deadline) : ''}<div class="kbc"><div class="kbc-main"><div class="kbc-banner">Q${L.qIndex + 1} of ${L.total} · ${fmt(L.points)} for first ${L.phase === 'question' && !waiting ? `· <span data-count="${L.deadline}" data-tick="1"></span>` : ''}</div><div class="kbc-q">${esc(q.q)}</div>${opts}</div>${side}</div></div>`, `kbc-q-${L.qIndex}${res ? '-reveal' : ''}${waiting ? '-w' : ''}`];
   }
 
   function hookScene(L) {
@@ -458,13 +497,15 @@
     }
     if (L.phase === 'spin') return [`<div class="gframe">${head}<div class="hook"><div class="perf">${team ? `<div class="call">${esc(team.emoji)} ${esc(team.name)}</div>` : ''}<div class="reel paper"><div class="reel-win" id="slot">🎵</div></div><div class="hand-note">Spinning the song…</div></div></div></div>`, 'spin'];
     const song = perf.song;
-    const songHtml = song ? `<div class="song">🎵 ${esc(song.title)}</div><div class="step">Hook step: <b>${esc(song.step)}</b></div>` : '';
+    const stepHtml = L.showStep && song && song.step ? `<div class="step">${esc(song.step)}</div>` : '';
+    const songHtml = song ? `<div class="song">🎵 ${esc(song.title)}</div>${stepHtml}` : '';
     if (L.phase === 'ready') {
       return [`<div class="gframe">${head}<div class="hook"><div class="perf"><div class="call big">${team ? `${esc(team.emoji)} ${esc(team.name)}` : 'Open floor!'}</div>
         <h1 class="brave">Who's brave enough? Come up!</h1>${songHtml}${dancers(perf.dancers)}</div></div></div>`, 'hook-ready-' + (song ? song.title : '')];
     }
     if (L.phase === 'perform') {
-      return [`<div class="gframe">${head}${timerBar(L.startedAt, L.until)}<div class="hook"><div class="perf">${songHtml}<div class="big-count" data-count="${L.until}"></div><div class="hand-note">The original reveals at zero.</div>${perf.dancers.length ? dancers(perf.dancers) : ''}</div></div></div>`, 'hook-perform'];
+      const title = song ? `<div class="song">${esc(song.title)}</div>` : '';
+      return [`<div class="gframe hook-film">${title}<div class="big-count" data-count="${L.until}"></div>${stepHtml}</div>`, 'hook-perform' + (L.showStep ? '-hint' : '')];
     }
     if (L.phase === 'judge') {
       const stars = perf.stars || 0;
@@ -514,7 +555,7 @@
     stream.getTracks().forEach((t) => t.stop());
     const score = Math.round(0.6 * peak + 0.4 * (sum / Math.max(1, n)));
     App.sfx('ding'); App.fireworks(score / 80);
-    fetch('/api/applause', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, level: score }) }).catch(() => {});
+    fetch('/api/applause', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, level: score, room: App.room, tvSecret: App.tvSecret || '' }) }).catch(() => {});
   }
 
   function customScene(L) {

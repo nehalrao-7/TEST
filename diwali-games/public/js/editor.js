@@ -73,8 +73,7 @@
 
     function jeopardyEditor(gid, c) {
       const cats = c.categories || [];
-      return `<div class="qe-row">${check(gid, 'wrongPenalty', c.wrongPenalty, 'Wrong answers lose points')}</div>
-        ${cats.map((cat, ci) => `<div class="qe">
+      return `${cats.map((cat, ci) => `<div class="qe">
           <div class="qe-head"><b class="qe-n">${ci + 1}</b>${field(gid, `categories.${ci}.name`, cat.name, { ph: 'Category name', cls: 'grow qe-q' })}
             ${btn('move', '←', `data-eg="${gid}" data-list="categories" data-i="${ci}" data-d="-1" ${ci === 0 ? 'disabled' : ''}`)}
             ${btn('move', '→', `data-eg="${gid}" data-list="categories" data-i="${ci}" data-d="1" ${ci === cats.length - 1 ? 'disabled' : ''}`)}
@@ -91,15 +90,11 @@
     }
 
     function kbcEditor(gid, c) {
-      const ff = c.fastestFinger || [];
       const ladder = c.ladder || [];
-      return `<div class="sec-title">⚡ Fastest Finger First</div>
-        ${ff.map((q, i) => qBlock(gid, `fastestFinger.${i}`, q, i, ff.length, { time: true, listPath: 'fastestFinger' })).join('')}
-        ${btn('addQ', '+ Add Fastest Finger question', `data-eg="${gid}" data-list="fastestFinger" data-tpl="ff"`, 'teal small')}
-        <div class="sec-title">🪜 Prize ladder (each hot-seat player gets the next question on every level)</div>
+      return `<p class="small muted">Solo round. Every question below is open to the whole room. First place gets the level's points, and each later correct answer gets less.</p>
         ${ladder.map((lvl, li) => `<div class="qe qe-level">
-          <div class="qe-head"><b class="qe-n">L${li + 1}</b><span class="qe-l">Points</span>${field(gid, `ladder.${li}.points`, lvl.points, { type: 'number', kind: 'num', style: 'width:120px' })}
-            ${check(gid, `ladder.${li}.safe`, lvl.safe, '★ Safe level')}<span class="grow"></span>
+          <div class="qe-head"><b class="qe-n">L${li + 1}</b><span class="qe-l">Points for first</span>${field(gid, `ladder.${li}.points`, lvl.points, { type: 'number', kind: 'num', style: 'width:120px' })}
+            <span class="grow"></span>
             ${btn('del', '🗑 Level', `data-eg="${gid}" data-list="ladder" data-i="${li}"`)}</div>
           ${(lvl.questions || []).map((q, i) => qBlock(gid, `ladder.${li}.questions.${i}`, q, i, lvl.questions.length, { listPath: `ladder.${li}.questions` })).join('')}
           ${btn('addQ', '+ Add question to this level', `data-eg="${gid}" data-list="ladder.${li}.questions" data-tpl="mcq"`, 'teal small')}
@@ -111,7 +106,7 @@
       const songs = c.songs || [];
       return `<div class="qe-row"><span class="qe-l">Performance time (s)</span>${field(gid, 'performSeconds', c.performSeconds, { type: 'number', kind: 'num', style: 'width:90px' })}
           <span class="qe-l">Himmat bonus per dancer</span>${field(gid, 'himmatBonus', c.himmatBonus == null ? 100 : c.himmatBonus, { type: 'number', kind: 'num', style: 'width:90px' })}</div>
-        <p class="small muted">No phones in this game. The TV calls a team up and plays the song's YouTube video, blurred, while they dance. When the timer ends it replays sharp so the room can judge against the original. Tap everyone who dances (each gets the Himmat bonus) and rate it 1–5 diyas for the team.</p>
+        <p class="small muted">No phones in this game. The TV plays the song full screen, blurred, while the team dances. When the timer ends the blur lifts and the video keeps playing until you move on. Tap everyone who dances (each gets the Himmat bonus) and rate it 1–5 diyas for the team.</p>
         ${songs.map((s, i) => `<div class="qe">
           <div class="qe-head"><b class="qe-n">${i + 1}</b>${field(gid, `songs.${i}.title`, s.title, { ph: 'Song — Movie', cls: 'grow qe-q' })}
             ${btn('move', '↑', `data-eg="${gid}" data-list="songs" data-i="${i}" data-d="-1" ${i === 0 ? 'disabled' : ''}`)}
@@ -179,7 +174,7 @@
         <div class="ed-head"><h3 style="margin:0">✨ Personalised questions</h3><span class="grow"></span>
           <label class="toggle small"><input type="checkbox" data-eg="__s" data-ep="questionnaireOpen" data-ek="bool" ${st.questionnaireOpen ? 'checked' : ''}/> Questionnaire open on phones</label>
           <span class="qe-l">Share of each game</span><select data-eg="__s" data-ep="personalPct" data-ek="num" style="width:auto">${[0, 10, 20, 25, 30, 40, 50].map((n) => `<option value="${n}" ${Number(st.personalPct) === n ? 'selected' : ''}>${n}%</option>`).join('')}</select></div>
-        <p class="small muted">Guests answer the questions below on their phones (it pops up after they join). When you <b>start</b> a game with ✨ Personalize ticked, about ${st.personalPct}% of its questions are swapped for questions built from their answers, like <i>"Whose dream holiday is Bali?"</i> or <i>"What is Priya's favourite movie?"</i>. The other questions come from your standard set, and your saved questions are never changed. Guess the Movie prefers movie answers. Jeopardy gets a "✨ Know Your Guests" category. KBC never asks the person in the hot seat about themselves. Hook Step adds guests' favourite dance songs.</p>
+        <p class="small muted">Guests answer the questions below on their phones (it pops up after they join). When you <b>start</b> a game with ✨ Personalize ticked, about ${st.personalPct}% of its questions are swapped for questions built from their answers, like <i>"Whose dream holiday is Bali?"</i> or <i>"What is Priya's favourite movie?"</i>. The other questions come from your standard set, and your saved questions are never changed. Guess the Movie prefers movie answers. Jeopardy gets a "✨ Know Your Guests" category. KBC is a solo speed round, so those questions are open to everyone. Hook Step adds guests' favourite dance songs.</p>
         <div class="row"><span class="chip ${done ? 'done' : ''}">${done} of ${S.players.length} guests answered</span><span class="chip gold">${pv.total} personal questions available</span></div>
         ${pv.sample.length ? `<div class="sec-title">Sample of what guests will see</div>${pv.sample.map((q) => `<div class="kv"><span>${esc(q.q)} <span class="small muted">(${q.options.map((o, i) => i === q.answer ? `<b>${esc(o)}</b>` : esc(o)).join(' · ')})</span></span><span class="small muted">about ${esc(q.about)}</span></div>`).join('')}` : '<p class="small muted">Questions will appear here once a few guests have answered (you need 2+ guests).</p>'}
         <div class="sec-title">Questionnaire (what guests are asked)</div>
@@ -213,7 +208,7 @@
             <button class="btn ghost small" data-ea="toggle" data-eg="${g.id}">${open ? '▾' : '▸'}</button>
             <input type="text" data-eg="${g.id}" data-ep="@emoji" data-ek="text" value="${esc(d.emoji)}" style="width:56px;text-align:center"/>
             <input type="text" data-eg="${g.id}" data-ep="@title" data-ek="text" value="${esc(d.title)}" class="grow ed-title"/>
-            <select data-eg="${g.id}" data-ep="@mode" data-ek="text" style="width:auto" ${live ? 'disabled' : ''}><option value="individual" ${d.mode === 'individual' ? 'selected' : ''}>👤 Solo</option><option value="team" ${d.mode === 'team' ? 'selected' : ''}>👥 Teams</option></select>
+            ${g.type === 'kbc' ? '<span class="chip">👤 Solo</span>' : `<select data-eg="${g.id}" data-ep="@mode" data-ek="text" style="width:auto" ${live ? 'disabled' : ''}><option value="individual" ${d.mode === 'individual' ? 'selected' : ''}>👤 Solo</option><option value="team" ${d.mode === 'team' ? 'selected' : ''}>👥 Teams</option></select>`}
             ${g.type !== 'custom' ? `<label class="toggle small" title="Swap some questions for ones built from guests' answers"><input type="checkbox" data-eg="${g.id}" data-ep="@personalize" data-ek="bool" ${d.personalize ? 'checked' : ''}/> ✨ Personalize</label>` : ''}
             ${live ? '<span class="chip live">LIVE — end it to save</span>' : ''}
             ${d.dirty ? '<span class="chip gold">Unsaved</span>' : '<span class="chip done">Saved</span>'}

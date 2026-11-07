@@ -19,107 +19,172 @@
   const revealed = new Set(JSON.parse(store.get('dgn_revealed') || '[]'));
 
   // =================== LOGIN ===================
-  const COUNTRIES = [['1', '🇨🇦 🇺🇸 +1'], ['91', '🇮🇳 +91'], ['44', '🇬🇧 +44'], ['61', '🇦🇺 +61'], ['971', '🇦🇪 +971'], ['65', '🇸🇬 +65'], ['64', '🇳🇿 +64'], ['49', '🇩🇪 +49'], ['353', '🇮🇪 +353'], ['27', '🇿🇦 +27']];
-  const L = { step: 'phone', name: '', avatar: '🪔', cc: store.get('dgn_cc') || '1', phone: '', via: null, returning: false, avatars: ['🪔', '🎆', '🐘', '🦚', '🐯', '🌺', '🪷', '🍬', '🎇', '🥭', '🌶️', '🦁', '🐒', '👑', '🪁', '🍵', '🌙', '⭐'], eventName: 'Diwali Game Night' };
+  const L = { step: 'room', room: '', name: '', avatar: '🪔', cc: '1', phone: '', otp: '', via: 'host', avatars: ['🪔', '🎆', '🐘', '🦚', '🐯', '🌺', '🪷', '🍬', '🎇', '🥭', '🌶️', '🦁', '🐒', '👑', '🪁', '🍵', '🌙', '⭐'], eventName: 'Diwali Game Night', note: '' };
+  const COUNTRY_CODES = [['1', '+1'], ['91', '+91'], ['44', '+44'], ['971', '+971'], ['61', '+61'], ['65', '+65']];
+
+  function remember(room, token) {
+    App.room = room;
+    store.set('dgn_room', room);
+    store.set('dgn_token', token);
+    store.set('dgn_token_room', room);
+    const url = '/play?room=' + room;
+    if (location.pathname + location.search !== url) history.replaceState(null, '', url);
+  }
 
   async function startLogin() {
-    try { const m = await (await fetch('/api/meta')).json(); L.avatars = m.avatars; L.eventName = m.eventName; L.open = Boolean(m.openAccess); } catch { /* defaults */ }
+    dock.innerHTML = '';
+    const fromUrl = App.roomFromQuery();
+    const saved = App.canonRoom(store.get('dgn_room'));
+    const token = store.get('dgn_token');
+    const tokenRoom = App.canonRoom(store.get('dgn_token_room'));
+    const room = fromUrl || saved;
+    if (room && token && tokenRoom === room) {
+      remember(room, token);
+      start(token);
+      return;
+    }
+    L.room = room;
+    L.step = room ? 'name' : 'room';
+    if (room) {
+      App.room = room;
+      try {
+        const m = await (await fetch('/api/meta')).json();
+        if (m.avatars) L.avatars = m.avatars;
+        if (m.eventName) L.eventName = m.eventName;
+      } catch { /* the form still works */ }
+    }
     renderLogin();
   }
 
   function renderLogin() {
     dock.innerHTML = '';
     const greet = L.name.trim() ? `Happy Diwali, ${esc(L.name.trim())}!` : 'Happy Diwali';
-    if (L.step === 'phone') {
+    if (L.step === 'room') {
+      app.innerHTML = `<div class="login">
+        <div class="shell-card">
+          <div class="breakout">${App.mascot()}</div>
+          <p class="greet">${greet}</p>
+          <h1>Join a room</h1>
+          <p class="muted">Ask the host for the 4-character code.</p>
+        </div>
+        <form class="card stack" id="fRoom">
+          <div><label class="field" for="room">Room code</label>
+            <input type="text" id="room" class="code-input" maxlength="4" autocapitalize="characters" autocomplete="off" placeholder="ABCD" aria-label="Room code" value="${esc(L.room)}" /></div>
+          ${L.note ? `<p class="muted" style="margin:0">${esc(L.note)}</p>` : ''}
+          <button class="btn diya-btn big block" type="submit">${App.diya(true, 28)} Continue</button>
+        </form>
+        <p class="fine">Hosting? <a href="/host">Start a room</a></p>
+      </div>`;
+      const input = app.querySelector('#room');
+      input.focus();
+      app.querySelector('#fRoom').onsubmit = async (e) => {
+        e.preventDefault();
+        const code = App.canonRoom(input.value);
+        if (!code) { App.toast('Enter the 4-character room code.', true); return; }
+        L.room = code; L.note = ''; App.room = code; L.step = 'name'; renderLogin();
+      };
+      return;
+    }
+    if (L.step === 'name') {
       app.innerHTML = `<div class="login">
         <div class="shell-card">
           <div class="breakout">${App.mascot()}</div>
           <p class="greet">${greet}</p>
           <h1>${esc(L.eventName)}</h1>
-          <p class="live-count" id="liveCount" hidden></p>
         </div>
         <form class="card stack" id="f1">
-          <div><label class="field">Your name</label><input type="text" id="name" maxlength="20" placeholder="e.g. Priya" value="${esc(L.name)}" autocomplete="given-name" /></div>
+          <div class="room-known"><span class="field">Room</span><b class="room-chip">${esc(L.room)}</b><button type="button" class="btn ghost small" id="changeRoom">Change</button></div>
+          <div><label class="field" for="name">Your name</label><input type="text" id="name" maxlength="20" placeholder="e.g. Priya" value="${esc(L.name)}" autocomplete="given-name" /></div>
           <div><label class="field">Pick your avatar</label><div class="avatars">${L.avatars.map((a) => `<button type="button" data-av="${a}" class="${a === L.avatar ? 'on' : ''}" aria-label="Avatar ${a}">${a}</button>`).join('')}</div></div>
-          ${L.open ? '' : `<div><label class="field">Phone number</label><div class="phone-row">
-            <select id="cc">${COUNTRIES.map(([c, l]) => `<option value="${c}" ${c === L.cc ? 'selected' : ''}>${l}</option>`).join('')}</select>
-            <input type="tel" id="phone" inputmode="tel" placeholder="Phone number" value="${esc(L.phone)}" autocomplete="tel-national" /></div>
-            <div class="small muted" style="margin-top:6px">Returning on a new device? Use the same number.</div></div>`}
-          <button class="btn diya-btn big block" type="submit">${App.diya(true, 28)} ${L.open ? 'Join the night' : 'Send my code'}</button>
+          <button class="btn diya-btn big block" type="submit">${App.diya(true, 28)} Continue</button>
         </form>
-        <p class="fine">Host? <a href="/host">Open the console</a></p>
       </div>`;
-      showLiveCount();
+      app.querySelector('#changeRoom').onclick = () => { L.step = 'room'; L.note = ''; renderLogin(); };
       app.querySelectorAll('[data-av]').forEach((b) => b.onclick = () => { L.avatar = b.dataset.av; app.querySelectorAll('[data-av]').forEach((x) => x.classList.toggle('on', x === b)); });
-      app.querySelector('#f1').onsubmit = async (e) => {
+      app.querySelector('#f1').onsubmit = (e) => {
         e.preventDefault();
         L.name = app.querySelector('#name').value.trim();
-        const ccEl = app.querySelector('#cc'), phEl = app.querySelector('#phone');
-        L.cc = ccEl ? ccEl.value : L.cc;
-        L.phone = phEl ? phEl.value.trim() : '';
-        store.set('dgn_cc', L.cc);
+        if (!L.name) { App.toast('Please tell us your name.', true); return; }
+        L.step = 'phone';
+        renderLogin();
+      };
+      return;
+    }
+    if (L.step === 'phone') {
+      app.innerHTML = `<div class="login">
+        <div class="shell-card slim">
+          <p class="greet">${greet}</p>
+          <h1>Your phone</h1>
+          <p class="muted">We send a code so this phone keeps your score.</p>
+        </div>
+        <form class="card stack" id="fPhone">
+          <div class="room-known"><span class="field">Room</span><b class="room-chip">${esc(L.room)}</b></div>
+          <div class="phone-row">
+            <select id="cc" aria-label="Country code">${COUNTRY_CODES.map(([v, label]) => `<option value="${v}" ${v === L.cc ? 'selected' : ''}>${label}</option>`).join('')}</select>
+            <input type="tel" id="phone" inputmode="tel" autocomplete="tel" placeholder="Phone number" value="${esc(L.phone)}" aria-label="Phone number" />
+          </div>
+          <button class="btn diya-btn big block" type="submit">${App.diya(true, 28)} Text me a code</button>
+          <p class="fine">Texts use Twilio when texting is on. Otherwise the host reads the code aloud. Fonts load from Google, and the live board may use Supabase.</p>
+        </form>
+        <button class="btn ghost small" type="button" id="backName">Back</button>
+      </div>`;
+      app.querySelector('#backName').onclick = () => { L.step = 'name'; renderLogin(); };
+      app.querySelector('#fPhone').onsubmit = async (e) => {
+        e.preventDefault();
+        L.cc = app.querySelector('#cc').value;
+        L.phone = app.querySelector('#phone').value.trim();
         const btn = e.submitter || app.querySelector('button[type=submit]');
         btn.disabled = true;
         try {
-          let deviceId = store.get('dgn_device');
-          if (!deviceId) { deviceId = Math.random().toString(36).slice(2) + Date.now().toString(36); store.set('dgn_device', deviceId); }
-          const r = await App.post('/api/otp/request', { name: L.name, cc: L.cc, phone: L.phone, avatar: L.avatar, deviceId });
-          if (r.token) { store.set('dgn_token', r.token); App.confetti(1); start(r.token); return; }
-          L.via = r.via; L.returning = r.returning; L.name = r.name; L.step = 'code';
+          App.room = L.room;
+          const r = await App.post('/api/otp/request', { room: L.room, name: L.name, avatar: L.avatar, cc: L.cc, phone: L.phone });
+          L.via = r.via || 'host';
+          L.step = 'code';
           renderLogin();
         } catch (err) { App.toast(err.message, true); btn.disabled = false; }
       };
-    } else {
-      app.innerHTML = `<div class="login">
-        <div class="shell-card">
-          <div class="breakout">${App.mascot()}</div>
-          <p class="greet">Happy Diwali, ${esc(L.name)}!</p>
-          <h1>${L.returning ? 'Welcome back' : 'One more step'}</h1>
-          <p class="muted">${L.via === 'sms' ? 'Enter the code we texted you.' : 'Ask the host for your code.'}</p>
-        </div>
-        <form class="card stack" id="f2">
-          ${L.via === 'sms' ? `<p class="muted" style="margin:0">Sent to <b>+${esc(L.cc)} ${esc(L.phone)}</b>.</p>` : `<div class="relay">Your code is with the host. Ask them for the 4 digits.</div>`}
-          <input type="text" id="code" class="code-input" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="${L.via === 'sms' ? '••••••' : '••••'}" aria-label="Verification code" />
-          <button class="btn diya-btn big block" type="submit">${App.diya(true, 28)} Join the night</button>
-          <button class="btn ghost block" type="button" id="back">Change number</button>
-        </form></div>`;
-      const code = app.querySelector('#code');
-      code.focus();
-      app.querySelector('#back').onclick = () => { L.step = 'phone'; renderLogin(); };
-      app.querySelector('#f2').onsubmit = async (e) => {
-        e.preventDefault();
-        try {
-          const r = await App.post('/api/otp/verify', { cc: L.cc, phone: L.phone, code: code.value });
-          store.set('dgn_token', r.token);
-          App.confetti(1);
-          start(r.token);
-        } catch (err) { App.toast(err.message, true); code.classList.add('shake'); setTimeout(() => code.classList.remove('shake'), 500); }
-      };
+      return;
     }
+    app.innerHTML = `<div class="login">
+      <div class="shell-card slim">
+        <p class="greet">${greet}</p>
+        <h1>Enter your code</h1>
+        <p class="muted">${L.via === 'sms' ? 'Check the text on this phone.' : 'Ask the host to read the code from their console.'}</p>
+      </div>
+      <form class="card stack" id="fCode">
+        <input type="text" id="otp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="Code" aria-label="Verification code" value="${esc(L.otp)}" />
+        <button class="btn diya-btn big block" type="submit">${App.diya(true, 28)} Join the night</button>
+      </form>
+      <button class="btn ghost small" type="button" id="resend">Send a new code</button>
+    </div>`;
+    app.querySelector('#resend').onclick = () => { L.step = 'phone'; renderLogin(); };
+    app.querySelector('#fCode').onsubmit = async (e) => {
+      e.preventDefault();
+      L.otp = app.querySelector('#otp').value.trim();
+      const btn = e.submitter || app.querySelector('button[type=submit]');
+      btn.disabled = true;
+      try {
+        App.room = L.room;
+        const r = await App.post('/api/otp/verify', { room: L.room, cc: L.cc, phone: L.phone, code: L.otp });
+        remember(L.room, r.token);
+        App.confetti(1);
+        start(r.token);
+      } catch (err) { App.toast(err.message, true); btn.disabled = false; }
+    };
   }
 
   // =================== MAIN ===================
   // =================== CONTROLLER ===================
   // The TV is the source of truth. The phone shows one "moment" at a time: only what you
   // need to act on right now. Moments cross-fade when they change.
-  async function showLiveCount() {
-    try {
-      const v = await App.post('/api/view', { role: 'tv' });
-      const n = (v.players || []).filter((p) => p.online).length;
-      const el = document.getElementById('liveCount');
-      if (!el || !n) return;
-      el.hidden = false;
-      el.innerHTML = `<i></i>${n} ${n === 1 ? 'person' : 'people'} here`;
-    } catch { /* the count stays hidden when the room can't be read */ }
-  }
-
   function start(token) {
     app.innerHTML = `<header class="ctl-head" id="hdr"></header><main class="moment-wrap"><div id="moment"><p class="greet">Lighting the diyas…</p></div></main>`;
     sock = App.connect('player', token, (s) => onState(s), (msg) => {
       store.del('dgn_token');
+      store.del('dgn_token_room');
       if (sock) sock.disconnect();
       App.toast(msg, true);
-      L.step = 'phone';
+      L.step = App.room ? 'name' : 'room';
       startLogin();
     });
   }
@@ -186,7 +251,7 @@
     const score = `<div class="ring ring-sm" style="--p:${me.score ? pct : 0}" role="img" aria-label="${fmt(me.score)} points"><div><b id="scoreNum">${fmt(shownScore == null ? me.score : shownScore)}</b><small>pts</small></div></div>`;
     const here = S.players.filter((p) => p.online).length;
     App.patch(document.getElementById('hdr'), `<p class="greet">Happy Diwali, ${esc(me.name)}!</p>
-      <div class="head-row">${score}<div class="who"><b>${esc(me.name)}</b>${t ? `<span class="team-pill">${esc(t.emoji)} ${esc(t.name)}</span>` : `<span class="muted">${here} here</span>`}</div></div>`);
+      <div class="head-row">${score}<div class="who"><div class="who-line"><b>${esc(me.name)}</b><span class="room-chip">${esc(S.code || '')}</span></div>${t ? `<span class="team-pill">${esc(t.emoji)} ${esc(t.name)}</span>` : `<span class="muted">${here} here</span>`}</div></div>`);
     if (shownScore !== me.score) {
       const el = document.getElementById('scoreNum');
       if (shownScore != null && el) { App.countUp(el, me.score, 800, shownScore); const ring = el.closest('.ring'); if (ring) { ring.classList.remove('bump'); void ring.offsetWidth; ring.classList.add('bump'); } }
@@ -283,72 +348,33 @@
       ${m.streak >= 2 ? `<span class="streak">🔥 ${m.streak} in a row</span>` : ''}</div>`, 'watch'];
   }
 
-  // Jeopardy: the board is on the TV; your phone is a buzzer in your team's colour.
+  // Jeopardy: teams go one by one. Phones stay quiet; the team that is up answers out loud.
   function jeoM(G) {
-    const m = G.mine;
-    const ctl = G.control;
-    if (G.phase === 'board') {
-      return ['jp-board', watch('🧠', 'Eyes on the board', ctl ? (m.inControl ? `<b>Your ${G.mode === 'team' ? 'team picks' : 'pick'}!</b> Call out a category and value to the host.` : `${esc(ctl.name)} picks next.`) : 'The host is picking a clue.'), 'watch'];
-    }
-    if (G.phase === 'dd') return ['jp-dd', watch('💎', 'Daily Double!', m.inControl ? '<b>You found it!</b> Tell the host your wager.' : `${esc(ctl ? ctl.name : '')} is wagering…`), 'watch'];
+    const m = G.mine || {};
+    const who = G.turn;
     if (G.phase === 'answer') {
-      const won = G.last && G.last.correct && G.last.key === m.key;
-      return [won ? 'jp-won' : 'jp-ans', won ? `<div class="result good"><div class="r-em">🎉</div><h2>Correct!</h2><div class="r-pts">+<span data-countup="${G.last.value}">0</span></div><p>${G.mode === 'team' ? 'for your team · you pick next' : 'and you pick next'}</p></div>`
-        : watch('✨', 'Answer on the TV', G.last && G.last.correct ? `${esc(G.last.info.name)} got it.` : 'Nobody got that one.'), 'watch'];
+      const won = m.earned > 0;
+      return [won ? 'jp-won' : 'jp-ans', won ? `<div class="result good"><div class="r-em">🎉</div><h2>Correct!</h2><div class="r-pts">+<span data-countup="${m.earned}">0</span></div><p>for everyone on your team</p></div>`
+        : watch('✨', 'Answer on the TV', G.last && G.last.correct ? `${esc(G.last.info.name)} got it. Everyone on that team scores.` : 'No points that time.'), 'watch'];
     }
-    // clue
-    if (G.dd) return ['jp-ddclue', watch('💎', m.inControl ? 'Answer out loud!' : 'Daily Double', m.inControl ? `Your wager: <b>${fmt(G.wager)}</b>` : `${esc(ctl ? ctl.name : '')} is answering for ${fmt(G.wager)}`), 'watch'];
-    if (m.active) return ['jp-up', `<div class="buzz-wrap"><button class="buzzer up" disabled><span>YOU'RE UP</span></button><p class="buzz-cap"><b>Say your answer out loud!</b></p></div>`, 'answer'];
-    if (m.locked) return ['jp-locked', watch('🔒', 'Locked out', 'Wrong answer — wait for the next clue.'), 'watch'];
-    if (m.buzzed) return ['jp-queued', `<div class="buzz-wrap"><button class="buzzer queued" disabled><span>#${m.position}</span></button><p class="buzz-cap">You're #${m.position} in line</p></div>`, 'watch'];
-    if (!G.buzzOpen) {
-      return [`jp-armed-${G.cur.c}-${G.cur.i}`, `<div class="buzz-wrap"><button class="buzzer armed ${m.early ? 'early' : ''}" data-act="buzz"><span>${m.early ? 'TOO EARLY' : 'WAIT…'}</span></button>
-        <p class="buzz-cap">${m.early ? '⏳ Jumped the gun — short lockout when buzzers open' : 'Buzzers open when the host has read the clue'}</p></div>`, 'answer'];
-    }
-    return [`jp-open-${G.cur.c}-${G.cur.i}`, `<div class="buzz-wrap"><button class="buzzer open" data-act="buzz"><span>BUZZ!</span></button><p class="buzz-cap">First to buzz answers</p></div>`, 'answer'];
+    if (G.phase === 'clue' && m.up) return ['jp-up', watch('🧠', 'Your team is up', `<b>Answer out loud.</b> A right answer pays <b>${fmt(G.clue.value)} to each of you</b>.`), 'watch'];
+    if (G.phase === 'board' && m.up) return ['jp-board-up', watch('🧠', 'Your team is up', '<b>Call a category and value.</b> Then answer out loud.'), 'watch'];
+    return ['jp-wait', watch('🧠', 'Eyes on the board', who ? `${esc(who.name)} is up.` : 'Waiting for the next team.'), 'watch'];
   }
 
-  // KBC: the hot seat locks answers; everyone else predicts Sahi / Galat.
+  // KBC: solo. Everyone answers. Fastest correct gets full points; each later place gets less.
   function kbcM(G) {
-    if (G.phase === 'idle') return ['k-idle', watch('💰', 'Kaun Banega Crorepati', 'Fastest Finger First is coming — get ready!'), 'watch'];
-    if (G.phase === 'ff' || G.phase === 'ff-result') {
-      const f = G.ff;
-      if (G.phase === 'ff') {
-        if (App.now() < f.opensAt) { setTimeout(render, f.opensAt - App.now() + 30); return ['ff-wait', `<div class="get-ready"><span class="eyebrow">Fastest Finger First</span><div class="gr-num" data-count="${f.opensAt}"></div><p>Eyes on the TV</p></div>`, 'answer']; }
-        if (f.mine != null) return ['ff-locked', `<div class="locked"><div class="lock-tile kbc">${App.letters[f.mine]}</div><h2>Locked in!</h2><p class="hand">Fastest correct answer takes the hot seat</p></div>`, 'watch'];
-        return ['ff-open', `<div class="pad-head"><span class="eyebrow">Fastest Finger First</span><span class="secs" data-count="${f.deadline}"></span></div>${timer(f.opensAt, f.deadline)}
-          <div class="shape-pad kbc">${f.question.options.map((_, i) => `<button class="pad kbc" data-act="ff" data-i="${i}"><span class="kl">${App.letters[i]}</span></button>`).join('')}</div>`, 'answer'];
-      }
-      const won = f.result.winner === S.me.id;
-      return [won ? 'ff-won' : 'ff-res', won ? `<div class="result good"><div class="r-em">🪑</div><h2>You're the fastest!</h2><p>Take the hot seat</p></div>` : watch('⚡', 'Fastest Finger done', 'Watch who takes the hot seat!'), 'watch'];
+    if (G.phase === 'idle') return ['k-idle', watch('💰', 'Kaun Banega Crorepati', 'Every question is open to everyone. Be fast!'), 'watch'];
+    if (G.phase === 'done') return ['k-done', watch('💰', 'Round complete', 'Eyes on the TV for the scores.'), 'watch'];
+    const m = G.mine || {};
+    if (G.phase === 'question') {
+      if (App.now() < G.opensAt) { setTimeout(render, G.opensAt - App.now() + 30); return ['k-wait', `<div class="get-ready"><span class="eyebrow">For ${fmt(G.points)}</span><div class="gr-num" data-count="${G.opensAt}"></div><p>Eyes on the TV</p></div>`, 'answer']; }
+      if (m.choice != null) return ['k-locked', `<div class="locked"><div class="lock-tile kbc">${App.letters[m.choice]}</div><h2>Locked in!</h2><p class="hand">Fastest correct answer takes ${fmt(G.points)}</p></div>`, 'watch'];
+      return [`k-open-${G.qIndex}`, `<div class="pad-head"><span class="eyebrow">Q${G.qIndex + 1} · ${fmt(G.points)} for first</span><span class="secs" data-count="${G.deadline}"></span></div>${timer(G.opensAt, G.deadline)}
+        <div class="shape-pad kbc">${G.question.options.map((_, i) => `<button class="pad kbc" data-act="answer" data-i="${i}"><span class="kl">${App.letters[i]}</span></button>`).join('')}</div>`, 'answer'];
     }
-    const h = G.hot;
-    const isMe = h.pid === S.me.id;
-    const hp = S.players.find((p) => p.id === h.pid);
-    const lvl = G.ladder[h.questionLevel];
-    if (isMe) {
-      if (h.qPhase === 'over') return [`k-over`, `<div class="result ${h.status === 'wrong' ? 'bad' : 'good'}"><div class="r-em">${h.status === 'won' ? '🏆' : h.status === 'walked' ? '🚶' : '💔'}</div><h2>${fmt(h.winnings)} points</h2><p>${h.status === 'won' ? 'Crorepati! 🎆' : 'Thanks for playing!'}</p></div>`, 'watch'];
-      if (h.qPhase === 'reveal') return [`k-right-${h.questionLevel}`, `<div class="result good"><div class="r-em">✅</div><h2>Sahi jawab!</h2><p>${fmt(lvl.points)} points secured</p></div>`, 'watch'];
-      if (h.locked != null) return [`k-locked-${h.questionLevel}`, `<div class="locked"><div class="lock-tile kbc">${App.letters[h.locked]}</div><h2>Lock kiya!</h2><p class="hand">Waiting for the host to reveal…</p></div>`, 'watch'];
-      return [`k-q-${h.questionLevel}`, `<div class="pad-head"><span class="eyebrow">Q${h.questionLevel + 1} · for ${fmt(lvl.points)}</span><span class="eyebrow">safe ${fmt(h.safe)}</span></div>
-        <div class="kbc-list">${h.question.options.map((o, i) => `<button class="kbc-row ${h.removed.includes(i) ? 'gone' : ''}" data-act="lock" data-i="${i}"><b>${App.letters[i]}</b><span>${esc(o)}</span></button>`).join('')}</div>
-        <div class="lifelines">${[['fifty', '✂️ 50:50'], ['poll', '📊 Poll'], ['phone', '📞 Friend']].map(([k, l]) => `<button class="ll" data-act="lifeline" data-name="${k}" ${h.lifelines[k] ? '' : 'disabled'}>${l}</button>`).join('')}</div>
-        <button class="walk" data-act="walk">🚶 Walk away with ${fmt(h.level > 0 ? G.ladder[h.level - 1].points : 0)}</button>`, 'answer'];
-    }
-    if (h.poll && h.poll.open) {
-      if (h.myVote != null) return ['k-poll-done', watch('📊', 'Vote counted', `You said <b>${App.letters[h.myVote]}</b>.`), 'watch'];
-      return ['k-poll', `<div class="pad-head"><span class="eyebrow">📊 Audience poll — help ${esc(hp ? hp.name : '')}!</span></div>
-        <div class="shape-pad kbc">${[0, 1, 2, 3].map((i) => `<button class="pad kbc ${h.removed.includes(i) ? 'gone' : ''}" data-act="poll" data-i="${i}"><span class="kl">${App.letters[i]}</span></button>`).join('')}</div>`, 'answer'];
-    }
-    if (h.qPhase === 'question') {
-      if (h.myPrediction) return [`k-pred-${h.questionLevel}-done`, watch('🔮', `You said ${h.myPrediction === 'sahi' ? 'Sahi ✅' : 'Galat ❌'}`, `+25 if you call it right. Watch ${esc(hp ? hp.name : '')} sweat!`), 'watch'];
-      return [`k-pred-${h.questionLevel}`, `<div class="predict"><span class="eyebrow">${esc(hp ? hp.name : '')} · Q${h.questionLevel + 1} for ${fmt(lvl.points)}</span><h2>Will they get it right?</h2><p>Call it for +25</p>
-        <div class="pred-row"><button class="pred yes" data-act="predict" data-pick="sahi">✅<span>Sahi</span></button><button class="pred no" data-act="predict" data-pick="galat">❌<span>Galat</span></button></div></div>`, 'answer'];
-    }
-    if (h.qPhase === 'reveal' || h.qPhase === 'over') {
-      if (h.myPrediction) return [h.iCalledIt ? `called-yes-${h.questionLevel}` : `called-no-${h.questionLevel}`, h.iCalledIt ? `<div class="result good"><div class="r-em">🔮</div><h2>Called it!</h2><div class="r-pts">+<span data-countup="25">0</span></div></div>` : `<div class="result bad"><div class="r-em">🙈</div><h2>Not this time</h2><p>Next question!</p></div>`, 'watch'];
-    }
-    return ['k-watch', watch('🪑', `${esc(hp ? hp.name : '')} is in the hot seat`, 'Eyes on the TV!'), 'watch'];
+    if (m.points > 0) return [`k-place-${G.qIndex}`, `<div class="result good"><div class="r-em">${m.rank === 1 ? '👑' : '✅'}</div><h2>${m.rank === 1 ? 'Fastest!' : 'Place #' + m.rank}</h2><div class="r-pts">+<span data-countup="${m.points}">0</span></div></div>`, 'watch'];
+    return [`k-miss-${G.qIndex}`, watch('😅', 'Not this time', `The answer was <b>${App.letters[G.result.answer]}</b>.`), 'watch'];
   }
 
   // Hook Step: no phones needed — just watch the TV and come dance.
@@ -515,12 +541,11 @@
       confirmSheet(`<div class="center"><h3>Lock kiya jaaye?</h3><p style="font-size:20px"><b>${App.letters[i]}. ${esc(q.options[i])}</b></p></div>`, '🔒 Lock it', () => game({ type: 'lock', choice: i }));
     } else if (act === 'walk') confirmSheet('<h3>Walk away?</h3><p class="muted">You keep the points you have secured.</p>', '🚶 Walk away', () => game({ type: 'walk' }));
     else if (act === 'about') { modal.innerHTML = ''; openQuestionnaire(); }
-    else if (act === 'logout') confirmSheet('<h3>Log out?</h3><p class="muted">Your points are safe.</p>', 'Log out', () => { store.del('dgn_token'); location.reload(); });
+    else if (act === 'logout') confirmSheet('<h3>Leave this phone?</h3><p class="muted">Your score stays in the room. Join again with the same phone number.</p>', 'Leave', () => { store.del('dgn_token'); store.del('dgn_token_room'); location.reload(); });
   }
   app.addEventListener('click', handle);
   dock.addEventListener('click', handle);
   modal.addEventListener('click', handle);
 
-  const tok = store.get('dgn_token');
-  if (tok) start(tok); else startLogin();
+  startLogin();
 })();

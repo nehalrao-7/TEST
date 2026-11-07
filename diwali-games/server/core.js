@@ -1,6 +1,6 @@
 // Request handling shared by the Vercel function (api/main.js) and the local dev server.
-// Each request: load state -> apply passed deadlines -> run the action -> save (with an
-// optimistic version check, retried on conflict) -> return the caller's view.
+// Each request: load state -> check who is calling -> apply passed deadlines -> run the
+// action -> save (with an optimistic version check, retried on conflict) -> return the view.
 
 const crypto = require('crypto');
 const QRCode = require('qrcode');
@@ -11,15 +11,106 @@ const { smsEnabled, sendSms } = require('./sms');
 const { parseYouTube } = require('./youtube');
 const P = require('./personalize');
 const Bots = require('./bots');
-const { practiceContent } = require('./practice');
+const { applyDifficulty } = require('./practice');
+const { phoneHash, legacyPhoneHash, phoneTail, maskTail } = require('./privacy');
 
 const st = () => S.state;
 let ONLINE = new Set();
-const LOCAL_REACTS = [];
+const REACT_EMOJI = new Set(['🔥', '😂', '👏', '😱', '💃', '🪔']);
 const token = () => crypto.randomBytes(24).toString('base64url');
-// OPEN_ACCESS=true skips the host PIN and the phone code (for rehearsals). Turn it off for the party.
-const OPEN = /^(1|true|yes|on)$/i.test(process.env.OPEN_ACCESS || '');
 const findPlayerByToken = (t) => t && Object.values(st().players).find((p) => p.tokens.includes(t));
+const OTP_SENT = new Map();
+function pinsEqual(given, expected) {
+  const norm = (s) => String(s || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const a = crypto.createHash('sha256').update(norm(given)).digest();
+  const b = crypto.createHash('sha256').update(norm(expected)).digest();
+  return crypto.timingSafeEqual(a, b);
+}
+function keysEqual(given, expected) {
+  const a = crypto.createHash('sha256').update(String(given ?? ''), 'utf8').digest();
+  const b = crypto.createHash('sha256').update(String(expected ?? ''), 'utf8').digest();
+  return crypto.timingSafeEqual(a, b);
+}
+function hostCreateKey() {
+  const key = String(process.env.HOST_CREATE_KEY || '');
+  return key.length >= 8 ? key : '';
+}
+const PIN_LOCK_MS = 15 * 60 * 1000;
+const pinMisses = new Map();
+const MAX_ROOMS = 30;
+const EMPTY_ROOM_MS = 3 * 60 * 60 * 1000;
+const LIVE_ROOM_MS = 12 * 60 * 60 * 1000;
+const OTP_GAP_MS = 60 * 1000;
+const OTP_PHONE_HOUR = 5;
+const OTP_GLOBAL_HOUR = 80;
+
+// Rooms nobody is in are temporary. A room with guests stays until the party has been quiet for 12 hours.
+// `meta` is the public summary only: code, times, guest count. It does not include players.
+function roomShouldExpire(meta, now) {
+  if (!meta || typeof meta !== 'object') return true;
+  const stamp = Number(meta.activeAt || meta.createdAt) || 0;
+  const humans = Number(meta.humans) || 0;
+  if (!stamp) return humans === 0;
+  return now - stamp > (humans > 0 ? LIVE_ROOM_MS : EMPTY_ROOM_MS);
+}
+
+function pruneOtp(book, now) {
+  const rates = book.otpAt && typeof book.otpAt === 'object' && !Array.isArray(book.otpAt) ? book.otpAt : {};
+  book.otpAt = rates;
+  for (const [key, times] of Object.entries(rates)) {
+    const keep = (Array.isArray(times) ? times : [times]).map(Number).filter((t) => now - t < 60 * 60 * 1000);
+    if (keep.length) rates[key] = keep;
+    else delete rates[key];
+  }
+}
+
+async function reapExpired(store, now) {
+  const rows = await store.listRooms();
+  let removed = false;
+  for (const row of rows) {
+    if (roomShouldExpire(row, now)) {
+      await store.deleteRoom(row.code);
+      removed = true;
+    }
+  }
+  return removed;
+}
+
+// A new party must be able to start. Rooms with no guests give up their slot first.
+async function freeSlot(store) {
+  let rows = await store.listRooms();
+  const oldest = (pred) => rows.filter(pred).sort((a, b) => (Number(a.activeAt || a.createdAt) || 0) - (Number(b.activeAt || b.createdAt) || 0));
+  while (rows.length >= MAX_ROOMS) {
+    const idle = oldest((row) => !row.humans && !row.hasLive);
+    const anyEmpty = idle.length ? idle : oldest((row) => !row.humans);
+    if (!anyEmpty.length) return false;
+    await store.deleteRoom(anyEmpty[0].code);
+    rows = rows.filter((row) => row.code !== anyEmpty[0].code);
+  }
+  return true;
+}
+
+function takeOtpSlot(book, phone, now) {
+  pruneOtp(book, now);
+  const key = phoneHash(phone);
+  const mine = book.otpAt[key] ? book.otpAt[key].slice() : [];
+  if (mine.length && now - mine[mine.length - 1] < OTP_GAP_MS) return 'soon';
+  if (mine.length >= OTP_PHONE_HOUR) return 'hour';
+  const global = Object.values(book.otpAt).reduce((n, times) => n + times.length, 0);
+  if (global >= OTP_GLOBAL_HOUR) return 'busy';
+  mine.push(now);
+  book.otpAt[key] = mine;
+  return '';
+}
+let sizeWarned = false;
+function guardSize(room) {
+  const bytes = JSON.stringify(room).length;
+  if (bytes > 800000 && !sizeWarned) {
+    sizeWarned = true;
+    console.warn('[dgn] saved game is ' + bytes + ' bytes');
+  }
+  if (bytes > 1500000) throw new HttpError(503, 'This party is full.');
+}
 const isHostToken = (t) => t && st().hostTokens.includes(t);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -40,7 +131,7 @@ function liveView(viewer) {
   const found = st().games.find((g) => g.id === live.gameId);
   const game = found && playGame(found);
   if (!game) return null;
-  return { gameId: game.id, type: game.type, title: game.title, emoji: game.emoji, mode: game.mode, practice: Boolean(live.practice), ...engines[game.type].view(live, game, viewer) };
+  return { gameId: game.id, type: game.type, title: game.title, emoji: game.emoji, mode: game.mode, practice: Boolean(live.practice), difficulty: live.difficulty || null, difficultyName: live.difficultyName || '', ...engines[game.type].view(live, game, viewer) };
 }
 
 function playerView(p, base) {
@@ -74,17 +165,28 @@ function hostView(base) {
     settings: s.settings,
     smsEnabled,
     ledger: s.ledger.slice(-150).reverse(),
-    pending: Object.entries(s.pending).filter(([, v]) => v.expires > Date.now()).map(([phone, v]) => ({ phone: maskPhone(phone), name: v.name, code: v.via === 'sms' ? null : v.code, via: v.via, at: v.at })),
-    playersDetail: Object.values(s.players).map((p) => ({ id: p.id, bot: Boolean(p.bot), phone: p.bot ? '🤖 demo bot' : maskPhone(p.phone), powerups: p.powerups, doublePending: p.doublePending, doubleArmed: Boolean(p.doubleArmed) })),
+    pending: Object.entries(s.pending).filter(([, v]) => v.expires > Date.now()).map(([, v]) => ({ phone: maskTail(v.phoneTail), name: v.name, code: v.via === 'sms' ? null : v.code, via: v.via, at: v.at })),
+    playersDetail: Object.values(s.players).map((p) => ({ id: p.id, bot: Boolean(p.bot), phone: p.bot ? '🤖 demo bot' : maskTail(p.phoneTail), powerups: p.powerups, doublePending: p.doublePending, doubleArmed: Boolean(p.doubleArmed) })),
     powerupDefs: S.POWERUPS,
     questionnaire: s.questionnaire,
     answers: Object.values(s.players).map((p) => ({ id: p.id, answers: p.answers || {} })),
     personalPreview: P.preview(s, 6),
     personalCount: s.live ? s.live.personalCount || 0 : 0,
     demo: s.demo && s.demo.on ? { bots: Object.values(s.players).filter((p) => p.bot).length } : null,
+    tvSecret: s.tvSecret || '',
   };
 }
-const maskPhone = (ph) => (ph ? ph.slice(0, 3) + ' ••• ' + ph.slice(-4) : '');
+const playerByPhone = (phone) => {
+  const hash = phoneHash(phone);
+  const players = Object.values(st().players);
+  const found = players.find((p) => p.phoneHash === hash);
+  if (found) return found;
+  // Saved by an older build with the weaker hash: match once, then upgrade it.
+  const old = legacyPhoneHash(phone);
+  const legacy = players.find((p) => p.phoneHash === old);
+  if (legacy) legacy.phoneHash = hash;
+  return legacy;
+};
 // ---------------- game lifecycle ----------------
 
 const gameById = (gid) => {
@@ -103,20 +205,26 @@ function startGame(gid) {
   const s = st();
   if (s.live) throw new Error('Another game is live — end it first.');
   const game = gameById(gid);
+  if (game.type === 'kbc') game.mode = 'individual';
   if (game.mode === 'team' && !Object.keys(s.teams).length) throw new Error('This is a team game — create teams first (Players tab).');
   s.rankSnapshots[gid] = S.ranking().map((r) => ({ id: r.id, rank: r.rank, score: r.score }));
   for (const p of Object.values(s.players)) {
     if (p.doublePending) { p.doubleArmed = true; p.doublePending = false; }
   }
   game.status = 'live';
-  // Practice mode: easy stand-in questions so the real set stays unseen; personal questions
-  // only use the bots' answers, so real guests' answers aren't revealed either.
+  // Difficulty is chosen on the host before Start and stays with the room.
+  // Warm uses the easy set. Practice mode still keeps real guests' answers out of the questions.
+  const level = Math.max(1, Math.min(5, Number(s.settings.difficulty) || (s.settings.practice ? 1 : 3)));
+  const tuned = applyDifficulty(game, level);
   let content, count;
-  if (s.settings.practice) {
+  if (level <= 1) {
+    content = tuned.content;
+    count = 0;
+  } else if (s.settings.practice) {
     const bots = Object.fromEntries(Object.entries(s.players).filter(([, p]) => p.bot));
-    ({ content, count } = P.personalize({ ...game, content: practiceContent(game) }, { ...s, players: bots, personalUsed: [] }));
-  } else ({ content, count } = P.personalize(game, s));
-  s.live = { gameId: gid, ...engines[game.type].init(game), content, personalCount: count, practice: Boolean(s.settings.practice) };
+    ({ content, count } = P.personalize({ ...game, content: tuned.content }, { ...s, players: bots, personalUsed: [] }));
+  } else ({ content, count } = P.personalize({ ...game, content: tuned.content }, s));
+  s.live = { gameId: gid, ...engines[game.type].init(game), content, personalCount: count, practice: level <= 1 || Boolean(s.settings.practice), difficulty: tuned.level, difficultyName: tuned.name };
   s.tv.view = 'game';
   const base = game.mode === 'team' ? 'Team game — huddle up!' : 'Every player for themselves!';
   // The intro scene is the title card. This line sits under it, so the open stays readable.
@@ -164,14 +272,14 @@ function computeAwardsLive() {
   const comeback = base ? top((p) => { const b = base.find((x) => x.id === p.id); const now = ranking.find((x) => x.id === p.id); return b && now ? b.rank - now.rank : null; }, 2) : null;
   const pct = (p) => (stat(p.id).answered >= 5 ? Math.round((100 * stat(p.id).correct) / stat(p.id).answered) : null);
   const list = [
-    { id: 'bijli', emoji: '⚡', title: 'Bijli Fingers', desc: 'Fastest correct answer, again and again', r: top((p) => stat(p.id).fastest), fmt: (v) => `${v}× fastest on the buzzer` },
+    { id: 'bijli', emoji: '⚡', title: 'Bijli Fingers', desc: 'Fastest correct answer, again and again', r: top((p) => stat(p.id).fastest), fmt: (v) => `${v}× first to the answer` },
     { id: 'sharp', emoji: '🎯', title: 'Teer-Andaaz', desc: 'The sharpest accuracy of the night', r: top(pct, 50), fmt: (v) => `${v}% correct` },
     { id: 'fire', emoji: '🔥', title: 'Anaar on Fire', desc: 'Longest answer streak', r: top((p) => stat(p.id).bestStreak, 3), fmt: (v) => `${v} right in a row` },
     { id: 'chor', emoji: '🦹', title: 'Master Chor', desc: 'Pickpocketed the most points', r: top((p) => stat(p.id).steals), fmt: (v) => `${v} successful heist${v > 1 ? 's' : ''}` },
     { id: 'kavach', emoji: '🛡️', title: 'Raksha Kavach', desc: 'Survived an attack, untouched', r: top((p) => stat(p.id).blocks), fmt: (v) => `${v} attack${v > 1 ? 's' : ''} blocked` },
-    { id: 'buzz', emoji: '🔔', title: 'Buzzer Baadshah', desc: 'Won the most Jeopardy clues', r: top((p) => stat(p.id).buzzWins, 2), fmt: (v) => `${v} clues won` },
+    { id: 'buzz', emoji: '🔔', title: 'Clue Champ', desc: 'Won the most Jeopardy clues', r: top((p) => stat(p.id).buzzWins, 2), fmt: (v) => `${v} clues won` },
     { id: 'dance', emoji: '💃', title: 'Hook Step Hero', desc: 'Highest-rated performance', r: top((p) => stat(p.id).hookBest), fmt: (v) => `${v} points on the dance floor` },
-    { id: 'crore', emoji: '💰', title: 'Crorepati', desc: 'Biggest win in the hot seat', r: top((p) => stat(p.id).kbcBest), fmt: (v) => `${v.toLocaleString('en-IN')} points from the hot seat` },
+    { id: 'crore', emoji: '💰', title: 'Crorepati', desc: 'Biggest single KBC score', r: top((p) => stat(p.id).kbcBest), fmt: (v) => `${v.toLocaleString('en-IN')} points on one question` },
     { id: 'comeback', emoji: '📈', title: 'Comeback Champ', desc: 'Climbed the most places', r: comeback, fmt: (v) => `up ${v} places` },
   ];
   return list.filter((a) => a.r).map((a) => ({
@@ -204,18 +312,17 @@ function autoMedia() {
     const cl = c.categories[live.cur.c].clues[live.cur.i];
     return mk(cl, `c${live.cur.c}-${live.cur.i}`, live.phase === 'answer', `${c.categories[live.cur.c].name} ${cl.value}`);
   }
-  if (game.type === 'kbc') {
-    if (['ff', 'ff-result'].includes(live.phase) && live.ff) return mk((c.fastestFinger || [])[live.ff.qi], `ff${live.ff.qi}`, live.phase === 'ff-result', 'Fastest Finger First');
-    const h = live.hot;
-    if (live.phase === 'hot' && h && h.qPhase !== 'over') {
-      const q = engines.kbc.currentQ(game, h);
-      return mk(q, `hot${h.seat}-${h.qLevel}`, h.qPhase === 'reveal', `KBC · Q${h.qLevel + 1}`);
-    }
+  if (game.type === 'kbc' && ['question', 'reveal'].includes(live.phase) && live.qIndex >= 0) {
+    const q = engines.kbc.list(game)[live.qIndex];
+    return mk(q, `k${live.qIndex}`, live.phase === 'reveal', `KBC · Q${live.qIndex + 1}`);
   }
   if (game.type === 'hookstep' && live.perf && live.perf.songIndex != null && (live.phase === 'perform' || live.phase === 'judge')) {
     const song = (c.songs || [])[live.perf.songIndex];
-    // Visible the whole dance. The TV blurs it until the clock hits zero, then replays it sharp.
-    return mk(song, `song${live.perf.songIndex}-${live.results.length}`, true, song ? song.title : '');
+    // Full screen for the dance. The blur lifts when the clock hits zero. The clip has no end
+    // point, so it keeps playing until the host leaves this dance.
+    const media = mk(song, `song${live.perf.songIndex}-${live.results.length}`, true, song ? song.title : '');
+    if (media) delete media.end;
+    return media;
   }
   return null;
 }
@@ -269,6 +376,7 @@ function hostAction(a) {
   const s = st();
   switch (a.type) {
     case 'settings': {
+      if (a.difficulty !== undefined) s.settings.difficulty = Math.max(1, Math.min(5, Math.round(Number(a.difficulty)) || 3));
       const allowed = ['eventName', 'powerupsEnabled', 'stealAmount', 'swapCap', 'powerupsPerPlayer', 'personalPct', 'questionnaireOpen', 'practice'];
       for (const k of allowed) if (a[k] !== undefined) s.settings[k] = typeof s.settings[k] === 'number' ? Number(a[k]) || 0 : a[k];
       break;
@@ -298,7 +406,7 @@ function hostAction(a) {
     }
     case 'undo': s.ledger = s.ledger.filter((e) => e.id !== a.entryId); break;
     case 'media': mediaAction(a); break;
-    case 'demoStart': Bots.create(s, Math.max(2, Math.min(14, Number(a.count) || 8))); s.settings.practice = true; break;
+    case 'demoStart': Bots.create(s, Math.max(2, Math.min(14, Number(a.count) || 8))); s.settings.practice = true; s.settings.difficulty = 1; break;
     case 'demoEnd': {
       Bots.remove(s);
       s.settings.practice = false;
@@ -341,6 +449,7 @@ function hostAction(a) {
       if (a.title) g.title = String(a.title).slice(0, 40);
       if (a.emoji) g.emoji = String(a.emoji).slice(0, 8);
       if (a.mode && g.status !== 'live') g.mode = a.mode === 'team' ? 'team' : 'individual';
+      if (g.type === 'kbc') g.mode = 'individual';
       if (a.personalize !== undefined) g.personalize = Boolean(a.personalize);
       if (a.content !== undefined) {
         if (g.status === 'live') throw new Error('End the game before editing its content.');
@@ -353,7 +462,7 @@ function hostAction(a) {
     case 'addGame': {
       const type = engines[a.gameType] ? a.gameType : 'custom';
       const emojis = { quiz: '❓', jeopardy: '🧠', kbc: '💰', hookstep: '💃', custom: '🎯' };
-      s.games.push({ id: 'g' + S.id(5), type, title: String(a.title || 'New Game').slice(0, 40), emoji: emojis[type], mode: a.mode === 'team' ? 'team' : 'individual', status: 'pending', content: JSON.parse(JSON.stringify(templates[type])) });
+      s.games.push({ id: 'g' + S.id(5), type, title: String(a.title || 'New Game').slice(0, 40), emoji: emojis[type], mode: type === 'kbc' ? 'individual' : (a.mode === 'team' ? 'team' : 'individual'), status: 'pending', content: JSON.parse(JSON.stringify(templates[type])) });
       break;
     }
     case 'deleteGame': { const g = gameById(a.gameId); if (g.status === 'live') throw new Error('End it first.'); s.games = s.games.filter((x) => x !== g); break; }
@@ -380,7 +489,21 @@ function hostAction(a) {
     case 'resetScores': s.ledger = []; s.rankSnapshots = {}; s.stats = {}; s.personalUsed = []; s.awardsFrozen = null; s.awardsGiven = {}; s.live = null; s.games.forEach((g) => { g.status = 'pending'; });
       Object.values(s.players).forEach((p) => { p.doubleGameId = null; p.doubleArmed = false; p.doublePending = false; p.powerups = S.dealPowerups(s.settings.powerupsPerPlayer); });
       s.tv = { view: 'lobby', announce: null, compareGameId: null }; s.feed = []; break;
-    case 'resetAll': { const fresh = S.freshState(); fresh.hostTokens = s.hostTokens; S.setState(fresh); break; }
+    case 'resetAll': {
+      const fresh = S.freshState();
+      fresh.code = s.code;
+      fresh.hostPin = s.hostPin;
+      fresh.tvSecret = s.tvSecret;
+      fresh.hostPinFails = 0;
+      fresh.hostPinLockedUntil = 0;
+      fresh.hostTokens = s.hostTokens;
+      fresh.settings.eventName = s.settings.eventName;
+      fresh.settings.difficulty = s.settings.difficulty || 3;
+      S.setState(fresh);
+      fresh.hostPin = s.hostPin;
+      fresh.tvSecret = s.tvSecret;
+      break;
+    }
     default: throw new Error('Unknown action.');
   }
 }
@@ -426,33 +549,100 @@ function serial(fn) {
   return run;
 }
 
-function run(store, mutate) {
+const ROOM_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+let ROOM = '';
+
+function canonRoom(raw) {
+  const s = String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  return /^[A-Z0-9]{4}$/.test(s) ? s : '';
+}
+
+function newRoomCode(codes) {
+  const taken = new Set(codes);
+  for (let n = 0; n < 40; n++) {
+    let s = '';
+    for (let i = 0; i < 4; i++) s += ROOM_ALPHABET[crypto.randomInt(ROOM_ALPHABET.length)];
+    if (!taken.has(s)) return s;
+  }
+  throw new HttpError(503, 'Could not make a room code. Try again.');
+}
+
+function needRoom(body) {
+  const code = canonRoom(body && body.room);
+  if (!code) throw new HttpError(400, 'Enter a 4-character room code.');
+  return code;
+}
+
+// A room code is public. Deadlines, bot moves, and scoring run only after this check.
+function callerGate(body) {
+  if (body && body.role === 'host') {
+    if (!isHostToken(body.token)) throw new HttpError(401, 'Please log in again.');
+    return;
+  }
+  if (body && body.role === 'player') {
+    if (!findPlayerByToken(body.token)) throw new HttpError(401, 'Please log in again.');
+    return;
+  }
+  if (!st().tvSecret || !pinsEqual(body && body.tvSecret, st().tvSecret)) throw new HttpError(401, 'Open the TV from the host console.');
+}
+function actorGate(body) {
+  if (body && body.role === 'host') {
+    if (!isHostToken(body.token)) throw new HttpError(401, 'Please log in again.');
+    return;
+  }
+  if (!findPlayerByToken(body && body.token)) throw new HttpError(401, 'Please log in again.');
+}
+function tvGate(body) {
+  if (!st().tvSecret || !pinsEqual(body && body.tvSecret, st().tvSecret)) throw new HttpError(401, 'Open the TV from the host console.');
+}
+
+// One party is loaded and saved at a time. opts.gate runs before any deadline or bot move.
+// opts.skipTick keeps join and host login from advancing a live game.
+function run(store, roomCode, mutate, touch, opts) {
+  const gate = opts && opts.gate;
+  const skipTick = Boolean(opts && opts.skipTick);
   return serial(async () => {
+    const code = canonRoom(roomCode);
+    if (!code) throw new HttpError(400, 'Enter a 4-character room code.');
     for (let attempt = 0; attempt < 30; attempt++) {
-      const loaded = await store.load();
-      const fresh = !loaded.data;
-      S.setState(fresh ? S.freshState() : loaded.data);
-      // Demo bots count as online so "everyone answered" waits for them too.
-      ONLINE = new Set([...(loaded.online || []), ...Object.values(st().players).filter((p) => p.bot).map((p) => p.id)]);
-      const before = fresh ? null : JSON.stringify(st());
-      Bots.takeReacts();
-      tick(st());
-      Bots.tick(st(), { engines, playGame, online: ONLINE, usePowerup: S.usePowerup });
+      await reapExpired(store, Date.now());
+      const loaded = await store.loadRoom(code);
+      const room = loaded.room;
+      if (!room) throw new HttpError(404, 'No room with that code. Check the letters and try again.');
+      room.code = code;
+      ROOM = code;
+      S.setState(room);
+      ONLINE = new Set([
+        ...(loaded.online || []),
+        ...Object.values(st().players).filter((p) => p.bot).map((p) => p.id),
+      ]);
+      if (gate) gate();
+      const before = JSON.stringify(st());
+      if (!skipTick) {
+        Bots.takeReacts();
+        tick(st());
+        Bots.tick(st(), { engines, playGame, online: ONLINE, usePowerup: S.usePowerup });
+      }
       const afterTick = JSON.stringify(st());
       let result;
       let error = null;
       try { result = await mutate(); } catch (e) { error = e; S.setState(JSON.parse(afterTick)); }
+      const botReacts = Bots.takeReacts();
+      if (botReacts.length) {
+        const now = Date.now();
+        st().reacts = [...(Array.isArray(st().reacts) ? st().reacts : []).filter((r) => now - r.at < 8000),
+          ...botReacts.map((r) => ({ at: now, id: String(r.id || crypto.randomBytes(6).toString('hex')).slice(0, 20), emoji: String(r.emoji || '').slice(0, 8), name: String(r.name || '').slice(0, 20) }))].slice(-30);
+      }
+      st().code = code;
+      if (touch) st().activeAt = Date.now();
       const after = JSON.stringify(st());
       let version = loaded.version;
       if (after !== before) {
-        const v = await store.save(loaded.version, st());
+        guardSize(st());
+        const v = await store.saveRoom(code, loaded.version, st());
         if (v == null) { await sleep(20 + Math.random() * 60 * (attempt + 1)); continue; }
         version = v;
-      }
-      const reacts = Bots.takeReacts();
-      if (reacts.length) {
-        if (store.broadcast) store.broadcast(reacts).catch(() => {});
-        else { LOCAL_REACTS.push(...reacts); LOCAL_REACTS.splice(0, Math.max(0, LOCAL_REACTS.length - 30)); }
+        if (store.nudge) await store.nudge(code, v).catch(() => {});
       }
       if (error) throw error;
       return { result, version };
@@ -461,10 +651,87 @@ function run(store, mutate) {
   });
 }
 
+async function saveBook(store, version, book) {
+  const v = await store.saveBook(version, book);
+  return v;
+}
+
+function claimOtp(store, phone, roomCode) {
+  return serial(async () => {
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const loaded = await store.loadBook();
+      const book = loaded.book;
+      const now = Date.now();
+      const before = JSON.stringify(book);
+      const reason = takeOtpSlot(book, phone, now);
+      if (JSON.stringify(book) !== before) {
+        const v = await saveBook(store, loaded.version, book);
+        if (v == null) { await sleep(20 + Math.random() * 60 * (attempt + 1)); continue; }
+      }
+      if (reason === 'soon' || reason === 'hour') throw new HttpError(429, reason === 'hour' ? 'Too many codes for that number. Wait a few minutes.' : 'Code just sent — wait a few seconds before asking again.');
+      if (reason === 'busy') throw new HttpError(429, 'Too many codes right now. Wait a few minutes.');
+      return { exists: await store.roomExists(canonRoom(roomCode)) };
+    }
+    throw new HttpError(503, 'The party is very busy — please tap again!');
+  });
+}
+
+function createRoom(store, body) {
+  const expected = hostCreateKey();
+  if (!expected) throw new HttpError(403, 'Room creation is turned off until a host key is set.');
+  const given = String((body && body.key) || '').slice(0, 200);
+  return serial(async () => {
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const loaded = await store.loadBook();
+      const book = loaded.book;
+      const now = Date.now();
+      await reapExpired(store, now);
+      book.createFails = (Array.isArray(book.createFails) ? book.createFails : []).filter((t) => now - t < 10 * 60 * 1000);
+      book.creates = (Array.isArray(book.creates) ? book.creates : []).filter((t) => now - t < 10 * 60 * 1000);
+      const before = JSON.stringify(book);
+      const authed = keysEqual(given, expected);
+      if (!authed) {
+        if (book.createFails.length < 8) book.createFails.push(now);
+        if (JSON.stringify(book) !== before) {
+          const v = await saveBook(store, loaded.version, book);
+          if (v == null) { await sleep(20 + Math.random() * 60 * (attempt + 1)); continue; }
+        }
+        throw new HttpError(book.createFails.length >= 8 ? 429 : 401, book.createFails.length >= 8 ? 'Too many tries. Wait a few minutes.' : 'That host key is not right.');
+      }
+      const roomOpen = book.creates.length < 8 && await freeSlot(store);
+      if (!roomOpen) {
+        if (JSON.stringify(book) !== before) {
+          const v = await saveBook(store, loaded.version, book);
+          if (v == null) { await sleep(20 + Math.random() * 60 * (attempt + 1)); continue; }
+        }
+        throw new HttpError(429, book.creates.length >= 8 ? 'Too many new rooms. Wait a few minutes.' : 'Too many rooms are open.');
+      }
+      book.creates.push(now);
+      const savedBook = await saveBook(store, loaded.version, book);
+      if (savedBook == null) { await sleep(20 + Math.random() * 60 * (attempt + 1)); continue; }
+      const code = newRoomCode((await store.listRooms()).map((row) => row.code));
+      const room = S.freshState();
+      room.code = code;
+      room.createdAt = now;
+      room.activeAt = now;
+      const name = String((body && body.eventName) || '').trim().slice(0, 40);
+      if (name) room.settings.eventName = name;
+      room.settings.difficulty = 3;
+      const t = token();
+      room.hostTokens = [t];
+      guardSize(room);
+      const v = await store.saveRoom(code, 0, room);
+      if (v == null) { await sleep(20 + Math.random() * 60 * (attempt + 1)); continue; }
+      return { code, token: t, pin: room.hostPin };
+    }
+    throw new HttpError(503, 'The party is very busy — please tap again!');
+  });
+}
+
 function baseFor() {
   return { ...S.basePublic(ONLINE), nextDeadline: nextDeadline(st()) };
 }
-function viewFor(role, tok) {
+function viewFor(role, tok, tvSecret) {
   if (role === 'host') {
     if (!isHostToken(tok)) throw new HttpError(401, 'Please log in again.');
     return { ...hostView(baseFor()), media: currentMedia(), awardsCount: computeAwards().length };
@@ -474,8 +741,12 @@ function viewFor(role, tok) {
     if (!p) throw new HttpError(401, 'Please log in again.');
     return playerView(p, baseFor());
   }
+  if (!st().tvSecret || !pinsEqual(tvSecret, st().tvSecret)) throw new HttpError(401, 'Open the TV from the host console.');
   const tvExtra = st().tv.view === 'awards' ? { awards: computeAwards(), awardPoints: AWARD_POINTS } : {};
-  return { ...baseFor(), role: 'tv', live: liveView({ tv: true }), media: currentMedia(), ...tvExtra, reactions: LOCAL_REACTS.length ? LOCAL_REACTS : undefined };
+  const reactions = (Array.isArray(st().reacts) ? st().reacts : [])
+    .filter((r) => Date.now() - r.at < 8000)
+    .map(({ at, id, emoji, name }) => ({ at, id, emoji, name }));
+  return { ...baseFor(), role: 'tv', live: liveView({ tv: true }), media: currentMedia(), ...tvExtra, reactions: reactions.length ? reactions : undefined };
 }
 
 async function handle(store, method, path, body = {}, query = {}) {
@@ -488,127 +759,158 @@ async function handle(store, method, path, body = {}, query = {}) {
       return { svg: await QRCode.toString(text, { type: 'svg', margin: 1, color: { dark: '#2a0845', light: '#ffffff' } }) };
     }
     if (path === 'meta') {
-      const { result } = await run(store, () => st().settings.eventName);
-      return { json: { eventName: result, avatars: S.AVATARS, smsEnabled, realtime: store.realtime || null, openAccess: OPEN } };
+      return { json: { eventName: 'Diwali Game Night', avatars: S.AVATARS, smsEnabled, realtime: store.realtime || null } };
     }
     if (method !== 'POST') return { status: 405, json: { error: 'Method not allowed' } };
 
+    if (path === 'room/create') {
+      return { json: await createRoom(store, body) };
+    }
+
+    if (path === 'join') {
+      return { status: 401, json: { error: 'Verify the code sent to your phone before joining.' } };
+    }
+
     if (path === 'applause') {
       // The TV's microphone reports how loud the crowd cheered for a Hook Step dance.
-      await run(store, () => {
+      await run(store, needRoom(body), () => {
         const live = st().live;
         const game = live && st().games.find((g) => g.id === live.gameId);
         if (game && game.type === 'hookstep') engines.hookstep.applause(live, String(body.id || ''), body.level);
-      });
+      }, false, { gate: () => tvGate(body) });
       return { json: { ok: true } };
     }
     if (path === 'react') {
-      // Local mode only — hosted mode sends reactions peer-to-peer over Supabase Realtime.
-      const r = { at: Date.now(), id: String(body.id || Math.random()).slice(0, 20), emoji: String(body.emoji || '').slice(0, 8), name: String(body.name || '').slice(0, 20) };
-      if (r.emoji) { LOCAL_REACTS.push(r); if (LOCAL_REACTS.length > 30) LOCAL_REACTS.shift(); }
+      // Only a signed-in player of this room can send one. The name and avatar come from the
+      // server, not the request, and each phone is limited to one reaction every 0.7 seconds.
+      const emoji = String(body.emoji || '');
+      if (!REACT_EMOJI.has(emoji)) throw new HttpError(400, 'Unknown reaction.');
+      await run(store, needRoom(body), () => {
+        const p = findPlayerByToken(body.token);
+        const now = Date.now();
+        const list = (Array.isArray(st().reacts) ? st().reacts : []).filter((r) => now - r.at < 8000);
+        const last = list.filter((r) => r.pid === p.id).pop();
+        if (last && now - last.at < 700) { st().reacts = list; return; }
+        list.push({ at: now, id: crypto.randomBytes(6).toString('hex'), emoji, name: p.name, avatar: p.avatar, pid: p.id });
+        st().reacts = list.slice(-30);
+      }, false, { gate: () => actorGate({ ...body, role: 'player' }), skipTick: true });
       return { json: { ok: true } };
     }
     if (path === 'view' || path === 'tick') {
-      const { result, version } = await run(store, () => viewFor(body.role, body.token));
-      if (result.role === 'player' && store.seen) await store.seen(result.me.id).catch(() => {});
+      const { result, version } = await run(store, needRoom(body), () => viewFor(body.role, body.token, body.tvSecret), false, { gate: () => callerGate(body) });
+      if (result.role === 'player' && store.seen) await store.seen(ROOM + ':' + result.me.id).catch(() => {});
       return { json: { ...result, version } };
     }
 
     if (path === 'act') {
-      const { result, version } = await run(store, () => {
-        if (body.role === 'host') {
-          if (!isHostToken(body.token)) throw new HttpError(401, 'Please log in again.');
-          hostAction(body.action || {});
-        } else {
-          const p = findPlayerByToken(body.token);
-          if (!p) throw new HttpError(401, 'Please log in again.');
-          playerAction(p, body.action || {});
-        }
-        return viewFor(body.role, body.token);
-      });
+      const { result, version } = await run(store, needRoom(body), () => {
+        if (body.role === 'host') hostAction(body.action || {});
+        else playerAction(findPlayerByToken(body.token), body.action || {});
+        return viewFor(body.role, body.token, body.tvSecret);
+      }, true, { gate: () => actorGate(body) });
       return { json: { ok: true, view: { ...result, version } } };
     }
 
     if (path === 'host/login') {
-      const { result } = await run(store, () => {
-        if (!OPEN && String(body.pin || '').trim() !== st().hostPin) throw new HttpError(401, 'Wrong host PIN.');
+      const code = canonRoom(body.room);
+      if (!code) throw new HttpError(400, 'Enter a 4-character room code.');
+      const loaded = await store.loadRoom(code);
+      const room = loaded.room;
+      const miss = pinMisses.get(code) || { fails: 0, lockedUntil: 0 };
+      if ((room && room.hostPinLockedUntil > Date.now()) || miss.lockedUntil > Date.now()) {
+        throw new HttpError(429, 'Too many tries. Wait a few minutes and try again.');
+      }
+      if (!room) {
+        miss.fails += 1;
+        if (miss.fails >= 5) { miss.lockedUntil = Date.now() + PIN_LOCK_MS; miss.fails = 0; }
+        pinMisses.set(code, miss);
+        throw new HttpError(miss.lockedUntil > Date.now() ? 429 : 401, miss.lockedUntil > Date.now() ? 'Too many tries. Wait a few minutes and try again.' : 'Wrong room code or host PIN.');
+      }
+      const { result } = await run(store, code, () => {
+        if (st().hostPinLockedUntil > Date.now()) return { locked: true };
+        if (!pinsEqual(body.pin, st().hostPin)) {
+          st().hostPinFails = (st().hostPinFails || 0) + 1;
+          if (st().hostPinFails >= 5) {
+            st().hostPinLockedUntil = Date.now() + PIN_LOCK_MS;
+            st().hostPinFails = 0;
+            return { locked: true };
+          }
+          return { bad: true };
+        }
+        st().hostPinFails = 0;
+        st().hostPinLockedUntil = 0;
         const t = token();
         st().hostTokens = [...st().hostTokens.slice(-9), t];
-        return t;
-      });
-      return { json: { token: result } };
-    }
-
-    if (path === 'otp/request' && OPEN) {
-      // Open access: join with just a name. Identity = phone if given, else this device.
-      const name = String(body.name || '').trim().slice(0, 20);
-      const dev = String(body.deviceId || '').replace(/[^\w-]/g, '').slice(0, 40);
-      const ident = normalizePhone(body.cc, body.phone) || (dev ? 'dev:' + dev : null);
-      if (!ident) throw new HttpError(400, 'Please refresh and try again.');
-      const { result } = await run(store, () => {
-        let p = Object.values(st().players).find((x) => x.phone === ident);
-        const returning = Boolean(p);
-        if (!p) {
-          if (!name) throw new HttpError(400, 'Please tell us your name.');
-          if (Object.values(st().players).some((x) => x.name.toLowerCase() === name.toLowerCase())) throw new HttpError(400, 'That name is taken — add an initial or a nickname!');
-          p = S.createPlayer({ name, phone: ident, avatar: body.avatar });
-          S.pushFeed({ emoji: p.avatar, text: `${p.name} joined the party!` });
-        }
-        const t = token();
-        p.tokens = [...p.tokens.slice(-4), t];
-        return { token: t, returning, name: p.name };
-      });
-      return { json: { ok: true, via: 'open', ...result } };
+        return { token: t, code: st().code };
+      }, true, { skipTick: true });
+      if (result.locked) throw new HttpError(429, 'Too many tries. Wait a few minutes and try again.');
+      if (result.bad) throw new HttpError(401, 'Wrong room code or host PIN.');
+      pinMisses.delete(code);
+      return { json: result };
     }
 
     if (path === 'otp/request') {
       const phone = normalizePhone(body.cc, body.phone);
       const name = String(body.name || '').trim().slice(0, 20);
+      const roomCode = canonRoom(body.room);
+      if (!roomCode) throw new HttpError(400, 'Enter a 4-character room code.');
       if (!phone) throw new HttpError(400, 'Please enter a valid phone number.');
-      const { result } = await run(store, () => {
-        const existing = Object.values(st().players).find((p) => p.phone === phone);
-        if (!existing && !name) throw new HttpError(400, 'Please tell us your name.');
+      if (!name) throw new HttpError(400, 'Please tell us your name.');
+      const sentAt = OTP_SENT.get(phone) || 0;
+      if (Date.now() - sentAt < 20000) throw new HttpError(429, 'Code just sent — wait a few seconds before asking again.');
+      const viaPublic = smsEnabled ? 'sms' : 'host';
+      const gate = await claimOtp(store, phone, roomCode);
+      OTP_SENT.set(phone, Date.now());
+      if (!gate.exists) return { json: { ok: true, via: viaPublic } };
+      const { result } = await run(store, roomCode, () => {
+        const existing = playerByPhone(phone);
         if (!existing && Object.values(st().players).some((p) => p.name.toLowerCase() === name.toLowerCase()))
           throw new HttpError(400, 'That name is taken — add an initial or a nickname!');
-        const prev = st().pending[phone];
-        if (prev && Date.now() - prev.at < 20000) throw new HttpError(429, 'Code just sent — wait a few seconds before asking again.');
         for (const [k, v] of Object.entries(st().pending)) if (v.expires < Date.now()) delete st().pending[k];
-        const code = String(crypto.randomInt(smsEnabled ? 100000 : 1000, smsEnabled ? 1000000 : 10000));
-        st().pending[phone] = { code, name: existing ? existing.name : name, avatar: body.avatar, expires: Date.now() + 10 * 60000, attempts: 0, at: Date.now(), via: smsEnabled ? 'sms' : 'host' };
-        return { code, returning: Boolean(existing), name: existing ? existing.name : name };
-      });
-      let via = 'host';
+        const livePending = Object.values(st().pending).filter((v) => v.expires > Date.now()).length;
+        const slot = phoneHash(phone);
+        if (!st().pending[slot] && livePending >= 30) throw new HttpError(429, 'Too many codes at once. Ask the host to clear them.');
+        const code = String(crypto.randomInt(100000, 1000000));
+        st().pending[slot] = { code, name: existing ? existing.name : name, avatar: body.avatar, expires: Date.now() + 10 * 60000, attempts: 0, at: Date.now(), via: smsEnabled ? 'sms' : 'host', phoneTail: phoneTail(phone) };
+        return { code };
+      }, true, { skipTick: true });
+      let via = viaPublic;
       if (smsEnabled) {
         try { await sendSms(phone, `${result.code} is your Diwali Game Night code 🪔`); via = 'sms'; } catch (e) {
-          console.error('[sms]', e.message);
-          await run(store, () => { if (st().pending[phone]) st().pending[phone].via = 'host'; });
+          console.error('[sms] text failed');
+          via = 'host';
+          await run(store, roomCode, () => { const slot = st().pending[phoneHash(phone)]; if (slot) slot.via = 'host'; }, false, { skipTick: true });
         }
       }
-      return { json: { ok: true, via, returning: result.returning, name: result.name } };
+      return { json: { ok: true, via } };
     }
 
     if (path === 'otp/verify') {
       const phone = normalizePhone(body.cc, body.phone);
-      const { result } = await run(store, () => {
-        const pend = phone && st().pending[phone];
+      const roomCode = canonRoom(body.room);
+      if (!roomCode) throw new HttpError(400, 'Enter a 4-character room code.');
+      if (!phone) throw new HttpError(400, 'Please enter a valid phone number.');
+      if (!(await store.roomExists(roomCode))) throw new HttpError(400, 'That code is not right. Try again!');
+      const { result } = await run(store, roomCode, () => {
+        const pend = phone && st().pending[phoneHash(phone)];
         if (!pend || pend.expires < Date.now()) throw new HttpError(400, 'Code expired — request a new one.');
         if (pend.attempts >= 5) throw new HttpError(429, 'Too many tries — request a new code.');
-        if (String(body.code || '').trim() !== pend.code) {
+        if (!pinsEqual(body.code, pend.code)) {
           pend.attempts++;
           return { wrong: true };
         }
-        delete st().pending[phone];
-        let p = Object.values(st().players).find((x) => x.phone === phone);
+        delete st().pending[phoneHash(phone)];
+        let p = playerByPhone(phone);
         let isNew = false;
         if (!p) {
           p = S.createPlayer({ name: pend.name, phone, avatar: pend.avatar });
           isNew = true;
-          S.pushFeed({ emoji: p.avatar, text: `${p.name} joined the party!` });
+          S.pushFeed({ emoji: p.avatar, text: `${p.name} joined the room!` });
         }
         const t = token();
         p.tokens = [...p.tokens.slice(-4), t];
         return { token: t, isNew };
-      });
+      }, true, { skipTick: true });
       if (result.wrong) throw new HttpError(400, 'That code is not right. Try again!');
       return { json: result };
     }
