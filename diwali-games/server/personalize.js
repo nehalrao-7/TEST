@@ -215,15 +215,10 @@ function personalize(game, state) {
       count += items.length;
     }
   } else if (game.type === 'kbc') {
-    const ff = content.fastestFinger || [];
-    const ffItems = pick(pool, ff.length > 1 ? countFor(ff.length, pct) : 0, { used });
-    spread(ff.length, ffItems.length).forEach((pos, j) => { ff[pos] = toMCQ(ffItems[j], { time: ff[pos].time || 15 }); });
-    mark(ffItems);
-    count += ffItems.length;
     const ladder = content.ladder || [];
     const levels = spread(ladder.length, countFor(ladder.length, pct)).filter((l) => l > 0);
     for (const l of levels) {
-      // Several per level so a hot-seat guest never gets a question about themselves.
+      // Several per level so the room gets a mix, and nobody is the only subject.
       const items = pick(pool, 3, { used });
       if (!items.length) continue;
       ladder[l].questions = [...items.map((it) => toMCQ(it)), ...ladder[l].questions];

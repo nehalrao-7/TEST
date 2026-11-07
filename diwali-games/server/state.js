@@ -121,6 +121,7 @@ function setState(s) {
     state.games.forEach((g) => { if (g.type === 'hookstep' && g.status !== 'live') { g.mode = 'team'; g.content.himmatBonus = g.content.himmatBonus || 100; delete g.content.votingSeconds; } });
     state.hookV2 = true;
   }
+  state.games.forEach((g) => { if (g.type === 'kbc' && g.status !== 'live') g.mode = 'individual'; });
   const { applyHookVideos } = require('./content');
   state.games.forEach((g) => { if (g.type === 'hookstep') applyHookVideos(g.content); });
   if (state.live && state.live.content) {

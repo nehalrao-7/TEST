@@ -208,6 +208,7 @@ function startGame(gid) {
   const s = st();
   if (s.live) throw new Error('Another game is live — end it first.');
   const game = gameById(gid);
+  if (game.type === 'kbc') game.mode = 'individual';
   if (game.mode === 'team' && !Object.keys(s.teams).length) throw new Error('This is a team game — create teams first (Players tab).');
   s.rankSnapshots[gid] = S.ranking().map((r) => ({ id: r.id, rank: r.rank, score: r.score }));
   for (const p of Object.values(s.players)) {
@@ -274,14 +275,14 @@ function computeAwardsLive() {
   const comeback = base ? top((p) => { const b = base.find((x) => x.id === p.id); const now = ranking.find((x) => x.id === p.id); return b && now ? b.rank - now.rank : null; }, 2) : null;
   const pct = (p) => (stat(p.id).answered >= 5 ? Math.round((100 * stat(p.id).correct) / stat(p.id).answered) : null);
   const list = [
-    { id: 'bijli', emoji: '⚡', title: 'Bijli Fingers', desc: 'Fastest correct answer, again and again', r: top((p) => stat(p.id).fastest), fmt: (v) => `${v}× fastest on the buzzer` },
+    { id: 'bijli', emoji: '⚡', title: 'Bijli Fingers', desc: 'Fastest correct answer, again and again', r: top((p) => stat(p.id).fastest), fmt: (v) => `${v}× first to the answer` },
     { id: 'sharp', emoji: '🎯', title: 'Teer-Andaaz', desc: 'The sharpest accuracy of the night', r: top(pct, 50), fmt: (v) => `${v}% correct` },
     { id: 'fire', emoji: '🔥', title: 'Anaar on Fire', desc: 'Longest answer streak', r: top((p) => stat(p.id).bestStreak, 3), fmt: (v) => `${v} right in a row` },
     { id: 'chor', emoji: '🦹', title: 'Master Chor', desc: 'Pickpocketed the most points', r: top((p) => stat(p.id).steals), fmt: (v) => `${v} successful heist${v > 1 ? 's' : ''}` },
     { id: 'kavach', emoji: '🛡️', title: 'Raksha Kavach', desc: 'Survived an attack, untouched', r: top((p) => stat(p.id).blocks), fmt: (v) => `${v} attack${v > 1 ? 's' : ''} blocked` },
-    { id: 'buzz', emoji: '🔔', title: 'Buzzer Baadshah', desc: 'Won the most Jeopardy clues', r: top((p) => stat(p.id).buzzWins, 2), fmt: (v) => `${v} clues won` },
+    { id: 'buzz', emoji: '🔔', title: 'Clue Champ', desc: 'Won the most Jeopardy clues', r: top((p) => stat(p.id).buzzWins, 2), fmt: (v) => `${v} clues won` },
     { id: 'dance', emoji: '💃', title: 'Hook Step Hero', desc: 'Highest-rated performance', r: top((p) => stat(p.id).hookBest), fmt: (v) => `${v} points on the dance floor` },
-    { id: 'crore', emoji: '💰', title: 'Crorepati', desc: 'Biggest win in the hot seat', r: top((p) => stat(p.id).kbcBest), fmt: (v) => `${v.toLocaleString('en-IN')} points from the hot seat` },
+    { id: 'crore', emoji: '💰', title: 'Crorepati', desc: 'Biggest single KBC score', r: top((p) => stat(p.id).kbcBest), fmt: (v) => `${v.toLocaleString('en-IN')} points on one question` },
     { id: 'comeback', emoji: '📈', title: 'Comeback Champ', desc: 'Climbed the most places', r: comeback, fmt: (v) => `up ${v} places` },
   ];
   return list.filter((a) => a.r).map((a) => ({
@@ -314,18 +315,17 @@ function autoMedia() {
     const cl = c.categories[live.cur.c].clues[live.cur.i];
     return mk(cl, `c${live.cur.c}-${live.cur.i}`, live.phase === 'answer', `${c.categories[live.cur.c].name} ${cl.value}`);
   }
-  if (game.type === 'kbc') {
-    if (['ff', 'ff-result'].includes(live.phase) && live.ff) return mk((c.fastestFinger || [])[live.ff.qi], `ff${live.ff.qi}`, live.phase === 'ff-result', 'Fastest Finger First');
-    const h = live.hot;
-    if (live.phase === 'hot' && h && h.qPhase !== 'over') {
-      const q = engines.kbc.currentQ(game, h);
-      return mk(q, `hot${h.seat}-${h.qLevel}`, h.qPhase === 'reveal', `KBC · Q${h.qLevel + 1}`);
-    }
+  if (game.type === 'kbc' && ['question', 'reveal'].includes(live.phase) && live.qIndex >= 0) {
+    const q = engines.kbc.list(game)[live.qIndex];
+    return mk(q, `k${live.qIndex}`, live.phase === 'reveal', `KBC · Q${live.qIndex + 1}`);
   }
   if (game.type === 'hookstep' && live.perf && live.perf.songIndex != null && (live.phase === 'perform' || live.phase === 'judge')) {
     const song = (c.songs || [])[live.perf.songIndex];
-    // Full screen for the dance. The TV blurs it until the clock hits zero, then the same clip plays on, sharp, with sound.
-    return mk(song, `song${live.perf.songIndex}-${live.results.length}`, true, song ? song.title : '');
+    // Full screen for the dance. The blur lifts when the clock hits zero. The clip has no end
+    // point, so it keeps playing until the host leaves this dance.
+    const media = mk(song, `song${live.perf.songIndex}-${live.results.length}`, true, song ? song.title : '');
+    if (media) delete media.end;
+    return media;
   }
   return null;
 }
@@ -452,6 +452,7 @@ function hostAction(a) {
       if (a.title) g.title = String(a.title).slice(0, 40);
       if (a.emoji) g.emoji = String(a.emoji).slice(0, 8);
       if (a.mode && g.status !== 'live') g.mode = a.mode === 'team' ? 'team' : 'individual';
+      if (g.type === 'kbc') g.mode = 'individual';
       if (a.personalize !== undefined) g.personalize = Boolean(a.personalize);
       if (a.content !== undefined) {
         if (g.status === 'live') throw new Error('End the game before editing its content.');
@@ -464,7 +465,7 @@ function hostAction(a) {
     case 'addGame': {
       const type = engines[a.gameType] ? a.gameType : 'custom';
       const emojis = { quiz: '❓', jeopardy: '🧠', kbc: '💰', hookstep: '💃', custom: '🎯' };
-      s.games.push({ id: 'g' + S.id(5), type, title: String(a.title || 'New Game').slice(0, 40), emoji: emojis[type], mode: a.mode === 'team' ? 'team' : 'individual', status: 'pending', content: JSON.parse(JSON.stringify(templates[type])) });
+      s.games.push({ id: 'g' + S.id(5), type, title: String(a.title || 'New Game').slice(0, 40), emoji: emojis[type], mode: type === 'kbc' ? 'individual' : (a.mode === 'team' ? 'team' : 'individual'), status: 'pending', content: JSON.parse(JSON.stringify(templates[type])) });
       break;
     }
     case 'deleteGame': { const g = gameById(a.gameId); if (g.status === 'live') throw new Error('End it first.'); s.games = s.games.filter((x) => x !== g); break; }

@@ -443,8 +443,8 @@
   }
 
   function jeopardyScene(L) {
-    const ctl = L.control;
-    const head = `<div class="ghead"><span class="pill gold">🧠 ${esc(L.title)}</span>${ctl ? `<span class="pill control" style="--tc:${ctl.color}">${esc(ctl.emoji)} ${esc(ctl.name)} ${L.phase === 'board' ? 'picks next' : 'in control'}</span>` : ''}</div>`;
+    const who = L.turn;
+    const head = `<div class="ghead"><span class="pill gold">🧠 ${esc(L.title)}</span>${who ? `<span class="pill control" style="--tc:${who.color}">${esc(who.emoji)} ${esc(who.name)} ${L.phase === 'clue' ? 'answers' : 'is up'}</span>` : ''}</div>`;
     if (L.phase === 'board') {
       const cats = L.categories;
       const rows = Math.max(...cats.map((c) => c.clues.length));
@@ -457,83 +457,31 @@
           return `<div class="jcell" style="animation-delay:${0.2 + (i * cats.length + ci) * 0.025}s">${cl.value}</div>`;
         }).join('');
       }
-      return [`<div class="gframe">${head}<div class="jboard" style="grid-template-columns:repeat(${cats.length},1fr);grid-template-rows:auto repeat(${rows},1fr)">${cells}</div></div>`, 'j-board'];
+      return [`<div class="gframe">${head}<div class="jboard" style="grid-template-columns:repeat(${cats.length},1fr);grid-template-rows:auto repeat(${rows},1fr)">${cells}</div></div>`, 'j-board-' + (who ? who.key : '')];
     }
     const c = L.clue;
-    if (L.phase === 'dd') {
-      return [`<div class="gframe">${head}<div class="dd-stage"><div class="dd-gem">💎</div><h1>Daily Double!</h1><p>${ctl ? `${esc(ctl.emoji)} ${esc(ctl.name)}` : 'The team in control'} — how much will you wager?</p><div class="dd-cat">${esc(c.category)}</div></div></div>`, `j-dd-${L.cur.c}-${L.cur.i}`];
-    }
-    const queue = L.buzzes.map((b) => `<div class="lrow ${L.active && L.active.key === b.key ? 'active' : ''} ${L.locked.includes(b.key) ? 'locked' : ''}"><span class="avatar" style="--c:${b.color}">${esc(b.emoji)}</span>${esc(b.name)}${b.kind === 'team' ? ` <span class="small" style="opacity:.7">(${esc(b.buzzerName)})</span>` : ''}<span class="pts">${(b.ms / 1000).toFixed(2)}s</span></div>`).join('');
     const answer = L.phase === 'answer';
     const correct = answer && L.last && L.last.correct;
-    if (L.active && !answer && prev.buzzKey !== L.active.key) App.sfx('buzz');
-    prev.buzzKey = L.active ? L.active.key : null;
-    let status;
-    if (L.dd) status = `<div class="buzz-state dd">💎 ${esc(ctl ? ctl.name : '')} · wager ${fmt(L.wager)}</div>`;
-    else if (answer) status = correct ? `<div class="buzz-state win">+${fmt(L.last.value)} to ${esc(L.last.info.name)}!</div>` : '';
-    else if (!L.buzzOpen) status = `<div class="buzz-state armed">🔒 Buzzers armed<small>listen to the host…</small></div>`;
-    else if (L.active && L.answerUntil) status = `<div class="buzz-state open">${esc(L.active.name)} · <span data-count="${L.answerUntil}" data-tick="1"></span>s</div>`;
-    else if (!L.buzzes.length) status = `<div class="buzz-state open">🔔 BUZZ NOW!</div>`;
-    else status = '';
-    const side = `<div class="list-card bq"><h3>🔔 Buzzers</h3>${status}${queue}</div>`;
-    return [`<div class="gframe">${head}<div class="jclue"><div class="qcard paper ${L.buzzOpen && !answer ? 'live' : ''}"><div class="cat">${esc(c.category)} · ${fmt(c.value)}${L.dd ? ' · 💎 Daily Double' : ''}</div><div class="q">${esc(c.q)}</div>${answer ? `<div class="ans pop">✨ ${esc(c.a)}</div>` : ''}</div>${side}</div></div>`, `j-clue-${L.cur.c}-${L.cur.i}${answer ? (correct ? '-answer-correct' : '-answer') : ''}`];
+    const side = answer
+      ? `<div class="list-card"><h3>${correct ? '✓ Team scores' : '✗ No points'}</h3><div class="lrow">${L.last && L.last.info ? `${esc(L.last.info.emoji)} ${esc(L.last.info.name)}` : ''}<span class="pts">${correct ? `+${fmt(L.last.value)} each` : '—'}</span></div></div>`
+      : `<div class="list-card"><h3>This turn</h3><div class="lrow">${who ? `${esc(who.emoji)} ${esc(who.name)}` : ''}</div><p class="small" style="margin:.6vw 0 0">Answer out loud. Everyone on the team scores.</p></div>`;
+    return [`<div class="gframe">${head}<div class="jclue"><div class="qcard paper"><div class="cat">${esc(c.category)} · ${fmt(c.value)}</div><div class="q">${esc(c.q)}</div>${answer ? `<div class="ans pop">✨ ${esc(c.a)}</div>` : ''}</div>${side}</div></div>`, `j-clue-${L.cur.c}-${L.cur.i}${answer ? (correct ? '-answer-correct' : '-answer') : ''}`];
   }
 
-  function ladderHtml(L, curLevel, doneUpTo) {
-    return `<div class="ladder">${L.ladder.map((l, i) => `<div class="lv ${l.safe ? 'safe' : ''} ${i === curLevel ? 'cur' : ''} ${i < doneUpTo ? 'done' : ''}"><span>${i + 1}</span><span>${l.safe ? '★ ' : ''}${fmt(l.points)}</span></div>`).join('')}</div>`;
-  }
-  function predBar(h) {
-    const pc = h.predCounts || { sahi: 0, galat: 0 };
-    const tot = pc.sahi + pc.galat;
-    if (!tot) return h.qPhase === 'question' ? '<div class="pred-bar empty">🔮 Audience — call it on your phones: Sahi or Galat?</div>' : '';
-    const res = h.predResult && h.qPhase !== 'question' ? `<b class="called">🔮 ${h.predResult.right.length} called it · +25 each</b>` : '';
-    return `<div class="pred-bar"><span class="ps" style="flex:${pc.sahi || 0.001}">✅ ${pc.sahi} Sahi</span><span class="pg" style="flex:${pc.galat || 0.001}">${pc.galat} Galat ❌</span></div>${res}`;
-  }
   function kbcScene(L) {
-    const head = `<div class="ghead"><span class="pill gold">💰 Kaun Banega Crorepati</span></div>`;
-    if (L.phase === 'idle') {
-      const hist = L.history.map((h) => { const p = player(h.pid); return p ? `<div class="lrow">${av(p)}${esc(p.name)}<span class="pts">${fmt(h.winnings)}</span></div>` : ''; }).join('');
-      return [`<div class="gframe">${head}<div class="kbc"><div class="intro"><div><div class="em">💰</div><h1>Kaun Banega Crorepati</h1><p>Fastest Finger First decides who takes the hot seat!</p>${hist ? `<div class="list-card" style="margin-top:2vw;text-align:left"><h3>Hot seat winnings</h3>${hist}</div>` : ''}</div></div>${ladderHtml(L, -1, 0)}</div></div>`, 'kbc-idle'];
+    const head = `<div class="ghead"><span class="pill gold">💰 ${esc(L.title || 'Kaun Banega Crorepati')}</span><span class="pill">Solo · fastest takes the full ${L.points ? fmt(L.points) : 'points'}</span></div>`;
+    if (L.phase === 'idle' || L.phase === 'done') {
+      return [`<div class="gframe">${head}<div class="kbc"><div class="intro"><div><div class="em">💰</div><h1>Kaun Banega Crorepati</h1><p>${L.phase === 'done' ? 'That is the round.' : 'Every question is open to everyone. Fastest correct answer wins the full points. Each place after gets less.'}</p></div></div></div></div>`, 'kbc-' + L.phase];
     }
-    if (L.phase === 'ff' || L.phase === 'ff-result') {
-      const f = L.ff;
-      const q = f.question;
-      const waiting = L.phase === 'ff' && App.now() < f.opensAt;
-      if (waiting) setTimeout(render, f.opensAt - App.now() + 30);
-      const res = f.result;
-      const opts = waiting ? `<div class="countdown-big" data-count="${f.opensAt}"></div>` : `<div class="kbc-opts">${q.options.map((o, i) => `<div class="kbc-opt ${res ? (i === res.answer ? 'right' : '') : ''}"><span class="k">${App.letters[i]}:</span>${esc(o)}${res ? `<span class="pc">${res.counts[i]}</span>` : ''}</div>`).join('')}</div>`;
-      const side = res
-        ? `<div class="list-card"><h3>⚡ Fastest correct</h3>${res.ranking.slice(0, 8).map((r, i) => { const p = player(r.id); return p ? `<div class="lrow" ${i === 0 ? 'style="color:var(--haldi)"' : ''}>${i === 0 ? '👑' : i + 1 + '.'} ${av(p)}${esc(p.name)}<span class="pts">${(r.ms / 1000).toFixed(2)}s</span></div>` : ''; }).join('') || '<div class="lrow">Nobody got it right!</div>'}</div>`
-        : `<div class="list-card"><h3>Fastest Finger First</h3>${lockins(f.answeredIds)}</div>`;
-      return [`<div class="gframe">${head}${L.phase === 'ff' && !waiting ? timerBar(f.opensAt, f.deadline) : ''}<div class="kbc"><div class="kbc-main"><div class="kbc-banner">FASTEST FINGER FIRST ${L.phase === 'ff' && !waiting ? `· <span data-count="${f.deadline}" data-tick="1"></span>` : ''}</div><div class="kbc-q">${esc(q.q)}</div>${opts}</div>${side}</div></div>`, `ff-q-${L.ff.question.q}${res ? '-ff-result' : ''}${waiting ? '-w' : ''}`];
-    }
-    const h = L.hot;
-    const p = player(h.pid);
-    const q = h.question;
-    const pollHtml = h.poll ? (() => {
-      const total = h.poll.counts.reduce((a, b) => a + b, 0) || 1;
-      return `<div class="list-card"><h3>📊 Audience Poll${h.poll.open ? ` · <span data-count="${h.poll.deadline}"></span>s` : ''}</h3><div class="small" style="margin:-.6vw 0 .6vw;opacity:.8">${h.poll.votes} votes</div><div class="poll">${h.poll.counts.map((c, i) => `<div class="b"><span>${Math.round((c / total) * 100)}%</span><i style="height:${(c / total) * 100}%"></i><span>${App.letters[i]}</span></div>`).join('')}</div></div>`;
-    })() : '';
-    const phone = h.phoneUntil && h.phoneUntil > App.now() ? `<div class="kbc-banner">📞 Phone a friend · <span data-count="${h.phoneUntil}" data-tick="1"></span>s</div>` : '';
-    const opts = `<div class="kbc-opts">${q.options.map((o, i) => {
-      let cls = '';
-      if (h.removed.includes(i)) cls = 'gone';
-      else if (h.answer != null && i === h.answer) cls = 'right';
-      else if (h.answer != null && i === h.locked) cls = 'wrong';
-      else if (h.locked === i) cls = 'locked';
-      return `<div class="kbc-opt ${cls}"><span class="k">${App.letters[i]}:</span>${esc(o)}</div>`;
-    }).join('')}</div>`;
-    let banner = '';
-    if (h.qPhase === 'over') banner = `<div class="kbc-banner pop" style="font-size:3vw">${h.status === 'won' ? '🏆 CROREPATI! ' : h.status === 'walked' ? '🚶 Walked away with ' : '💔 Takes home '}${fmt(h.winnings)} points</div>`;
-    else if (h.qPhase === 'reveal' && h.correct) banner = `<div class="kbc-banner pop" style="font-size:3vw">✅ Sahi jawab! ${fmt(L.ladder[h.questionLevel].points)} points secured</div>`;
-    else if (h.locked != null) banner = `<div class="kbc-banner">🔒 Lock kiya jaaye…</div>`;
-    const lifelines = `<div class="lifelines"><span class="${h.lifelines.fifty ? '' : 'used'}">50:50</span><span class="${h.lifelines.poll ? '' : 'used'}">📊</span><span class="${h.lifelines.phone ? '' : 'used'}">📞</span></div>`;
-    const lvl = h.questionLevel;
-    const key = `hot-${h.pid}-${lvl}-${h.qPhase}${h.qPhase === 'over' ? (h.status === 'won' ? '-won' : '-wrong') : ''}${h.qPhase === 'reveal' ? '-reveal-kbc' : ''}`;
-    return [`<div class="gframe">${head}<div class="kbc"><div class="kbc-main">
-      <div class="kbc-hot">${av(p)} ${esc(p ? p.name : '')} in the hot seat · Question ${lvl + 1} for ${fmt(L.ladder[lvl].points)}${q.personal ? ' · <span class="pill personal">✨ About our guests</span>' : ''}</div>
-      <div class="kbc-q">${esc(q.q)}</div>${opts}${banner}${phone}${predBar(h)}
-      </div><div class="kbc-side">${lifelines}${pollHtml && h.qPhase === 'question' ? pollHtml : ladderHtml(L, h.qPhase === 'over' ? -1 : lvl, h.level)}</div></div></div>`, key];
+    const q = L.question;
+    const waiting = L.phase === 'question' && App.now() < L.opensAt;
+    if (waiting) setTimeout(render, L.opensAt - App.now() + 30);
+    const res = L.result;
+    const opts = waiting ? `<div class="countdown-big" data-count="${L.opensAt}"></div>` : `<div class="kbc-opts">${q.options.map((o, i) => `<div class="kbc-opt ${res ? (i === res.answer ? 'right' : '') : ''}"><span class="k">${App.letters[i]}:</span>${esc(o)}${res ? `<span class="pc">${res.counts[i]}</span>` : ''}</div>`).join('')}</div>`;
+    const side = res
+      ? `<div class="list-card"><h3>⚡ Places</h3>${res.ranking.slice(0, 8).map((r) => { const p = player(r.id); return p ? `<div class="lrow" ${r.rank === 1 ? 'style="color:var(--haldi)"' : ''}>${r.rank === 1 ? '👑' : r.rank + '.'} ${av(p)}${esc(p.name)}<span class="pts">+${fmt(r.points)}</span></div>` : ''; }).join('') || '<div class="lrow">Nobody got it right!</div>'}</div>`
+      : `<div class="list-card"><h3>Locked in</h3>${lockins(L.answeredIds)}</div>`;
+    return [`<div class="gframe">${head}${L.phase === 'question' && !waiting ? timerBar(L.opensAt, L.deadline) : ''}<div class="kbc"><div class="kbc-main"><div class="kbc-banner">Q${L.qIndex + 1} of ${L.total} · ${fmt(L.points)} for first ${L.phase === 'question' && !waiting ? `· <span data-count="${L.deadline}" data-tick="1"></span>` : ''}</div><div class="kbc-q">${esc(q.q)}</div>${opts}</div>${side}</div></div>`, `kbc-q-${L.qIndex}${res ? '-reveal' : ''}${waiting ? '-w' : ''}`];
   }
 
   function hookScene(L) {
