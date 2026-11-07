@@ -14,46 +14,20 @@ const DEFAULT_PROMPTS = [
     who: 'Whose all-time favourite movie is “{a}”?', what: "What is {n}'s all-time favourite movie?", clue: 'Their all-time favourite movie is “{a}”' },
   { id: 'star', section: 'you', type: 'text', tag: 'movie', text: 'Favourite actor or actress', ph: 'e.g. Shah Rukh Khan',
     who: 'Whose favourite star is {a}?', what: "Who is {n}'s favourite actor or actress?", clue: 'Their favourite star is {a}' },
-  { id: 'holiday', section: 'you', type: 'text', tag: 'holiday', text: 'Dream holiday destination', ph: 'e.g. Bali',
-    who: 'Whose dream holiday destination is {a}?', what: 'Where does {n} dream of going on holiday?', clue: 'Their dream holiday destination is {a}' },
   { id: 'sweet', section: 'you', type: 'text', tag: 'food', text: 'Favourite Diwali sweet', ph: 'e.g. Kaju katli',
     who: 'Whose favourite Diwali sweet is {a}?', what: "What is {n}'s favourite Diwali sweet?", clue: 'Their favourite Diwali sweet is {a}' },
-  { id: 'dance', section: 'you', type: 'text', tag: 'music', text: 'A Bollywood song that always gets you dancing', ph: 'e.g. London Thumakda',
-    who: 'Which guest can’t resist dancing to “{a}”?', what: 'Which song always gets {n} dancing?', clue: 'They can’t resist dancing to “{a}”' },
-  { id: 'talent', section: 'you', type: 'text', tag: 'fun', text: 'A hidden talent', ph: 'e.g. I can solve a Rubik’s cube',
-    who: 'Whose hidden talent is: {a}?', what: "What is {n}'s hidden talent?", clue: 'Their hidden talent: {a}' },
   { id: 'fact', section: 'you', type: 'text', tag: 'fun', text: 'A fun fact few people know about you', ph: 'e.g. I once met Amitabh Bachchan',
     who: 'Who is this? “{a}”', what: 'Which of these is a fun fact about {n}?', clue: 'Fun fact: “{a}”' },
 
   // ---- Garba time ----
-  { id: 'garbaSong', section: 'garba', type: 'text', tag: 'garba', text: 'Favourite garba song', ph: 'e.g. Chogada Tara',
-    who: 'Whose favourite garba song is “{a}”?', what: "What is {n}'s favourite garba song?", clue: 'Their favourite garba song is “{a}”' },
-  { id: 'garbaEvent', section: 'garba', type: 'text', tag: 'garba', text: 'Favourite Toronto garba / Navratri event', ph: 'e.g. the big one at the convention centre',
-    who: 'Whose favourite Toronto garba is “{a}”?', what: "Which is {n}'s favourite Toronto garba?", clue: 'Their favourite Toronto garba: “{a}”' },
-  { id: 'garbaMove', section: 'garba', type: 'text', tag: 'garba', text: 'Your signature garba or dandiya move', ph: 'e.g. the double-spin three-taali',
-    who: 'Whose signature garba move is “{a}”?', what: "What is {n}'s signature garba move?", clue: 'Their signature garba move: “{a}”' },
-  { id: 'garbaOrDandiya', section: 'garba', type: 'choice', tag: 'garba', text: 'Garba or dandiya?', options: ['Garba', 'Dandiya', 'Both, all night!'],
-    what: 'Garba or dandiya: what does {n} prefer?' },
-
-  // ---- About the group (pick another guest) ----
-  { id: 'partner', section: 'group', type: 'pick', tag: 'group', text: 'Your partner / spouse (if they’re here tonight)',
-    who: "Who is {n}'s other half?", clue: "{n}'s other half" },
-  { id: 'bestie', section: 'group', type: 'pick', tag: 'group', text: 'Your best friend in this group',
-    who: 'Who did {n} name as their best friend in the group?', clue: '{n} named this guest as their best friend' },
-  { id: 'dandiyaPartner', section: 'group', type: 'pick', tag: 'garba', text: 'Your go-to dandiya partner',
-    who: "Who is {n}'s go-to dandiya partner?", clue: "{n}'s go-to dandiya partner" },
-  { id: 'callFirst', section: 'group', type: 'pick', tag: 'group', text: 'Who would you call first if your car broke down on the way home from garba?',
-    who: 'Who would {n} call first if their car broke down on the way home from garba?', clue: "{n}'s first call when the car breaks down after garba" },
+  { id: 'garbaSinger', section: 'garba', type: 'text', tag: 'garba', text: 'Favourite garba singer', ph: 'e.g. Falguni Pathak',
+    who: 'Whose favourite garba singer is {a}?', what: "Who is {n}'s favourite garba singer?", clue: 'Their favourite garba singer is {a}' },
 
   // ---- Group votes ----
   { id: 'voteDancer', section: 'vote', type: 'vote', tag: 'garba', text: 'Best garba dancer in the group',
     who: 'The group has voted! Who is the best garba dancer?', clue: 'The group voted this guest the best garba dancer' },
-  { id: 'voteLast', section: 'vote', type: 'vote', tag: 'garba', text: 'Most likely to still be dancing when the garba ends',
-    who: 'The group has voted! Who is most likely to still be dancing when the garba ends?', clue: 'Voted most likely to still be dancing when the garba ends' },
   { id: 'voteLate', section: 'vote', type: 'vote', tag: 'group', text: 'Most likely to show up late to garba',
     who: 'The group has voted! Who is most likely to show up late to garba?', clue: 'Voted most likely to show up late to garba' },
-  { id: 'voteOutfit', section: 'vote', type: 'vote', tag: 'garba', text: 'Best Navratri outfits, every single year',
-    who: 'The group has voted! Who has the best Navratri outfits every year?', clue: 'Voted best Navratri outfits, every single year' },
   { id: 'voteDressed', section: 'vote', type: 'vote', tag: 'group', text: 'Best dressed tonight',
     who: 'The group has voted! Who is the best dressed tonight?', clue: 'Voted best dressed tonight' },
   { id: 'voteNakhre', section: 'vote', type: 'vote', tag: 'group', text: 'Most nakhre 💅',
@@ -67,12 +41,15 @@ const DEFAULT_PROMPTS = [
   { id: 'voteSelfie', section: 'vote', type: 'vote', tag: 'group', text: 'Most likely to stop the garba for a selfie',
     who: 'The group has voted! Who is most likely to stop the garba for a selfie?', clue: 'Voted most likely to stop the garba for a selfie' },
 ];
+// Default prompts retired in v4 (removed from saved questionnaires on upgrade).
+const REMOVED_V4 = ['rewatch', 'holiday', 'trip', 'comfort', 'dance', 'talent', 'garbaSong', 'garbaEvent', 'garbaMove', 'garbaOrDandiya', 'partner', 'bestie', 'dandiyaPartner', 'callFirst', 'voteLast', 'voteOutfit'];
 // Prompt ids from the first version, used to upgrade an unedited saved questionnaire.
 const V1_IDS = ['movie', 'rewatch', 'star', 'holiday', 'trip', 'sweet', 'comfort', 'dance', 'talent', 'fact'];
 // Questionnaire version each default question was introduced in (for upgrading saved games).
 const ADDED_IN = Object.fromEntries([
   ...['garbaSong', 'garbaEvent', 'garbaMove', 'garbaOrDandiya', 'partner', 'bestie', 'dandiyaPartner', 'callFirst', 'voteDancer', 'voteLast', 'voteLate', 'voteOutfit'].map((id) => [id, 2]),
   ...['voteDressed', 'voteNakhre', 'voteReady', 'voteFoodie', 'voteChat', 'voteSelfie'].map((id) => [id, 3]),
+  ...['garbaSinger'].map((id) => [id, 4]),
 ]);
 
 const TAG_CLUE = { movie: '🎬 ✨ 🕵️', holiday: '🏝️ ✨ 🕵️', food: '🍬 ✨ 🕵️', music: '💃 ✨ 🕵️', fun: '🤫 ✨ 🕵️', garba: '🪔 💃 ✨', group: '👯 ✨ 🕵️' };
@@ -267,4 +244,4 @@ function preview(state, n = 8) {
   return { total: pool.length, sample: pick(pool, n).map((i) => ({ q: i.q, options: i.options, answer: i.answer, about: i.involves && i.involves.length > 1 ? i.involves.map((id) => (state.players[id] || {}).name).join(' & ') : i.aboutName })) };
 }
 
-module.exports = { DEFAULT_PROMPTS, V1_IDS, ADDED_IN, personalize, preview, cleanAnswer, buildPool };
+module.exports = { DEFAULT_PROMPTS, V1_IDS, ADDED_IN, REMOVED_V4, personalize, preview, cleanAnswer, buildPool };

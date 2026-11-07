@@ -64,7 +64,7 @@ function freshState() {
     feed: [],
     pending: {},
     questionnaire: require('./personalize').DEFAULT_PROMPTS.map((x) => ({ ...x })),
-    questionnaireVersion: 3,
+    questionnaireVersion: 4,
     personalUsed: [],
   };
 }
@@ -77,15 +77,19 @@ function setState(s) {
   // Fill in fields added after a saved game was created.
   const PZ = require('./personalize');
   if (!state.questionnaire) state.questionnaire = PZ.DEFAULT_PROMPTS.map((x) => ({ ...x }));
-  const QV = 3;
+  const QV = 4;
   if ((state.questionnaireVersion || 1) < QV) {
-    // v2 added garba + "about the group" questions, v3 more group votes. Replace an unedited v1
+    // v2 added garba + "about the group" questions, v3 more group votes, v4 trimmed the list. Replace an unedited v1
     // list; otherwise append only the questions that are new since the saved version.
     const ids = state.questionnaire.map((q) => q.id);
     const unedited = ids.length === PZ.V1_IDS.length && ids.every((id, i) => id === PZ.V1_IDS[i]);
     const from = state.questionnaireVersion || 1;
     if (unedited) state.questionnaire = PZ.DEFAULT_PROMPTS.map((x) => ({ ...x }));
-    else PZ.DEFAULT_PROMPTS.filter((p) => (PZ.ADDED_IN[p.id] || 1) > from && !ids.includes(p.id)).forEach((p) => state.questionnaire.push({ ...p }));
+    else {
+      // v4 trimmed the defaults; drop the retired ones but keep any the host added themselves.
+      if (from < 4) state.questionnaire = state.questionnaire.filter((q) => !PZ.REMOVED_V4.includes(q.id));
+      PZ.DEFAULT_PROMPTS.filter((p) => (PZ.ADDED_IN[p.id] || 1) > from && !ids.includes(p.id)).forEach((p) => state.questionnaire.push({ ...p }));
+    }
     state.questionnaireVersion = QV;
   }
   if (state.settings.personalPct == null) state.settings.personalPct = 20;

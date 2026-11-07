@@ -74,11 +74,10 @@ Click **Tap to enable sound & music** on the TV once, because browsers block aud
 
 ## Personalised questions ("About me")
 
-1. After joining, each guest sees an **About me** questionnaire on their phone with four sections. You can edit the questions, and their answer types, in **✏️ Questions → ✨ Personalised questions**.
-   - 🙋 **About you:** favourite movie, star, dream holiday, Diwali sweet, dance song, hidden talent, fun fact.
-   - 🪔 **Garba time:** favourite garba song, favourite Toronto garba, signature move, garba or dandiya.
-   - 👯 **About the group:** partner/spouse, best friend, go-to dandiya partner, and who you'd call if your car broke down after garba. Guests pick from the list of guests, which becomes questions like "Who is Priya's other half?". Couples become a single question.
-   - 🗳️ **Secret group votes:** best garba dancer, still dancing when the garba ends, late to garba, best Navratri outfits, best dressed tonight, most nakhre, longest to get ready, biggest foodie, loudest in the group chat, most likely to stop the garba for a selfie. Only a clear winner becomes "The group has voted! Who is the best garba dancer?", and ties are skipped. Other guests never see individual votes, but you can, in the Players tab.
+1. After joining, each guest sees an **About me** questionnaire on their phone with three sections. You can edit the questions, and their answer types, in **✏️ Questions → ✨ Personalised questions**. You can also add "pick a guest" questions (for example partner or best friend), which become questions like "Who is Priya's other half?".
+   - 🙋 **About you:** favourite movie, favourite actor or actress, favourite Diwali sweet, fun fact.
+   - 🪔 **Garba time:** favourite garba singer.
+   - 🗳️ **Secret group votes:** best garba dancer, late to garba, best dressed tonight, most nakhre, longest to get ready, biggest foodie, loudest in the group chat, most likely to stop the garba for a selfie. Only a clear winner becomes "The group has voted! Who is the best garba dancer?", and ties are skipped. Other guests never see individual votes, but you can, in the Players tab.
 2. When you **start** a game, about **20%** of its questions (adjustable from 0–50%) are swapped for questions built from those answers. The rest come from your standard set, and your saved questions are never changed.
    - **Quiz games:** for example "Whose dream holiday destination is Bali?" (options are guest names) or "What is Priya's favourite movie?" (options are other guests' answers). Guess the Movie prefers movie answers.
    - **Jeopardy:** one category becomes **✨ Know Your Guests**.
@@ -145,7 +144,7 @@ Without the `SUPABASE_*` variables, the local server keeps state in `data/state.
 
 ## Practice run with bots
 
-**Host → 🎮 Live → 🤖 Start demo** adds 6–12 bot guests, fills in their questionnaire (couples, best friends, group votes, garba answers) and makes teams. Bots:
+**Host → 🎮 Live → 🤖 Start demo** adds 6–12 bot guests, fills in their questionnaire (answers and group votes) and makes teams. Bots:
 - answer quiz questions over 1–14 seconds, with different accuracy per bot
 - play Fastest Finger, and play the KBC hot seat if you seat one
 - vote in the audience poll, buzz in Jeopardy and rate Hook Step dances

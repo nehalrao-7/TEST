@@ -17,6 +17,7 @@ const POOLS = {
   talent: ['I can juggle', 'A perfect Amitabh impression', 'I bake amazing cakes', 'I can solve a Rubik’s cube', 'I sing Hindustani classical', 'Origami', 'I can whistle any song', 'Speed typing'],
   fact: ['I once met Ranveer Singh', 'I have been to 20 countries', 'I was a child actor', 'I can’t swim', 'I don’t like chocolate', 'I won a dance competition', 'I have a twin', 'I ran a marathon'],
   garbaSong: ['Chogada', 'Dholida', 'Nagada Sang Dhol', 'Pankhida', 'Udi Udi Jaye', 'Shubhaarambh', 'Kamariya', 'Dholi Taro'],
+  garbaSinger: ['Falguni Pathak', 'Kinjal Dave', 'Geeta Rabari', 'Aishwarya Majmudar', 'Kirtidan Gadhvi', 'Osman Mir', 'Parthiv Gohil', 'Sachin-Jigar'],
   garbaEvent: ['Garba at the convention centre', 'Raas Garba in Mississauga', 'Navratri at the Hindu Sabha', 'The Brampton mega garba', 'Garba by the lake', 'Rang Navratri'],
   garbaMove: ['The double-spin three-taali', 'The dodhiyu', 'The two-step hinch', 'The sanedo jump', 'Six-step with a twirl', 'The backward dandiya flip'],
   generic: ['Definitely chai', 'Mumbai', 'Kishore Kumar', 'Pani puri', 'Cricket', 'Diwali, obviously', 'My grandmother', 'Dancing'],
