@@ -10,42 +10,42 @@ const S = require('./state');
 // · choice (fixed options). section groups them on the phone.
 const DEFAULT_PROMPTS = [
   // ---- About you ----
-  { id: 'movie', section: 'you', type: 'text', tag: 'movie', text: 'Your all-time favourite movie', ph: 'e.g. Kabhi Khushi Kabhie Gham',
-    who: 'Whose all-time favourite movie is “{a}”?', what: "What is {n}'s all-time favourite movie?", clue: 'Their all-time favourite movie is “{a}”' },
-  { id: 'star', section: 'you', type: 'text', tag: 'movie', text: 'Favourite actor or actress', ph: 'e.g. Shah Rukh Khan',
-    who: 'Whose favourite star is {a}?', what: "Who is {n}'s favourite actor or actress?", clue: 'Their favourite star is {a}' },
-  { id: 'sweet', section: 'you', type: 'text', tag: 'food', text: 'Favourite Diwali sweet', ph: 'e.g. Kaju katli',
-    who: 'Whose favourite Diwali sweet is {a}?', what: "What is {n}'s favourite Diwali sweet?", clue: 'Their favourite Diwali sweet is {a}' },
-  { id: 'dance', section: 'you', type: 'text', tag: 'music', text: 'A Bollywood song that always gets you dancing', ph: 'e.g. London Thumakda',
-    who: 'Which guest can’t resist dancing to “{a}”?', what: 'Which song always gets {n} dancing?', clue: 'They can’t resist dancing to “{a}”' },
+  { id: 'karaoke', section: 'you', type: 'text', tag: 'music', text: 'Your go-to karaoke song', ph: 'e.g. Kal Ho Naa Ho',
+    who: 'Whose go-to karaoke song is “{a}”?', what: "What is {n}'s go-to karaoke song?", clue: 'Their go-to karaoke song is “{a}”' },
+  { id: 'everyday', section: 'you', type: 'text', tag: 'food', text: 'A dish you could eat every single day', ph: 'e.g. Pav bhaji',
+    who: 'Who could eat {a} every single day?', what: 'Which dish could {n} eat every single day?', clue: 'They could eat {a} every single day' },
+  { id: 'dreamJob', section: 'you', type: 'text', tag: 'fun', text: 'Your childhood dream job', ph: 'e.g. Pilot',
+    who: 'Whose childhood dream job was {a}?', what: "What was {n}'s childhood dream job?", clue: 'Their childhood dream job: {a}' },
+  { id: 'binge', section: 'you', type: 'text', tag: 'movie', text: 'A show or movie you binged recently', ph: 'e.g. Panchayat',
+    who: 'Who recently binged “{a}”?', what: 'What did {n} binge recently?', clue: 'They recently binged “{a}”' },
 
   // ---- About the group (pick another guest) ----
-  { id: 'partner', section: 'group', type: 'pick', tag: 'group', text: 'Your partner, if they’re here tonight',
-    who: "Who is {n}'s other half?", clue: "{n}'s other half" },
-  { id: 'bestie', section: 'group', type: 'pick', tag: 'group', text: 'Your best friend in this group',
-    who: 'Who did {n} name as their best friend in the group?', clue: '{n} named this guest as their best friend' },
+  { id: 'roommate', section: 'group', type: 'pick', tag: 'group', text: 'Who here would you pick as a roommate?',
+    who: 'Who did {n} pick as their ideal roommate?', clue: '{n} picked this guest as their ideal roommate' },
+  { id: 'roadTrip', section: 'group', type: 'pick', tag: 'group', text: 'Who here would you take on a road trip?',
+    who: 'Who would {n} take on a road trip?', clue: '{n} would take this guest on a road trip' },
+
+  // ---- Garba time ----
+  { id: 'garbaSnack', section: 'garba', type: 'text', tag: 'garba', text: 'Your must-have snack after garba', ph: 'e.g. Fafda-jalebi',
+    who: 'Whose must-have snack after garba is {a}?', what: "What is {n}'s must-have snack after garba?", clue: 'Their must-have snack after garba: {a}' },
 
   // ---- Group votes ----
-  { id: 'voteDancer', section: 'vote', type: 'vote', tag: 'garba', text: 'Best garba dancer in the group',
-    who: 'The group has voted! Who is the best garba dancer?', clue: 'The group voted this guest the best garba dancer' },
-  { id: 'voteLast', section: 'vote', type: 'vote', tag: 'garba', text: 'Most likely to still be dancing when the garba ends',
-    who: 'The group has voted! Who is most likely to still be dancing when the garba ends?', clue: 'Voted most likely to still be dancing when the garba ends' },
-  { id: 'voteLate', section: 'vote', type: 'vote', tag: 'group', text: 'Most likely to show up late to garba',
-    who: 'The group has voted! Who is most likely to show up late to garba?', clue: 'Voted most likely to show up late to garba' },
-  { id: 'voteOutfit', section: 'vote', type: 'vote', tag: 'garba', text: 'Best Navratri outfits, every single year',
-    who: 'The group has voted! Who has the best Navratri outfits every year?', clue: 'Voted best Navratri outfits, every single year' },
-  { id: 'voteDressed', section: 'vote', type: 'vote', tag: 'group', text: 'Best dressed tonight',
-    who: 'The group has voted! Who is the best dressed tonight?', clue: 'Voted best dressed tonight' },
-  { id: 'voteNakhre', section: 'vote', type: 'vote', tag: 'group', text: 'Most nakhre 💅',
-    who: 'The group has voted! Who has the most nakhre?', clue: 'Voted the guest with the most nakhre' },
-  { id: 'voteReady', section: 'vote', type: 'vote', tag: 'group', text: 'Takes the longest to get ready',
-    who: 'The group has voted! Who takes the longest to get ready?', clue: 'Voted the one who takes the longest to get ready' },
-  { id: 'voteFoodie', section: 'vote', type: 'vote', tag: 'food', text: 'Biggest foodie (first one at the snacks table)',
-    who: 'The group has voted! Who is the biggest foodie?', clue: 'Voted the biggest foodie, first at the snacks table' },
-  { id: 'voteChat', section: 'vote', type: 'vote', tag: 'group', text: 'Loudest in the group chat',
-    who: 'The group has voted! Who is the loudest in the group chat?', clue: 'Voted the loudest in the group chat' },
-  { id: 'voteSelfie', section: 'vote', type: 'vote', tag: 'group', text: 'Most likely to stop the garba for a selfie',
-    who: 'The group has voted! Who is most likely to stop the garba for a selfie?', clue: 'Voted most likely to stop the garba for a selfie' },
+  { id: 'voteMic', section: 'vote', type: 'vote', tag: 'music', text: 'First to grab the mic at a party 🎤',
+    who: 'The group has voted! Who is first to grab the mic at a party?', clue: 'Voted first to grab the mic at a party' },
+  { id: 'voteEkLast', section: 'vote', type: 'vote', tag: 'garba', text: 'Always asking for “ek last gaana”',
+    who: 'The group has voted! Who is always asking for “ek last gaana”?', clue: 'Voted always asking for “ek last gaana”' },
+  { id: 'voteFunny', section: 'vote', type: 'vote', tag: 'group', text: 'Funniest person in the group 😂',
+    who: 'The group has voted! Who is the funniest person in the group?', clue: 'Voted the funniest person in the group' },
+  { id: 'votePlanner', section: 'vote', type: 'vote', tag: 'group', text: 'The group’s unofficial event planner',
+    who: 'The group has voted! Who is the group’s unofficial event planner?', clue: 'Voted the group’s unofficial event planner' },
+  { id: 'voteSharma', section: 'vote', type: 'vote', tag: 'group', text: 'The group’s “Sharma ji ka beta / beti”',
+    who: 'The group has voted! Who is the group’s “Sharma ji ka beta / beti”?', clue: 'Voted the group’s “Sharma ji ka beta / beti”' },
+  { id: 'voteSecret', section: 'vote', type: 'vote', tag: 'group', text: 'Worst at keeping a secret 🤫',
+    who: 'The group has voted! Who is the worst at keeping a secret?', clue: 'Voted the worst at keeping a secret' },
+  { id: 'voteLost', section: 'vote', type: 'vote', tag: 'group', text: 'Most likely to get lost even with Google Maps',
+    who: 'The group has voted! Who is most likely to get lost even with Google Maps?', clue: 'Voted most likely to get lost even with Google Maps' },
+  { id: 'voteFirstOut', section: 'vote', type: 'vote', tag: 'group', text: 'First to say “chalo, we should leave” (and then stay 2 more hours)',
+    who: 'The group has voted! Who always says “chalo, we should leave” and then stays 2 more hours?', clue: 'Voted first to say “chalo, we should leave”… and then stay 2 more hours' },
 ];
 // Prompt ids from the first version, used to upgrade an unedited saved questionnaire.
 const V1_IDS = ['movie', 'rewatch', 'star', 'holiday', 'trip', 'sweet', 'comfort', 'dance', 'talent', 'fact'];
@@ -61,6 +61,25 @@ const TAG_CLUE = { movie: '🎬 ✨ 🕵️', holiday: '🏝️ ✨ 🕵️', fo
 
 const shuffle = (a) => S.shuffle(a);
 const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9ऀ-ॿ]+/g, ' ').trim();
+// Two typed answers count as the same when they plainly mean the same thing: spacing, an
+// abbreviation (DDLJ), one containing the other (Katli / Kaju Katli) or a small typo.
+// Questions are only built from answers nobody else gave, so this keeps every question to one right answer.
+function lev(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+function sameAnswer(x, y) {
+  const a = norm(x), b = norm(y);
+  if (!a || !b) return false;
+  const ca = a.replace(/ /g, ''), cb = b.replace(/ /g, '');
+  if (ca === cb) return true;
+  const initials = (s) => s.split(' ').map((w) => w[0]).join('');
+  if ((initials(a) === cb && cb.length >= 3) || (initials(b) === ca && ca.length >= 3)) return true;
+  if ((ca.length >= 4 && cb.includes(ca)) || (cb.length >= 4 && ca.includes(cb))) return true;
+  return Math.min(ca.length, cb.length) >= 6 && lev(ca, cb) <= 2;
+}
 const fill = (t, v) => t.replace(/\{a\}/g, v.a || '').replace(/\{n\}/g, v.n || '').replace(/\{text\}/g, v.text || '');
 
 function cleanAnswer(a) {
@@ -136,18 +155,18 @@ function buildPool(state) {
 
     const answers = raw.map((x) => ({ p: x.p, a: cleanAnswer(x.v) })).filter((x) => x.a);
     if (!answers.length) continue;
-    const counts = {};
-    answers.forEach((x) => { counts[norm(x.a)] = (counts[norm(x.a)] || 0) + 1; });
     for (const x of answers) {
       const base = { about: x.p.id, aboutName: x.p.name, involves: [x.p.id], promptId: prompt.id, tag: prompt.tag || 'fun', answerText: x.a, personal: true };
       // "Whose favourite movie is X?" — needs a unique answer and at least one other guest.
-      if (counts[norm(x.a)] === 1 && players.length >= 2) {
+      if (answers.filter((y) => sameAnswer(y.a, x.a)).length === 1 && players.length >= 2) {
         const opts = shuffle([x.p.name, ...names([x.p.id])]);
         items.push({ ...base, kind: 'who', q: fill(t.who, { a: x.a, text: prompt.text }), options: opts, answer: opts.indexOf(x.p.name), clueText: fill(t.clue, { a: x.a, text: prompt.text }) });
       }
       // "What is Priya's favourite movie?" — needs two other distinct answers to the same prompt.
-      const others = [...new Map(answers.filter((y) => norm(y.a) !== norm(x.a)).map((y) => [norm(y.a), y.a])).values()];
-      if (others.length >= 2) {
+      // Wrong options must differ from the right answer and from each other.
+      const others = [];
+      for (const y of answers) if (!sameAnswer(y.a, x.a) && !others.some((o) => sameAnswer(o, y.a))) others.push(y.a);
+      if (others.length >= 2 && answers.filter((y) => sameAnswer(y.a, x.a)).length === 1) {
         const opts = shuffle([x.a, ...shuffle(others).slice(0, 3)]);
         items.push({ ...base, kind: 'what', q: fill(t.what, { n: x.p.name, text: prompt.text }), options: opts, answer: opts.indexOf(x.a) });
       }
@@ -210,20 +229,15 @@ function personalize(game, state) {
       const values = cats[c].clues.map((cl) => cl.value);
       const items = pick(pool, values.length, { kinds: ['who'], used });
       if (!items.length) continue;
-      cats[c] = { name: '✨ Know Your Guests', personal: true, clues: items.map((it, i) => ({ value: values[i], q: it.clueText, a: it.answerName || it.aboutName, personal: true, about: it.about, involves: it.involves })) };
+      cats[c] = { name: cats[c].group ? '✨ ' + cats[c].name : '✨ Know Your Guests', personal: true, clues: items.map((it, i) => ({ value: values[i], q: it.clueText, a: it.answerName || it.aboutName, personal: true, about: it.about, involves: it.involves })) };
       mark(items);
       count += items.length;
     }
   } else if (game.type === 'kbc') {
-    const ff = content.fastestFinger || [];
-    const ffItems = pick(pool, ff.length > 1 ? countFor(ff.length, pct) : 0, { used });
-    spread(ff.length, ffItems.length).forEach((pos, j) => { ff[pos] = toMCQ(ffItems[j], { time: ff[pos].time || 15 }); });
-    mark(ffItems);
-    count += ffItems.length;
     const ladder = content.ladder || [];
     const levels = spread(ladder.length, countFor(ladder.length, pct)).filter((l) => l > 0);
     for (const l of levels) {
-      // Several per level so a hot-seat guest never gets a question about themselves.
+      // Several per level so the room gets a mix, and nobody is the only subject.
       const items = pick(pool, 3, { used });
       if (!items.length) continue;
       ladder[l].questions = [...items.map((it) => toMCQ(it)), ...ladder[l].questions];

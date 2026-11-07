@@ -59,7 +59,17 @@ body.has-lower .ticker-inner { visibility: hidden; }
 .lobby .sub b { color: var(--haldi); }
 .join-box { display: flex; gap: 2vw; align-items: center; padding: 1.6vw; }
 .join-box img { width: 12.5vw; height: 12.5vw; border-radius: 1vw; background: #fff; padding: 0.4vw; box-shadow: 0 0 0 0.25vw var(--brass); }
-.join-box .url { font-family: var(--font-display); font-size: 2.2vw; color: var(--rani); word-break: break-all; line-height: 1.1; }
+.join-box .url { font-family: var(--font-display); font-size: 1.3vw; color: var(--text-muted); word-break: break-all; line-height: 1.1; }
+.join-box .room-code { font-size: 4.8vw; font-weight: 700; letter-spacing: .22em; color: #2B0F15; line-height: 1; margin: 0.2vw 0 0.4vw; }
+body.tv-gate .tv-top, body.tv-gate .tv-foot, body.tv-gate .sound-btn, body.tv-gate .media-box, body.tv-gate .music-chip { display: none; }
+body.tv-gate .stage { display: grid; place-items: center; }
+.gate { width: min(42vw, 760px); text-align: center; }
+.gate h1 { font-size: 4vw; margin: 0.4vw 0; }
+.gate p { color: var(--text-muted); font-size: 1.4vw; }
+.gate .em .diya-svg { width: 7vw; height: 7vw; }
+.gate .code-input { width: 100%; font-size: 3.2vw; letter-spacing: .4em; text-align: center; font-weight: 700; text-transform: uppercase; margin: 1vw 0; background: var(--shell); color: var(--cream); }
+.gate .btn { margin-top: 0.6vw; }
+.gate-err { color: var(--coral); }
 .join-box .step { font-size: 1.15vw; color: var(--ink-2); font-weight: 700; }
 .join-box .games { font-size: 1.8vw; margin-top: 0.6vw; letter-spacing: 0.3vw; }
 .q-note { margin-top: 1.2vw; font-size: 1.3vw; background: rgba(255, 243, 220, 0.07); border: 1px dashed var(--kohl-line); border-radius: 1vw; padding: 0.8vw 1.2vw; }
@@ -294,12 +304,36 @@ body.has-lower .ticker-inner { visibility: hidden; }
 /* ---------- YouTube music / video ---------- */
 .media-box { position: fixed; right: 1.6vw; bottom: 5.4vw; width: 34vw; aspect-ratio: 16 / 9; border-radius: 1.4vw; overflow: hidden; z-index: 40; background: #000; box-shadow: 0 0 3vw rgba(255,179,0,.45); border: 0.25vw solid var(--brass); transition: opacity 0.4s ease, transform 0.45s ease, width 0.45s ease, top 0.45s ease, left 0.45s ease, right 0.45s ease, bottom 0.45s ease; }
 .media-box iframe { width: 100%; height: 100%; display: block; pointer-events: none; }
-.media-box.hook-veiled iframe { filter: blur(26px); transform: scale(1.18); }
-.media-box.hook-veiled .media-label { display: none; }
-.media-box.hook-veiled::after { content: 'Hidden until the timer ends'; position: absolute; inset: 0; z-index: 2; display: grid; place-items: center; padding: 1vw; text-align: center; font-weight: 700; font-size: 1.25vw; color: #fff3c4; background: rgba(43, 15, 21, 0.28); }
-.media-box.hook-clear { top: 13vw; bottom: auto; left: 50%; right: auto; width: 46vw; transform: translateX(-50%); z-index: 45; }
-body.hook-ref .big-count, body.hook-ref .hand-note { display: none; }
-body.hook-ref .hook-judge { place-items: end center; padding-bottom: 2vw; }
+body.hook-screen .toran { visibility: hidden; }
+body.hook-screen .ticker { background: linear-gradient(transparent, rgba(43, 15, 21, 0.55)); }
+body.hook-screen .tv-wrap { position: relative; z-index: 35; background: transparent; }
+body.hook-screen .media-box,
+body.hook-screen .media-box.audio {
+  inset: 0; width: 100vw; height: 100vh; max-width: none; aspect-ratio: auto;
+  border: 0; border-radius: 0; box-shadow: none; opacity: 1; transform: none; z-index: 20;
+}
+body.hook-screen .media-box iframe { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; max-width: none !important; filter: none; transform: none; }
+body.hook-screen .media-box.hook-veiled iframe { filter: blur(28px) !important; transform: scale(1.08); }
+body.hook-screen .sound-btn { left: 50%; right: auto; top: auto; bottom: 8vh; transform: translateX(-50%); z-index: 60; font-size: 1.4vw; padding: 0.8vw 1.4vw; }
+body.hook-screen .media-box.hook-veiled::after {
+  content: ''; position: absolute; inset: 0; z-index: 2;
+  background: rgba(43, 15, 21, 0.28); backdrop-filter: blur(10px);
+}
+body.hook-screen .media-box { transition: none; }
+body.hook-dancing .tv-top,
+body.hook-dancing .tv-foot,
+body.hook-dancing .ticker,
+body.hook-dancing .toran { display: none !important; }
+body.hook-dancing .tv-wrap { padding: 0; gap: 0; }
+body.hook-dancing .scene { animation: none; transform: none; }
+body.hook-dancing .hook-film { position: fixed; left: 0; right: 0; bottom: 0; top: auto; z-index: 36; height: auto; display: flex; flex-direction: column; align-items: center; gap: 0.3vw; padding: 1.2vh 3vw 2.2vh; text-align: center; pointer-events: none; background: linear-gradient(transparent, rgba(43, 15, 21, 0.55)); }
+body.hook-dancing .hook-film .song { font-family: var(--font-display); font-size: 2vw; color: #fff6d8; text-shadow: 0 0.12vw 0.5vw rgba(0, 0, 0, 0.85); }
+body.hook-dancing .hook-film .big-count { font-family: var(--font-display); font-size: 3.6vw; line-height: 1; color: #fff6d8; text-shadow: 0 0.12vw 0.45vw rgba(0, 0, 0, 0.85); }
+body.hook-dancing .hook-film .step { font-size: 1.25vw; max-width: 64vw; color: #fff; text-shadow: 0 0.1vw 0.4vw rgba(0, 0, 0, 0.85); }
+body.hook-dancing .sound-btn { left: auto; right: 1.2vw; top: 1.2vw; bottom: auto; transform: none; font-size: 1vw; padding: 0.45vw 0.8vw; }
+body.hook-screen .hook::before { display: none; }
+body.hook-screen .hook-judge { place-items: end center; padding-bottom: 2vw; }
+body.hook-screen .hook-judge .perf { background: rgba(43, 15, 21, 0.62); border-radius: 1.6vw; padding: 1.2vw 2vw; }
 .media-box.audio { width: 320px; height: 180px; opacity: 0.01; pointer-events: none; border: 0; box-shadow: none; transform: translateY(40px); }
 .media-label { position: absolute; left: 0; right: 0; bottom: 0; padding: 0.6vw 1vw; background: linear-gradient(transparent, rgba(0,0,0,.75)); font-weight: 800; font-size: 1.1vw; }
 .media-box.audio .media-label { display: none; }
@@ -393,3 +427,30 @@ body.in-game .diya-row { opacity: 0; }
 .hook-scored-fit .call.big { font-size: 3vw; }
 .hook-scored-fit .dancer .avatar { width: 4.2vw; height: 4.2vw; font-size: 2.3vw; }
 .hook-scored-fit .song { font-size: 2.2vw; }
+
+/* One of everything per screen. The lobby already shows the name and code large; the standings
+   and awards already rank everyone; a game's title card already names the game. */
+.view-lobby .tv-top .logo, .view-lobby .ticker { visibility: hidden; }
+.view-lobby .mini-top, .view-leaderboard .mini-top, .view-podium .mini-top, .view-awards .mini-top { visibility: hidden; }
+body:has(.stage .intro) .now-playing { visibility: hidden; }
+.join-box .room-code { margin: 0; }
+.jclue.solo { grid-template-columns: 1fr; }
+.award-card .desc { color: var(--ink); opacity: .7; }
+
+/* Keynote-style motion: scenes ease in softly, then their parts arrive in order. */
+.scene.enter { animation: sceneIn 650ms cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes sceneIn { from { opacity: 0; transform: translateY(1vw) scale(.985); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes riseIn { from { opacity: 0; transform: translateY(1.2vw); } to { opacity: 1; transform: none; } }
+.scene.enter .intro .em { animation: riseIn 700ms cubic-bezier(.2, .8, .2, 1) 80ms both; }
+.scene.enter .intro h1 { animation: riseIn 700ms cubic-bezier(.2, .8, .2, 1) 200ms both; }
+.scene.enter .intro p { animation: riseIn 700ms cubic-bezier(.2, .8, .2, 1) 340ms both; }
+.scene.enter .intro .rules span { animation: riseIn 600ms cubic-bezier(.2, .8, .2, 1) both; }
+.scene.enter .intro .rules span:nth-child(1) { animation-delay: 480ms; }
+.scene.enter .intro .rules span:nth-child(2) { animation-delay: 560ms; }
+.scene.enter .intro .rules span:nth-child(3) { animation-delay: 640ms; }
+.scene.enter .opts:not(.reveal) .opt, .scene.enter .kbc-opt { animation: riseIn 520ms cubic-bezier(.2, .8, .2, 1) both; }
+.scene.enter .opts .opt:nth-child(2), .scene.enter .kbc-opt:nth-child(2) { animation-delay: 70ms; }
+.scene.enter .opts .opt:nth-child(3), .scene.enter .kbc-opt:nth-child(3) { animation-delay: 140ms; }
+.scene.enter .opts .opt:nth-child(4), .scene.enter .kbc-opt:nth-child(4) { animation-delay: 210ms; }
+.scene.enter .jcat, .scene.enter .jcell { animation: riseIn 500ms cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--jd, 0) * 1ms); }
+.qcard, .award-card { transition: transform 400ms cubic-bezier(.2, .8, .2, 1); }

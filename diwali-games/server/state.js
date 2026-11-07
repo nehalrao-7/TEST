@@ -24,9 +24,11 @@ const POWERUPS = {
   laddoo: { name: 'Lucky Laddoo', emoji: '🍬', desc: 'Open a mystery box worth 50 to 300 points!' },
   swap: { name: 'Ulta Pulta', emoji: '🔄', desc: 'Swap scores with the player ranked just above you (capped swing).' },
   hint: { name: 'Phuljhari Hint', emoji: '✨', desc: 'Use during a quiz question to knock out two wrong answers.' },
+  shagun: { name: 'Shagun Lifafa', emoji: '💌', desc: 'Send a shagun envelope: they get +101, and the blessing returns +51 to you.', target: true },
+  rangoli: { name: 'Rangoli Rush', emoji: '🎨', desc: 'Your whole team gets +50 each. Playing solo? You get +100.' },
 };
 // Weighted pool used when dealing power-ups.
-const POWERUP_POOL = ['double', 'double', 'steal', 'steal', 'shield', 'shield', 'laddoo', 'laddoo', 'swap', 'hint', 'hint'];
+const POWERUP_POOL = ['double', 'double', 'steal', 'steal', 'shield', 'shield', 'laddoo', 'laddoo', 'swap', 'hint', 'hint', 'shagun', 'shagun', 'rangoli', 'rangoli'];
 
 const id = (n = 8) => crypto.randomBytes(n).toString('base64url').slice(0, n);
 const shuffle = (arr) => {
@@ -38,19 +40,30 @@ const shuffle = (arr) => {
   return a;
 };
 
+function partySecret() {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s = '';
+  for (let i = 0; i < 12; i++) s += alphabet[crypto.randomInt(alphabet.length)];
+  return s;
+}
+
 function freshState() {
   return {
     version: 1,
     settings: {
-      eventName: 'Diwali Game Night',
+      eventName: '2026 Diwali Party',
       powerupsEnabled: true,
-      powerupsPerPlayer: 2,
+      powerupsPerPlayer: 3,
       personalPct: 20,
-      questionnaireOpen: true,
+      questionnaireOpen: false,
+      difficulty: 3,
       stealAmount: 150,
       swapCap: 300,
     },
-    hostPin: process.env.HOST_PIN || String(crypto.randomInt(100000, 1000000)),
+    hostPin: partySecret(),
+    tvSecret: partySecret(),
+    hostPinFails: 0,
+    hostPinLockedUntil: 0,
     hostTokens: [],
     players: {},
     teams: {},
@@ -73,7 +86,11 @@ let state = null;
 // The state object for the request being handled (requests are serialised by server/core.js).
 function setState(s) {
   state = s;
-  if (process.env.HOST_PIN) state.hostPin = process.env.HOST_PIN;
+  // Each room keeps its own long PIN. A shared environment PIN is never applied.
+  if (!state.hostPin || String(state.hostPin).length < 12) state.hostPin = partySecret();
+  if (!state.tvSecret || String(state.tvSecret).length < 12) state.tvSecret = partySecret();
+  if (state.hostPinFails == null) state.hostPinFails = 0;
+  if (state.hostPinLockedUntil == null) state.hostPinLockedUntil = 0;
   // Fill in fields added after a saved game was created.
   const PZ = require('./personalize');
   if (!state.questionnaire) state.questionnaire = PZ.DEFAULT_PROMPTS.map((x) => ({ ...x }));
@@ -95,8 +112,17 @@ function setState(s) {
     state.questionnaire = PZ.DEFAULT_PROMPTS.map((x) => ({ ...x })).concat(custom);
     state.questionnaireVersion = QV;
   }
+  if (!state.settings) state.settings = {};
+  // The party was renamed; rooms saved with the old default pick up the new one.
+  if (/game night/i.test(state.settings.eventName || '')) state.settings.eventName = '2026 Diwali Party';
   if (state.settings.personalPct == null) state.settings.personalPct = 20;
-  if (state.settings.questionnaireOpen == null) state.settings.questionnaireOpen = true;
+  // The quick questions now wait for the host to send them once everyone has joined.
+  if (state.settings.questionnaireOpen == null || state.questionnaireGate == null) {
+    if (state.questionnaireGate == null && !Object.values(state.players || {}).some((p) => !p.bot && p.answers && Object.keys(p.answers).length)) state.settings.questionnaireOpen = false;
+    if (state.settings.questionnaireOpen == null) state.settings.questionnaireOpen = false;
+    state.questionnaireGate = 1;
+  }
+  state.settings.difficulty = Math.max(1, Math.min(5, Math.round(Number(state.settings.difficulty) || 3)));
   if (!state.personalUsed) state.personalUsed = [];
   if (!state.stats) state.stats = {};
   if (!state.hookV2) {
@@ -104,6 +130,7 @@ function setState(s) {
     state.games.forEach((g) => { if (g.type === 'hookstep' && g.status !== 'live') { g.mode = 'team'; g.content.himmatBonus = g.content.himmatBonus || 100; delete g.content.votingSeconds; } });
     state.hookV2 = true;
   }
+  state.games.forEach((g) => { if (g.type === 'kbc' && g.status !== 'live') g.mode = 'individual'; });
   const { applyHookVideos } = require('./content');
   state.games.forEach((g) => { if (g.type === 'hookstep') applyHookVideos(g.content); });
   if (state.live && state.live.content) {
@@ -131,12 +158,14 @@ function dealPowerups(n) {
 }
 
 function createPlayer({ name, phone, avatar }) {
+  const { phoneHash, phoneTail } = require('./privacy');
   const used = new Set(Object.values(state.players).map((p) => p.color));
   const color = COLORS.find((c) => !used.has(c)) || COLORS[crypto.randomInt(COLORS.length)];
   const p = {
     id: id(),
     name,
-    phone,
+    phoneHash: phone ? phoneHash(phone) : '',
+    phoneTail: phone ? phoneTail(phone) : '',
     avatar: AVATARS.includes(avatar) ? avatar : AVATARS[crypto.randomInt(AVATARS.length)],
     color,
     joinedAt: Date.now(),
@@ -341,6 +370,26 @@ function usePowerup(player, puId, targetId, liveCtx) {
       announce({ emoji: '🔄', title: 'ULTA PULTA!', text: `${player.name} swapped fortunes with ${victim.name} (${diff} point swing)!`, kind: 'powerup' });
       break;
     }
+    case 'shagun': {
+      const friend = state.players[targetId];
+      if (!friend || friend.id === player.id) throw new Error('Pick someone to send your shagun to.');
+      award(friend.id, 101, `Shagun from ${player.name} 💌`, null, { kind: 'powerup', noDouble: true });
+      award(player.id, 51, `Shagun blessing for ${friend.name}`, null, { kind: 'powerup', noDouble: true });
+      announce({ emoji: '💌', title: 'SHAGUN LIFAFA!', text: `${player.name} sent ${friend.name} +101. The blessing returns +51!`, kind: 'powerup' });
+      break;
+    }
+    case 'rangoli': {
+      const mates = player.teamId ? Object.values(state.players).filter((p) => p.teamId === player.teamId) : [];
+      if (mates.length > 1) {
+        mates.forEach((m) => award(m.id, 50, `Rangoli Rush by ${player.name} 🎨`, null, { kind: 'powerup', noDouble: true }));
+        const team = state.teams[player.teamId];
+        announce({ emoji: '🎨', title: 'RANGOLI RUSH!', text: `${player.name} gave ${team ? team.name : 'their team'} +50 each!`, kind: 'powerup' });
+      } else {
+        award(player.id, 100, 'Rangoli Rush 🎨', null, { kind: 'powerup', noDouble: true });
+        announce({ emoji: '🎨', title: 'RANGOLI RUSH!', text: `${player.name} drew themselves +100!`, kind: 'powerup' });
+      }
+      break;
+    }
     case 'hint': {
       if (!liveCtx || !liveCtx.canHint(player)) throw new Error('Save this for when a quiz question is on screen!');
       liveCtx.applyHint(player);
@@ -395,6 +444,8 @@ function gamesList() {
 function basePublic(onlineSet) {
   return {
     serverNow: Date.now(),
+    code: state.code || '',
+    difficulty: state.settings.difficulty || 3,
     eventName: state.settings.eventName,
     powerupsEnabled: state.settings.powerupsEnabled,
     players: publicPlayers(onlineSet),
@@ -412,7 +463,7 @@ function basePublic(onlineSet) {
 
 module.exports = {
   get state() { return state; },
-  setState, freshState, id, shuffle,
+  setState, freshState, partySecret, id, shuffle,
   AVATARS, POWERUPS, TEAM_PRESETS,
   stat, createPlayer, dealPowerups, makeTeams, teamMembers, scores, ranking,
   award, awardEntity, parseEntity, entityKeyFor, entityInfo,

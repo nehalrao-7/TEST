@@ -1,7 +1,32 @@
 {
   "cleanUrls": true,
   "outputDirectory": "public",
-  "regions": ["iad1"],
-  "functions": { "api/main.js": { "includeFiles": "server/**", "maxDuration": 15 } },
-  "rewrites": [{ "source": "/api/:path*", "destination": "/api/main?p=:path*" }]
+  "regions": [
+    "iad1"
+  ],
+  "functions": {
+    "api/main.js": {
+      "includeFiles": "server/**",
+      "maxDuration": 15
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api/main?p=:path*"
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "diwali-game-night.vercel.app"
+        }
+      ],
+      "destination": "https://2026-diwali-party.vercel.app/:path*",
+      "permanent": false
+    }
+  ]
 }

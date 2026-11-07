@@ -1,4 +1,4 @@
-# Handoff guide — Diwali Game Night
+# Handoff guide — 2026 Diwali Party
 
 Read this first, then `README.md` (feature tour). This file covers what a developer or AI coding assistant needs to keep building safely.
 
@@ -12,14 +12,14 @@ A live party-game web app for 12–16 guests, with three screens:
 | Phone | `/play` | **Controller only.** One "moment" at a time: shape buttons, buzzer, Sahi/Galat, "eyes on TV". |
 | Host | `/host` | **Control room** (dark theme). Run-of-show plus a single "Next cue" button (Space). Questions editor, players, scores. |
 
-- **Live site:** https://diwali-game-night.vercel.app
-- **Code:** GitHub `nehalrao-7/TEST`, branch `diwali-game-night`, folder `diwali-games/`
+- **Live site:** https://2026-diwali-party.vercel.app
+- **Code:** GitHub `nehalrao-7/TEST`, branch `cursor/rooms-and-difficulty-1cc7`, folder `diwali-games/`
 
 ## 2. Stack (deliberately simple)
 
 - **Front end:** plain JS, HTML and CSS. No framework and no build step. Files are in `public/`.
 - **Back end:** Node 18+ (CommonJS). A single serverless function, `api/main.js`, handles every `/api/*` route (rewrite in `vercel.json`). Locally, `server/index.js` (Express) serves the same routes.
-- **State:** one JSON document. In production it's a single Supabase Postgres row (`dgn_state`) with a version number. Locally it's `data/state.json`.
+- **State:** one party per row. The game row has no phone numbers and no questionnaire answers; those are in a private row for that party only. Phone numbers are stored as a hash. Locally each party is its own file under `data/rooms/`.
 - **Realtime:** after every save, Supabase Realtime broadcasts `{v: version}` on channel `dgn`, and clients refetch their own view. If realtime fails, clients poll.
 - **Only npm dependencies:** `express` (local dev only) and `qrcode`. The browser loads `@supabase/supabase-js@2.45.4` from jsDelivr and the YouTube IFrame API.
 
@@ -102,22 +102,19 @@ Requests inside one instance are serialised (the `serial()` queue) because engin
 
 ## 8. Deploying
 
-- **Vercel project** `diwali-game-night` (team "nehalrao97-gmailcoms-projects"). Root directory is `diwali-games`, output directory is `public`, and the region is `iad1`.
-- **Production builds came from branch `diwali-game-night`.** To ship a change:
-  - push to that branch, then redeploy production in the Vercel dashboard (Deployments → ⋯ → Promote / Redeploy), **or**
-  - merge the branch into `main` so pushes to `main` deploy production automatically.
+- **Vercel project** `2026-diwali-party` (team "nehalrao97-gmailcoms-projects"), region `iad1`. Every push builds a preview; production is promoted from branch `cursor/rooms-and-difficulty-1cc7`.
+- **Database:** Supabase project `diwali-game-night`, tables `dgn_room`, `dgn_room_private`, `dgn_book`, `dgn_seen` (see `supabase/schema.sql`). The app connects through the Supabase pooler as login `dgn_app`, which can only read and write those four tables (RLS policies `dgn_app_all`).
 - **Vercel environment variables:**
 
-  | Variable | Purpose | Secret? |
-  |---|---|---|
-  | `SUPABASE_URL` | Database address | Public |
-  | `SUPABASE_KEY` | Publishable key | Public |
-  | `DGN_SECRET` | Server secret; must match row 1 of the `dgn_secret` table | **Secret** — not in the repo |
-  | `HOST_PIN` | Host console PIN | **Secret** — not in the repo |
-  | `OPEN_ACCESS` | Currently `true`; remove it to bring back the host PIN and phone codes | Setting |
-  | `TWILIO_*` | Optional SMS | **Secret** |
+  | Variable | Purpose |
+  |---|---|
+  | `DATABASE_URL` | Pooler connection string for `dgn_app` (secret) |
+  | `HOST_CREATE_KEY` | Typed on /host to create a party room (secret) |
+  | `PHONE_PEPPER` | Mixed into phone hashes. Changing it forgets saved phones (secret) |
+  | `SUPABASE_URL`, `SUPABASE_KEY` | Live "refresh" nudges per room (public) |
+  | `TWILIO_*` | Optional SMS codes (secret) |
 
-- **Database:** Supabase project `diwali-game-night`. The schema is in `supabase/schema.sql`.
+  `OPEN_ACCESS`, `HOST_PIN` and `DGN_SECRET` are left over from the single-room build and are no longer read.
 
 ## 9. Testing tips
 
