@@ -27,6 +27,85 @@ function pinsEqual(given, expected) {
 }
 const PIN_LOCK_MS = 15 * 60 * 1000;
 const pinMisses = new Map();
+const MAX_ROOMS = 30;
+const EMPTY_ROOM_MS = 3 * 60 * 60 * 1000;
+const LIVE_ROOM_MS = 12 * 60 * 60 * 1000;
+const OTP_GAP_MS = 60 * 1000;
+const OTP_PHONE_HOUR = 5;
+const OTP_GLOBAL_HOUR = 80;
+
+function humanCount(room) {
+  const players = room && room.players;
+  if (!players || typeof players !== 'object') return 0;
+  return Object.values(players).filter((p) => p && !p.bot).length;
+}
+
+function roomStamp(room) {
+  return Number(room && (room.activeAt || room.createdAt)) || 0;
+}
+
+// Rooms nobody is in are temporary. A room with guests stays until the party has been quiet for 12 hours.
+function roomShouldExpire(room, now) {
+  if (!room || typeof room !== 'object') return true;
+  const stamp = roomStamp(room);
+  if (!stamp) return humanCount(room) === 0;
+  const limit = humanCount(room) > 0 ? LIVE_ROOM_MS : EMPTY_ROOM_MS;
+  return now - stamp > limit;
+}
+
+function pruneOtp(env, now) {
+  const book = env.otpAt && typeof env.otpAt === 'object' && !Array.isArray(env.otpAt) ? env.otpAt : {};
+  env.otpAt = book;
+  for (const [key, times] of Object.entries(book)) {
+    const keep = (Array.isArray(times) ? times : [times]).map(Number).filter((t) => now - t < 60 * 60 * 1000);
+    if (keep.length) book[key] = keep;
+    else delete book[key];
+  }
+}
+
+function reapRooms(env, now) {
+  pruneOtp(env, now);
+  let removed = false;
+  for (const [code, room] of Object.entries(env.rooms || {})) {
+    if (roomShouldExpire(room, now)) {
+      delete env.rooms[code];
+      removed = true;
+    }
+  }
+  return removed;
+}
+
+// A new party must be able to start. Rooms with no guests give up their slot first.
+function freeSlot(env) {
+  const count = () => Object.keys(env.rooms || {}).length;
+  const oldest = (pred) => Object.entries(env.rooms)
+    .filter(([, room]) => pred(room))
+    .sort((a, b) => roomStamp(a[1]) - roomStamp(b[1]));
+  while (count() >= MAX_ROOMS) {
+    const idle = oldest((room) => humanCount(room) === 0 && !room.live);
+    const anyEmpty = idle.length ? idle : oldest((room) => humanCount(room) === 0);
+    if (!anyEmpty.length) return false;
+    delete env.rooms[anyEmpty[0][0]];
+  }
+  return true;
+}
+
+function otpKey(phone) {
+  return crypto.createHash('sha256').update(String(phone)).digest('hex').slice(0, 20);
+}
+
+function takeOtpSlot(env, phone, now) {
+  pruneOtp(env, now);
+  const key = otpKey(phone);
+  const mine = env.otpAt[key] ? env.otpAt[key].slice() : [];
+  if (mine.length && now - mine[mine.length - 1] < OTP_GAP_MS) return 'soon';
+  if (mine.length >= OTP_PHONE_HOUR) return 'hour';
+  const global = Object.values(env.otpAt).reduce((n, times) => n + times.length, 0);
+  if (global >= OTP_GLOBAL_HOUR) return 'busy';
+  mine.push(now);
+  env.otpAt[key] = mine;
+  return '';
+}
 let sizeWarned = false;
 function guardSize(env) {
   const bytes = JSON.stringify(env).length;
@@ -495,15 +574,22 @@ function needRoom(body) {
 }
 
 // One saved document holds every room. Engines still see a single room as the game state.
-function run(store, roomCode, mutate) {
+function run(store, roomCode, mutate, touch) {
   return serial(async () => {
     const code = canonRoom(roomCode);
     if (!code) throw new HttpError(400, 'Enter a 4-character room code.');
     for (let attempt = 0; attempt < 30; attempt++) {
       const loaded = await store.load();
       const env = asEnvelope(loaded.data);
+      const reaped = reapRooms(env, Date.now());
       const room = env.rooms[code];
-      if (!room) throw new HttpError(404, 'No room with that code. Check the letters and try again.');
+      if (!room) {
+        if (reaped) {
+          const v = await store.save(loaded.version, env);
+          if (v == null) { await sleep(20 + Math.random() * 60 * (attempt + 1)); continue; }
+        }
+        throw new HttpError(404, 'No room with that code. Check the letters and try again.');
+      }
       room.code = code;
       ROOM = code;
       S.setState(room);
@@ -521,9 +607,10 @@ function run(store, roomCode, mutate) {
       let error = null;
       try { result = await mutate(); } catch (e) { error = e; S.setState(JSON.parse(afterTick)); }
       st().code = code;
+      if (touch) st().activeAt = Date.now();
       const after = JSON.stringify(st());
       let version = loaded.version;
-      if (after !== before) {
+      if (after !== before || reaped) {
         env.rooms[code] = st();
         guardSize(env);
         const v = await store.save(loaded.version, env);
@@ -542,20 +629,49 @@ function run(store, roomCode, mutate) {
   });
 }
 
+function claimOtp(store, phone, roomCode) {
+  return serial(async () => {
+    for (let attempt = 0; attempt < 30; attempt++) {
+      const loaded = await store.load();
+      const env = asEnvelope(loaded.data);
+      const now = Date.now();
+      const before = JSON.stringify(env);
+      reapRooms(env, now);
+      const reason = takeOtpSlot(env, phone, now);
+      if (JSON.stringify(env) !== before) {
+        const v = await store.save(loaded.version, env);
+        if (v == null) { await sleep(20 + Math.random() * 60 * (attempt + 1)); continue; }
+      }
+      if (reason === 'soon' || reason === 'hour') throw new HttpError(429, reason === 'hour' ? 'Too many codes for that number. Wait a few minutes.' : 'Code just sent — wait a few seconds before asking again.');
+      if (reason === 'busy') throw new HttpError(429, 'Too many codes right now. Wait a few minutes.');
+      return { exists: Boolean(env.rooms[canonRoom(roomCode)]) };
+    }
+    throw new HttpError(503, 'The party is very busy — please tap again!');
+  });
+}
+
 function createRoom(store, body) {
   return serial(async () => {
     for (let attempt = 0; attempt < 30; attempt++) {
       const loaded = await store.load();
       const env = asEnvelope(loaded.data);
       const now = Date.now();
+      const before = JSON.stringify(env);
+      reapRooms(env, now);
       env.creates = (Array.isArray(env.creates) ? env.creates : []).filter((t) => now - t < 10 * 60 * 1000);
-      if (env.creates.length >= 8) throw new HttpError(429, 'Too many new rooms. Wait a few minutes.');
-      if (Object.keys(env.rooms).length >= 30) throw new HttpError(429, 'Too many rooms are open.');
+      if (env.creates.length >= 8 || !freeSlot(env)) {
+        if (JSON.stringify(env) !== before) {
+          const v = await store.save(loaded.version, env);
+          if (v == null) { await sleep(20 + Math.random() * 60 * (attempt + 1)); continue; }
+        }
+        throw new HttpError(429, env.creates.length >= 8 ? 'Too many new rooms. Wait a few minutes.' : 'Too many rooms are open.');
+      }
       env.creates.push(now);
       const code = newRoomCode(env.rooms);
       const room = S.freshState();
       room.code = code;
-      room.createdAt = Date.now();
+      room.createdAt = now;
+      room.activeAt = now;
       const name = String((body && body.eventName) || '').trim().slice(0, 40);
       if (name) room.settings.eventName = name;
       room.settings.difficulty = 3;
@@ -646,7 +762,7 @@ async function handle(store, method, path, body = {}, query = {}) {
           playerAction(p, body.action || {});
         }
         return viewFor(body.role, body.token, body.tvSecret);
-      });
+      }, true);
       return { json: { ok: true, view: { ...result, version } } };
     }
 
@@ -681,7 +797,7 @@ async function handle(store, method, path, body = {}, query = {}) {
         const t = token();
         st().hostTokens = [...st().hostTokens.slice(-9), t];
         return { token: t, code: st().code };
-      });
+      }, true);
       if (result.locked) throw new HttpError(429, 'Too many tries. Wait a few minutes and try again.');
       if (result.bad) throw new HttpError(401, 'Wrong room code or host PIN.');
       pinMisses.delete(code);
@@ -697,10 +813,10 @@ async function handle(store, method, path, body = {}, query = {}) {
       if (!name) throw new HttpError(400, 'Please tell us your name.');
       const sentAt = OTP_SENT.get(phone) || 0;
       if (Date.now() - sentAt < 20000) throw new HttpError(429, 'Code just sent — wait a few seconds before asking again.');
-      OTP_SENT.set(phone, Date.now());
-      const loaded = await store.load();
       const viaPublic = smsEnabled ? 'sms' : 'host';
-      if (!asEnvelope(loaded.data).rooms[roomCode]) return { json: { ok: true, via: viaPublic } };
+      const gate = await claimOtp(store, phone, roomCode);
+      OTP_SENT.set(phone, Date.now());
+      if (!gate.exists) return { json: { ok: true, via: viaPublic } };
       const { result } = await run(store, roomCode, () => {
         const existing = Object.values(st().players).find((p) => p.phone === phone);
         if (!existing && Object.values(st().players).some((p) => p.name.toLowerCase() === name.toLowerCase()))
@@ -711,7 +827,7 @@ async function handle(store, method, path, body = {}, query = {}) {
         const code = String(crypto.randomInt(100000, 1000000));
         st().pending[phone] = { code, name: existing ? existing.name : name, avatar: body.avatar, expires: Date.now() + 10 * 60000, attempts: 0, at: Date.now(), via: smsEnabled ? 'sms' : 'host' };
         return { code };
-      });
+      }, true);
       let via = viaPublic;
       if (smsEnabled) {
         try { await sendSms(phone, `${result.code} is your Diwali Game Night code 🪔`); via = 'sms'; } catch (e) {
@@ -749,7 +865,7 @@ async function handle(store, method, path, body = {}, query = {}) {
         const t = token();
         p.tokens = [...p.tokens.slice(-4), t];
         return { token: t, isNew };
-      });
+      }, true);
       if (result.wrong) throw new HttpError(400, 'That code is not right. Try again!');
       return { json: result };
     }
