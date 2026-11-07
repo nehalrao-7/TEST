@@ -384,6 +384,11 @@ const hookstep = {
         if (!perf) throw new Error('Pick who is up first.');
         let pool = songs.map((_, i) => i).filter((i) => !live.usedSongs.includes(i));
         if (!pool.length) pool = songs.map((_, i) => i);
+        // Easy songs come up first, then medium, then hard, so the night builds.
+        const RANK = { easy: 0, medium: 1, hard: 2 };
+        const rank = (i) => RANK[songs[i].level] ?? 1;
+        const lowest = Math.min(...pool.map(rank));
+        pool = pool.filter((i) => rank(i) === lowest);
         perf.songIndex = pool[crypto.randomInt(pool.length)];
         live.phase = 'spin';
         live.spinUntil = now() + 4200;
