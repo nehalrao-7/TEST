@@ -3,8 +3,8 @@
 
 const quiz = (q, options, answer, extra = {}) => ({ q, options, answer, time: 20, ...extra });
 
-// Written for guests born 1995–2000 in the Indian-Canadian GTA crowd: 2000s Bollywood,
-// Hollywood and Pixar, Disney Channel nostalgia, Toronto, garba. No cricket.
+// Written for guests born 1995–2000 in the Indian-Canadian GTA crowd: Bollywood, desi TV,
+// diaspora films, desi food, garba. Every question is Indian. No cricket.
 // Hard but fair: every answer is something this room has seen, heard or danced to.
 // Facts marked "HOST: confirm" in comments are local details worth a quick check.
 
@@ -12,9 +12,9 @@ const guessTheMovie = {
   questions: [
     quiz('Guess the movie!', ['The Lunchbox', 'Cheeni Kum', 'Piku', 'Chef'], 0, { clue: '🍱 📮 💌 🚂' }),
     quiz('Guess the movie!', ['Namastey London', 'Patiala House', 'Bend It Like Beckham', 'Bride & Prejudice'], 2, { clue: '⚽ 🥔 🥦 👧🏽 🇬🇧' }),
-    quiz('Which of these was NOT filmed in Toronto?', ['Mean Girls', 'Scott Pilgrim vs. the World', 'Chicago', 'Slumdog Millionaire'], 3),
+    quiz('Guess the movie!', ['Jab We Met', 'Chennai Express', 'Yeh Jawaani Hai Deewani', 'Love Aaj Kal'], 0, { clue: '🚆 🙋‍♀️ 💔 🏔️' }),
     quiz('Guess the movie!', ['Kabhi Alvida Naa Kehna', 'Kal Ho Naa Ho', 'New York', 'My Name Is Khan'], 1, { clue: '🗽 ❤️‍🩹 🩺 ⏳' }),
-    quiz('Guess the movie!', ['Superbad', 'Harold & Kumar Go to White Castle', 'Pineapple Express', 'Dude, Where’s My Car?'], 1, { clue: '🍔 🏰 🚗 🌙' }),
+    quiz('Guess the movie!', ['Stanley Ka Dabba', 'Taare Zameen Par', 'Iqbal', 'I Am Kalam'], 1, { clue: '🎨 🔤 🏫 ⭐' }),
     quiz('Deepa Mehta’s 2002 Toronto comedy: a desi guy hires a fake fiancée to please his family', ['Monsoon Wedding', 'Bride & Prejudice', 'Bollywood/Hollywood', 'Namastey London'], 2),
     quiz('Guess the movie!', ['The Hundred-Foot Journey', 'Julie & Julia', 'Burnt', 'Chef'], 0, { clue: '🍛 🇫🇷 ⭐ 👨‍👩‍👦' }),
     quiz('Guess the movie!', ['Band Baaja Baaraat', 'Monsoon Wedding', 'Shaadi Ke Side Effects', 'Bride & Prejudice'], 1, { clue: '💍 🌧️ 🌼 🏕️' }),
@@ -27,11 +27,11 @@ const guessTheMovie = {
 
 const kahoot = {
   questions: [
-    quiz('To graduate high school in Ontario you need how many volunteer hours?', ['20', '30', '40', '60'], 2),
-    quiz('Finish the jingle: “Pizza Pizza, 967-…”', ['11-11', '12-12', '10-10', '00-00'], 0),
-    quiz('The Ontario test you wrote in Grade 3 and Grade 6 was the…', ['OSSLT', 'EQAO', 'PAT', 'SAT'], 1),
-    quiz('On MSN Messenger, shaking your friend’s chat window was a…', ['Buzz', 'Poke', 'Nudge', 'Wink'], 2),
-    quiz('BlackBerry — and your BBM PIN — came out of which Ontario city?', ['Ottawa', 'Waterloo', 'Kitchener', 'Mississauga'], 1),
+    quiz('Himesh Reshammiya’s trademark look was his…', ['Cap', 'Sunglasses', 'Scarf', 'Ponytail'], 0),
+    quiz('Ekta Kapoor’s saas-bahu serials famously all started with the letter…', ['S', 'K', 'A', 'M'], 1),
+    quiz('The dog in Hum Aapke Hain Koun..! is called…', ['Moti', 'Sheru', 'Tuffy', 'Bruno'], 2),
+    quiz('Munna Bhai’s loyal sidekick is…', ['Majnu', 'Circuit', 'Babloo', 'Pappu'], 1),
+    quiz('Chhota Bheem lives in the village of…', ['Hastinapur', 'Champakpur', 'Dholakpur', 'Gokuldham'], 2),
     quiz('Tulsi in Kyunki Saas Bhi Kabhi Bahu Thi was played by…', ['Shweta Tiwari', 'Sakshi Tanwar', 'Smriti Irani', 'Ekta Kapoor'], 2),
     quiz('CID: “Daya, ___ tod do!”', ['Darwaza', 'Taala', 'Khidki', 'Deewar'], 0),
     quiz('In Shaka Laka Boom Boom, Sanju’s magic object was a…', ['Paintbrush', 'Pencil', 'Chalk', 'Pen'], 1),
@@ -90,15 +90,15 @@ const kbc = {
   ladder: [
     { points: 100, questions: [
       quiz('“Ye Baburao ka style hai!” — which film?', ['Welcome', 'Hera Pheri', 'Golmaal', 'Bhagam Bhag'], 1),
-      quiz('An Iced Capp comes from…', ['Second Cup', 'Starbucks', 'Tim Hortons', 'McDonald’s'], 2),
+      quiz('Which star does all of Bollywood just call “Bhai”?', ['Shah Rukh Khan', 'Salman Khan', 'Aamir Khan', 'Akshay Kumar'], 1),
     ] },
     { points: 200, questions: [
       quiz('Who sang “Tum Hi Ho” from Aashiqui 2?', ['Atif Aslam', 'Arijit Singh', 'KK', 'Sonu Nigam'], 1),
-      quiz('By law, Canada’s national SUMMER sport is…', ['Soccer', 'Baseball', 'Lacrosse', 'Basketball'], 2),
+      quiz('Who is known as the “Nightingale of India”?', ['Asha Bhosle', 'Lata Mangeshkar', 'Shreya Ghoshal', 'Alka Yagnik'], 1),
     ] },
     { points: 300, safe: true, questions: [
       quiz('In Kuch Kuch Hota Hai, little Anjali is named after…', ['Rahul’s mother', 'Tina’s college friend', 'Rahul’s sister', 'A film star'], 1),
-      quiz('In Canada, the first Harry Potter book is “… and the ___ Stone”', ['Sorcerer’s', 'Philosopher’s', 'Wizard’s', 'Secret'], 1),
+      quiz('Jai and Veeru’s friendship song in Sholay is…', ['Yaaron Dosti', 'Yeh Dosti', 'Tere Jaisa Yaar', 'Dil Chahta Hai'], 1),
     ] },
     { points: 500, questions: [
       quiz('Dhanteras honours which god of Ayurveda?', ['Kubera', 'Vishwakarma', 'Dhanvantari', 'Ashwini Kumaras'], 2),
