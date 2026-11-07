@@ -26,6 +26,11 @@
   </main>
   <script src="/js/common.js"></script>
   <script>
+    // A guest who closed the site goes straight back to their game: the phone remembers them.
+    try {
+      const room = App.canonRoom(localStorage.getItem('dgn_token_room'));
+      if (room && localStorage.getItem('dgn_token')) location.replace('/play?room=' + room);
+    } catch { /* private mode: the form below still works */ }
     document.getElementById('mascot').innerHTML = App.mascot();
     document.getElementById('join').insertAdjacentHTML('afterbegin', App.diya(true, 28));
     fetch('/api/meta').then((r) => r.json()).then((m) => {
