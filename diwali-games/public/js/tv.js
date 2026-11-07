@@ -126,21 +126,23 @@
   }
 
   let sock = null;
-  function readTvSecret() {
-    const q = new URLSearchParams(location.search).get('tv') || '';
-    if (q) { try { sessionStorage.setItem('dgn_tv_secret', q); } catch { /* private mode */ } return q; }
-    try { return sessionStorage.getItem('dgn_tv_secret') || ''; } catch { return ''; }
+  // The TV key arrives once in the link's #fragment (or ?tv= from older links), is kept on this
+  // device for that room, and is wiped from the address bar so it isn't shown on screen or shared.
+  function readTvSecret(code) {
+    const fromLink = new URLSearchParams(location.hash.slice(1)).get('tv') || new URLSearchParams(location.search).get('tv') || '';
+    const k = 'dgn_tv_secret:' + (code || '');
+    if (fromLink) { try { localStorage.setItem(k, fromLink); } catch { /* private mode */ } return fromLink; }
+    try { return localStorage.getItem(k) || sessionStorage.getItem('dgn_tv_secret') || ''; } catch { return ''; }
   }
   function enterRoom(code) {
     App.room = code;
-    App.tvSecret = readTvSecret();
+    App.tvSecret = readTvSecret(code);
     try { localStorage.setItem('dgn_tv_room', code); } catch { /* private mode */ }
-    const qs = '?room=' + encodeURIComponent(code) + (App.tvSecret ? '&tv=' + encodeURIComponent(App.tvSecret) : '');
-    history.replaceState(null, '', '/tv' + qs);
+    history.replaceState(null, '', '/tv?room=' + encodeURIComponent(code));
     document.body.classList.remove('tv-gate');
     if (sock) sock.disconnect();
     sock = App.connect('tv', null, (s) => { S = s; render(); }, (msg) => {
-      try { localStorage.removeItem('dgn_tv_room'); } catch { /* ignore */ }
+      try { localStorage.removeItem('dgn_tv_room'); localStorage.removeItem('dgn_tv_secret:' + code); } catch { /* ignore */ }
       App.room = '';
       showGate(msg);
     });
@@ -153,7 +155,7 @@
   }
   function bootTv() {
     const code = App.roomFromQuery() || App.canonRoom((() => { try { return localStorage.getItem('dgn_tv_room'); } catch { return ''; } })());
-    const secret = readTvSecret();
+    const secret = readTvSecret(code);
     if (!code || !secret) showGate();
     else enterRoom(code);
   }

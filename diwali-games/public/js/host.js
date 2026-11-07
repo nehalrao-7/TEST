@@ -242,7 +242,8 @@
   function linksHtml() {
     const o = location.origin;
     const q = S.code ? '?room=' + encodeURIComponent(S.code) : '';
-    const tv = q + (S.tvSecret ? '&tv=' + encodeURIComponent(S.tvSecret) : '');
+    // The TV key goes after "#", so it is never sent to a server, logged, or passed on as a referrer.
+    const tv = q + (S.tvSecret ? '#tv=' + encodeURIComponent(S.tvSecret) : '');
     return `<div class="links stack">${[['Players join', o + '/play' + q], ['TV display', o + '/tv' + tv], ['Host', o + '/host' + q]].map(([l, u]) => `<div class="row"><span style="width:100px" class="small muted">${l}</span><input type="text" readonly value="${esc(u)}" class="grow" style="flex:1"/><button class="btn small ghost" data-a="copy" data-u="${esc(u)}">Copy</button></div>`).join('')}</div>`;
   }
 

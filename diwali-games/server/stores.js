@@ -338,11 +338,12 @@ function realtimeExtras() {
   if (!url || !key) return {};
   return {
     realtime: { url, key, channel: 'dgn' },
-    async broadcast(reacts) {
+    // Tell the room's screens to refetch. The payload is only a version number.
+    async nudge(code, v) {
       await fetch(`${url}/realtime/v1/api/broadcast`, {
         method: 'POST',
         headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: reacts.map((r) => ({ topic: 'dgn', event: 'react', payload: r, private: false })) }),
+        body: JSON.stringify({ messages: [{ topic: 'dgn:' + code, event: 'state', payload: { v }, private: false }] }),
       });
     },
   };

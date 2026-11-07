@@ -5,11 +5,26 @@
 const crypto = require('crypto');
 
 function pepper() {
-  const env = String(process.env.HOST_CREATE_KEY || process.env.PHONE_PEPPER || '');
+  const env = String(process.env.PHONE_PEPPER || process.env.HOST_CREATE_KEY || '');
   return env.length >= 8 ? env : '';
 }
 
+// Phone numbers are a small space (a few area codes × 10^7), so a plain SHA-256 can be
+// reversed by trying them all. scrypt makes each guess cost ~16 MB and tens of
+// milliseconds, so this stays expensive even when the pepper is short or missing.
+const HASH_CACHE = new Map();
 function phoneHash(phone) {
+  const digits = String(phone || '');
+  const key = pepper() + '\0' + digits;
+  if (HASH_CACHE.has(key)) return HASH_CACHE.get(key);
+  const out = 's1' + crypto.scryptSync(digits, 'dgn-phone:' + pepper(), 24, { N: 1 << 14, r: 8, p: 1, maxmem: 64 * 1024 * 1024 }).toString('hex');
+  if (HASH_CACHE.size > 500) HASH_CACHE.clear();
+  HASH_CACHE.set(key, out);
+  return out;
+}
+
+// The hash used before scrypt. Only read to recognise players saved by older builds.
+function legacyPhoneHash(phone) {
   return crypto.createHash('sha256').update(pepper() + '\0' + String(phone || ''), 'utf8').digest('hex');
 }
 
@@ -105,4 +120,4 @@ function scrubPhones(value) {
   return out;
 }
 
-module.exports = { phoneHash, phoneTail, maskTail, emptyBook, roomMeta, splitRoom, mergeRoom, scrubPhones };
+module.exports = { phoneHash, legacyPhoneHash, phoneTail, maskTail, emptyBook, roomMeta, splitRoom, mergeRoom, scrubPhones };

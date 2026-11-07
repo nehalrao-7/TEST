@@ -12,11 +12,11 @@ const { parseYouTube } = require('./youtube');
 const P = require('./personalize');
 const Bots = require('./bots');
 const { applyDifficulty } = require('./practice');
-const { phoneHash, phoneTail, maskTail } = require('./privacy');
+const { phoneHash, legacyPhoneHash, phoneTail, maskTail } = require('./privacy');
 
 const st = () => S.state;
 let ONLINE = new Set();
-const LOCAL_REACTS = [];
+const REACT_EMOJI = new Set(['🔥', '😂', '👏', '😱', '💃', '🪔']);
 const token = () => crypto.randomBytes(24).toString('base64url');
 const findPlayerByToken = (t) => t && Object.values(st().players).find((p) => p.tokens.includes(t));
 const OTP_SENT = new Map();
@@ -178,7 +178,14 @@ function hostView(base) {
 }
 const playerByPhone = (phone) => {
   const hash = phoneHash(phone);
-  return Object.values(st().players).find((p) => p.phoneHash === hash);
+  const players = Object.values(st().players);
+  const found = players.find((p) => p.phoneHash === hash);
+  if (found) return found;
+  // Saved by an older build with the weaker hash: match once, then upgrade it.
+  const old = legacyPhoneHash(phone);
+  const legacy = players.find((p) => p.phoneHash === old);
+  if (legacy) legacy.phoneHash = hash;
+  return legacy;
 };
 // ---------------- game lifecycle ----------------
 
@@ -620,6 +627,12 @@ function run(store, roomCode, mutate, touch, opts) {
       let result;
       let error = null;
       try { result = await mutate(); } catch (e) { error = e; S.setState(JSON.parse(afterTick)); }
+      const botReacts = Bots.takeReacts();
+      if (botReacts.length) {
+        const now = Date.now();
+        st().reacts = [...(Array.isArray(st().reacts) ? st().reacts : []).filter((r) => now - r.at < 8000),
+          ...botReacts.map((r) => ({ at: now, id: String(r.id || crypto.randomBytes(6).toString('hex')).slice(0, 20), emoji: String(r.emoji || '').slice(0, 8), name: String(r.name || '').slice(0, 20) }))].slice(-30);
+      }
       st().code = code;
       if (touch) st().activeAt = Date.now();
       const after = JSON.stringify(st());
@@ -629,11 +642,7 @@ function run(store, roomCode, mutate, touch, opts) {
         const v = await store.saveRoom(code, loaded.version, st());
         if (v == null) { await sleep(20 + Math.random() * 60 * (attempt + 1)); continue; }
         version = v;
-      }
-      const reacts = Bots.takeReacts();
-      if (reacts.length) {
-        if (store.broadcast) store.broadcast(reacts).catch(() => {});
-        else { LOCAL_REACTS.push(...reacts); LOCAL_REACTS.splice(0, Math.max(0, LOCAL_REACTS.length - 30)); }
+        if (store.nudge) await store.nudge(code, v).catch(() => {});
       }
       if (error) throw error;
       return { result, version };
@@ -734,7 +743,9 @@ function viewFor(role, tok, tvSecret) {
   }
   if (!st().tvSecret || !pinsEqual(tvSecret, st().tvSecret)) throw new HttpError(401, 'Open the TV from the host console.');
   const tvExtra = st().tv.view === 'awards' ? { awards: computeAwards(), awardPoints: AWARD_POINTS } : {};
-  const reactions = LOCAL_REACTS.filter((r) => !r.room || r.room === st().code);
+  const reactions = (Array.isArray(st().reacts) ? st().reacts : [])
+    .filter((r) => Date.now() - r.at < 8000)
+    .map(({ at, id, emoji, name }) => ({ at, id, emoji, name }));
   return { ...baseFor(), role: 'tv', live: liveView({ tv: true }), media: currentMedia(), ...tvExtra, reactions: reactions.length ? reactions : undefined };
 }
 
@@ -770,10 +781,19 @@ async function handle(store, method, path, body = {}, query = {}) {
       return { json: { ok: true } };
     }
     if (path === 'react') {
-      // Local mode only — hosted mode sends reactions peer-to-peer over Supabase Realtime.
-      const room = canonRoom(body.room);
-      const r = { at: Date.now(), id: String(body.id || Math.random()).slice(0, 20), emoji: String(body.emoji || '').slice(0, 8), name: String(body.name || '').slice(0, 20), room };
-      if (r.emoji) { LOCAL_REACTS.push(r); if (LOCAL_REACTS.length > 30) LOCAL_REACTS.shift(); }
+      // Only a signed-in player of this room can send one. The name and avatar come from the
+      // server, not the request, and each phone is limited to one reaction every 0.7 seconds.
+      const emoji = String(body.emoji || '');
+      if (!REACT_EMOJI.has(emoji)) throw new HttpError(400, 'Unknown reaction.');
+      await run(store, needRoom(body), () => {
+        const p = findPlayerByToken(body.token);
+        const now = Date.now();
+        const list = (Array.isArray(st().reacts) ? st().reacts : []).filter((r) => now - r.at < 8000);
+        const last = list.filter((r) => r.pid === p.id).pop();
+        if (last && now - last.at < 700) { st().reacts = list; return; }
+        list.push({ at: now, id: crypto.randomBytes(6).toString('hex'), emoji, name: p.name, avatar: p.avatar, pid: p.id });
+        st().reacts = list.slice(-30);
+      }, false, { gate: () => actorGate({ ...body, role: 'player' }), skipTick: true });
       return { json: { ok: true } };
     }
     if (path === 'view' || path === 'tick') {

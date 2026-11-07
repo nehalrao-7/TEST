@@ -18,6 +18,7 @@
     connect(role, token, onState, onAuthError) {
       let version = 0, stopped = false, inflight = false, again = false, debounce = null, deadlineTimer = null, failures = 0;
       const body = (extra) => JSON.stringify({ role, token, room: App.room, tvSecret: App.tvSecret || '', ...extra });
+      App._token = token;
       const apply = (v) => {
         if (stopped || !v) return;
         App.offset = v.serverNow - Date.now();
@@ -61,9 +62,11 @@
         const rt = meta.realtime;
         if (rt && window.supabase) {
           const client = window.supabase.createClient(rt.url, rt.key);
-          App._channel = client.channel(rt.channel).on('broadcast', { event: 'state' }, ({ payload }) => {
-            if (!payload || payload.v > version) soon();
-          }).on('broadcast', { event: 'react' }, ({ payload }) => { if (payload && payload.emoji) App._emitReact(payload); }).subscribe();
+          // The channel only carries "something changed" nudges for this room. Nothing on it is
+          // trusted: each nudge just makes us fetch our own view (rate-limited by soon()).
+          client.channel(rt.channel + ':' + App.room).on('broadcast', { event: 'state' }, ({ payload }) => {
+            if (!payload || Number(payload.v) > version) soon();
+          }).subscribe();
           setInterval(refresh, role === 'player' ? 8000 : 5000);
         } else {
           setInterval(refresh, 1200);
@@ -334,14 +337,13 @@
       (seqs[name] || seqs.tick)();
     },
 
-    // ---------- emoji reactions (Supabase Realtime broadcast, or /api/react locally) ----------
+    // ---------- emoji reactions (sent with the player's token; the TV reads them from its view) ----------
     reactHandlers: [],
     onReact(fn) { this.reactHandlers.push(fn); },
     _emitReact(r) { this.reactHandlers.forEach((fn) => fn(r)); },
     react(emoji, from) {
       const r = { emoji, name: from && from.name, avatar: from && from.avatar, room: this.room, id: Math.random().toString(36).slice(2) };
-      if (this._channel) this._channel.send({ type: 'broadcast', event: 'react', payload: r });
-      else fetch('/api/react', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(r) }).catch(() => {});
+      fetch('/api/react', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emoji, room: this.room, token: this._token }) }).catch(() => {});
       this._emitReact(r);
     },
     showReaction(r) {
