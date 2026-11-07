@@ -9,6 +9,11 @@ const S = require('./state');
 const NAMES = ['Aarav', 'Diya', 'Kabir', 'Meera', 'Rohan', 'Anaya', 'Vihaan', 'Ishita', 'Arjun', 'Tara', 'Neel', 'Kiara', 'Dev', 'Zoya'];
 const AVATARS = ['🐯', '🦚', '🌺', '🪷', '🍬', '🎇', '🥭', '🌶️', '🦁', '🐘', '👑', '🪁', '🌙', '⭐'];
 const POOLS = {
+  karaoke: ['Kal Ho Naa Ho', 'Tum Hi Ho', 'Chaiyya Chaiyya', 'Kajra Re', 'Senorita', 'Ilahi', 'Gerua', 'Badtameez Dil', 'Tujhe Dekha To', 'Kesariya'],
+  everyday: ['Pav bhaji', 'Dal chawal', 'Masala dosa', 'Pani puri', 'Biryani', 'Thepla', 'Chole bhature', 'Undhiyu', 'Maggi', 'Rajma chawal'],
+  dreamJob: ['Pilot', 'Astronaut', 'Cricketer', 'Bollywood star', 'Doctor', 'Teacher', 'Chef', 'Detective', 'Rock star', 'Vet'],
+  binge: ['Panchayat', 'Kota Factory', 'Made in Heaven', 'Heeramandi', 'The Family Man', 'Mirzapur', 'Scam 1992', 'Gullak', 'Farzi', 'Laapataa Ladies'],
+  garbaSnack: ['Fafda-jalebi', 'Dabeli', 'Khaman', 'Masala chai', 'Pani puri', 'Vada pav', 'Sev puri', 'Samosa', 'Kulfi', 'Bhel'],
   movie: ['Lagaan', '3 Idiots', 'Sholay', 'Queen', 'Dangal', 'Kahaani', 'Swades', 'Andhadhun', 'Barfi', 'Dil Chahta Hai', 'Jab We Met', 'Om Shanti Om'],
   star: ['Shah Rukh Khan', 'Deepika Padukone', 'Ranbir Kapoor', 'Alia Bhatt', 'Aamir Khan', 'Priyanka Chopra', 'Hrithik Roshan', 'Kajol', 'Ranveer Singh', 'Madhuri Dixit'],
   holiday: ['Bali', 'Santorini', 'Maldives', 'Japan', 'Iceland', 'Kerala', 'Ladakh', 'Peru', 'Switzerland', 'Goa', 'Banff', 'the Amalfi Coast'],

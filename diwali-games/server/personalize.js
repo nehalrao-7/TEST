@@ -10,47 +10,37 @@ const S = require('./state');
 // · choice (fixed options). section groups them on the phone.
 const DEFAULT_PROMPTS = [
   // ---- About you ----
-  { id: 'movie', section: 'you', type: 'text', tag: 'movie', text: 'Your all-time favourite movie', ph: 'e.g. Kabhi Khushi Kabhie Gham',
-    who: 'Whose all-time favourite movie is “{a}”?', what: "What is {n}'s all-time favourite movie?", clue: 'Their all-time favourite movie is “{a}”' },
-  { id: 'star', section: 'you', type: 'text', tag: 'movie', text: 'Favourite actor or actress', ph: 'e.g. Shah Rukh Khan',
-    who: 'Whose favourite star is {a}?', what: "Who is {n}'s favourite actor or actress?", clue: 'Their favourite star is {a}' },
-  { id: 'sweet', section: 'you', type: 'text', tag: 'food', text: 'Favourite Diwali sweet', ph: 'e.g. Kaju katli',
-    who: 'Whose favourite Diwali sweet is {a}?', what: "What is {n}'s favourite Diwali sweet?", clue: 'Their favourite Diwali sweet is {a}' },
-  { id: 'fact', section: 'you', type: 'text', tag: 'fun', text: 'A fun fact few people know about you', ph: 'e.g. I once met Amitabh Bachchan',
-    who: 'Who is this? “{a}”', what: 'Which of these is a fun fact about {n}?', clue: 'Fun fact: “{a}”' },
+  { id: 'karaoke', section: 'you', type: 'text', tag: 'music', text: 'Your go-to karaoke song', ph: 'e.g. Kal Ho Naa Ho',
+    who: 'Whose go-to karaoke song is “{a}”?', what: "What is {n}'s go-to karaoke song?", clue: 'Their go-to karaoke song is “{a}”' },
+  { id: 'everyday', section: 'you', type: 'text', tag: 'food', text: 'A dish you could eat every single day', ph: 'e.g. Pav bhaji',
+    who: 'Who could eat {a} every single day?', what: 'Which dish could {n} eat every single day?', clue: 'They could eat {a} every single day' },
+  { id: 'dreamJob', section: 'you', type: 'text', tag: 'fun', text: 'Your childhood dream job', ph: 'e.g. Pilot',
+    who: 'Whose childhood dream job was {a}?', what: "What was {n}'s childhood dream job?", clue: 'Their childhood dream job: {a}' },
+  { id: 'binge', section: 'you', type: 'text', tag: 'movie', text: 'A show or movie you binged recently', ph: 'e.g. Panchayat',
+    who: 'Who recently binged “{a}”?', what: 'What did {n} binge recently?', clue: 'They recently binged “{a}”' },
 
   // ---- Garba time ----
-  { id: 'garbaSinger', section: 'garba', type: 'text', tag: 'garba', text: 'Favourite garba singer', ph: 'e.g. Falguni Pathak',
-    who: 'Whose favourite garba singer is {a}?', what: "Who is {n}'s favourite garba singer?", clue: 'Their favourite garba singer is {a}' },
+  { id: 'garbaSnack', section: 'garba', type: 'text', tag: 'garba', text: 'Your must-have snack after garba', ph: 'e.g. Fafda-jalebi',
+    who: 'Whose must-have snack after garba is {a}?', what: "What is {n}'s must-have snack after garba?", clue: 'Their must-have snack after garba: {a}' },
 
   // ---- Group votes ----
-  { id: 'voteDancer', section: 'vote', type: 'vote', tag: 'garba', text: 'Best garba dancer in the group',
-    who: 'The group has voted! Who is the best garba dancer?', clue: 'The group voted this guest the best garba dancer' },
-  { id: 'voteLate', section: 'vote', type: 'vote', tag: 'group', text: 'Most likely to show up late to garba',
-    who: 'The group has voted! Who is most likely to show up late to garba?', clue: 'Voted most likely to show up late to garba' },
-  { id: 'voteDressed', section: 'vote', type: 'vote', tag: 'group', text: 'Best dressed tonight',
-    who: 'The group has voted! Who is the best dressed tonight?', clue: 'Voted best dressed tonight' },
-  { id: 'voteNakhre', section: 'vote', type: 'vote', tag: 'group', text: 'Most nakhre 💅',
-    who: 'The group has voted! Who has the most nakhre?', clue: 'Voted the guest with the most nakhre' },
-  { id: 'voteReady', section: 'vote', type: 'vote', tag: 'group', text: 'Takes the longest to get ready',
-    who: 'The group has voted! Who takes the longest to get ready?', clue: 'Voted the one who takes the longest to get ready' },
-  { id: 'voteFoodie', section: 'vote', type: 'vote', tag: 'food', text: 'Biggest foodie (first one at the snacks table)',
-    who: 'The group has voted! Who is the biggest foodie?', clue: 'Voted the biggest foodie, first at the snacks table' },
-  { id: 'voteChat', section: 'vote', type: 'vote', tag: 'group', text: 'Loudest in the group chat',
-    who: 'The group has voted! Who is the loudest in the group chat?', clue: 'Voted the loudest in the group chat' },
-  { id: 'voteSelfie', section: 'vote', type: 'vote', tag: 'group', text: 'Most likely to stop the garba for a selfie',
-    who: 'The group has voted! Who is most likely to stop the garba for a selfie?', clue: 'Voted most likely to stop the garba for a selfie' },
+  { id: 'voteMic', section: 'vote', type: 'vote', tag: 'music', text: 'First to grab the mic at a party 🎤',
+    who: 'The group has voted! Who is first to grab the mic at a party?', clue: 'Voted first to grab the mic at a party' },
+  { id: 'voteEkLast', section: 'vote', type: 'vote', tag: 'garba', text: 'Always asking for “ek last gaana”',
+    who: 'The group has voted! Who is always asking for “ek last gaana”?', clue: 'Voted always asking for “ek last gaana”' },
+  { id: 'voteFunny', section: 'vote', type: 'vote', tag: 'group', text: 'Funniest person in the group 😂',
+    who: 'The group has voted! Who is the funniest person in the group?', clue: 'Voted the funniest person in the group' },
+  { id: 'votePlanner', section: 'vote', type: 'vote', tag: 'group', text: 'The group’s unofficial event planner',
+    who: 'The group has voted! Who is the group’s unofficial event planner?', clue: 'Voted the group’s unofficial event planner' },
+  { id: 'voteSharma', section: 'vote', type: 'vote', tag: 'group', text: 'The group’s “Sharma ji ka beta / beti”',
+    who: 'The group has voted! Who is the group’s “Sharma ji ka beta / beti”?', clue: 'Voted the group’s “Sharma ji ka beta / beti”' },
+  { id: 'voteSecret', section: 'vote', type: 'vote', tag: 'group', text: 'Worst at keeping a secret 🤫',
+    who: 'The group has voted! Who is the worst at keeping a secret?', clue: 'Voted the worst at keeping a secret' },
+  { id: 'voteLost', section: 'vote', type: 'vote', tag: 'group', text: 'Most likely to get lost even with Google Maps',
+    who: 'The group has voted! Who is most likely to get lost even with Google Maps?', clue: 'Voted most likely to get lost even with Google Maps' },
+  { id: 'voteFirstOut', section: 'vote', type: 'vote', tag: 'group', text: 'First to say “chalo, we should leave” (and then stay 2 more hours)',
+    who: 'The group has voted! Who always says “chalo, we should leave” and then stays 2 more hours?', clue: 'Voted first to say “chalo, we should leave”… and then stay 2 more hours' },
 ];
-// Default prompts retired in v4 (removed from saved questionnaires on upgrade).
-const REMOVED_V4 = ['rewatch', 'holiday', 'trip', 'comfort', 'dance', 'talent', 'garbaSong', 'garbaEvent', 'garbaMove', 'garbaOrDandiya', 'partner', 'bestie', 'dandiyaPartner', 'callFirst', 'voteLast', 'voteOutfit'];
-// Prompt ids from the first version, used to upgrade an unedited saved questionnaire.
-const V1_IDS = ['movie', 'rewatch', 'star', 'holiday', 'trip', 'sweet', 'comfort', 'dance', 'talent', 'fact'];
-// Questionnaire version each default question was introduced in (for upgrading saved games).
-const ADDED_IN = Object.fromEntries([
-  ...['garbaSong', 'garbaEvent', 'garbaMove', 'garbaOrDandiya', 'partner', 'bestie', 'dandiyaPartner', 'callFirst', 'voteDancer', 'voteLast', 'voteLate', 'voteOutfit'].map((id) => [id, 2]),
-  ...['voteDressed', 'voteNakhre', 'voteReady', 'voteFoodie', 'voteChat', 'voteSelfie'].map((id) => [id, 3]),
-  ...['garbaSinger'].map((id) => [id, 4]),
-]);
 
 const TAG_CLUE = { movie: '🎬 ✨ 🕵️', holiday: '🏝️ ✨ 🕵️', food: '🍬 ✨ 🕵️', music: '💃 ✨ 🕵️', fun: '🤫 ✨ 🕵️', garba: '🪔 💃 ✨', group: '👯 ✨ 🕵️' };
 
@@ -244,4 +234,4 @@ function preview(state, n = 8) {
   return { total: pool.length, sample: pick(pool, n).map((i) => ({ q: i.q, options: i.options, answer: i.answer, about: i.involves && i.involves.length > 1 ? i.involves.map((id) => (state.players[id] || {}).name).join(' & ') : i.aboutName })) };
 }
 
-module.exports = { DEFAULT_PROMPTS, V1_IDS, ADDED_IN, REMOVED_V4, personalize, preview, cleanAnswer, buildPool };
+module.exports = { DEFAULT_PROMPTS, personalize, preview, cleanAnswer, buildPool };
