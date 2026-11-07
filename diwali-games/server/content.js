@@ -3,124 +3,128 @@
 
 const quiz = (q, options, answer, extra = {}) => ({ q, options, answer, time: 20, ...extra });
 
+// Written for guests born 1995–2000 in the Indian-Canadian GTA crowd: 2000s Bollywood,
+// Hollywood and Pixar, Disney Channel nostalgia, Toronto, garba. No cricket.
+// Hard but fair: every answer is something this room has seen, heard or danced to.
+// Facts marked "HOST: confirm" in comments are local details worth a quick check.
+
 const guessTheMovie = {
   questions: [
-    quiz('Guess the movie!', ['Kuch Kuch Hota Hai', 'Dilwale Dulhania Le Jayenge', 'Veer-Zaara', 'Kabhi Khushi Kabhie Gham'], 1, { clue: '🚂 👫 🌻 🇨🇭' }),
-    quiz('Guess the movie!', ['Lagaan', 'Chak De! India', 'Iqbal', '83'], 0, { clue: '🏏 🇬🇧 💰 🌧️' }),
-    quiz('Guess the movie!', ['Munna Bhai MBBS', 'Chhichhore', '3 Idiots', 'Student of the Year'], 2, { clue: '🎓 🔧 💡 😂 👬👦' }),
-    quiz('Guess the movie!', ['Sultan', 'Dangal', 'Mary Kom', 'Gold'], 1, { clue: '🤼‍♀️ 👨‍👧‍👧 🥇' }),
-    quiz('Guess the movie!', ['Kal Ho Naa Ho', 'Kabhi Khushi Kabhie Gham', 'Hum Saath-Saath Hain', 'Baghban'], 1, { clue: '👨‍👩‍👧‍👦 🚁 🏰 ❤️' }),
-    quiz('Guess the movie!', ['Baahubali', 'Padmaavat', 'Bajirao Mastani', 'Jodhaa Akbar'], 0, { clue: '💧 ⛰️ 🗡️ 👑' }),
-    quiz('Guess the movie!', ['Paan Singh Tomar', 'M.S. Dhoni', 'Bhaag Milkha Bhaag', 'Chak De! India'], 2, { clue: '🏃‍♂️ 🇮🇳 🥇 ⏱️' }),
-    quiz('Guess the movie!', ['Krrish', 'Koi... Mil Gaya', 'PK', 'Ra.One'], 1, { clue: '👽 📞 🌟 🧒' }),
-    quiz('Guess the movie!', ['Dil Chahta Hai', 'Zindagi Na Milegi Dobara', 'Yeh Jawaani Hai Deewani', 'Queen'], 1, { clue: '🚗 🇪🇸 👬👦 🤿' }),
-    quiz('Guess the movie!', ['KGF', 'Pushpa', 'RRR', 'Kantara'], 2, { clue: '🔥 💧 🤝 🏍️' }),
-    quiz('Guess the movie!', ['Drishyam', 'Andhadhun', 'Kahaani', 'Talaash'], 1, { clue: '🧑‍🦯 🎹 🔫 🐇' }),
-    quiz('Guess the movie!', ['Stree', 'Bhool Bhulaiyaa', 'Raaz', 'Tumbbad'], 1, { clue: '🏰 👻 💃 🔒' }),
+    quiz('Guess the movie!', ['Kabhi Alvida Naa Kehna', 'Kal Ho Naa Ho', 'New York', 'My Name Is Khan'], 1, { clue: '🗽 ❤️‍🩹 🩺 ⏳' }),
+    quiz('Guess the movie!', ['Jab We Met', 'Chennai Express', 'Yeh Jawaani Hai Deewani', 'Dilwale Dulhania Le Jayenge'], 0, { clue: '🚆 🙋‍♀️ 💔 🏔️' }),
+    quiz('Guess the movie!', ['Interstellar', 'Tenet', 'Inception', 'The Matrix'], 2, { clue: '💤 🌀 🏙️ 🔝' }),
+    quiz('Guess the movie!', ['Stanley Ka Dabba', 'Taare Zameen Par', 'Iqbal', 'I Am Kalam'], 1, { clue: '🎨 🔤 🏫 ⭐' }),
+    quiz('Guess the movie!', ['Karan Arjun', 'Om Shanti Om', 'Housefull', 'Krrish'], 1, { clue: '🎬 🔥 🔁 👻' }),
+    quiz('Guess the movie!', ['Rocket Singh', 'Mission Mangal', 'Swades', 'Rocketry'], 2, { clue: '🚀 🇺🇸 ➡️ 🇮🇳 💡' }),
+    quiz('Guess the movie!', ['Dil Chahta Hai', 'Rang De Basanti', 'Lakshya', 'Fanaa'], 1, { clue: '🎥 🟡 🛩️ 🕯️' }),
+    quiz('Guess the movie!', ['Clueless', 'Legally Blonde', 'Easy A', 'Mean Girls'], 3, { clue: '💗 📓 👑 🚌' }),
+    quiz('Guess the movie!', ['Lion', 'Life of Pi', 'The Jungle Book', 'Cast Away'], 1, { clue: '🐅 🚣 🌊 🧘' }),
+    quiz('Guess the movie!', ['Magadheera', 'RRR', 'KGF: Chapter 2', 'Baahubali 2'], 3, { clue: '🤔 🗡️ 🔙 👑' }),
+    quiz('Guess the movie!', ['Devdas', 'Saawariya', 'Bajirao Mastani', 'Mughal-e-Azam'], 0, { clue: '🥃 💔 🪔 💃' }),
+    quiz('Guess the movie!', ['Kung Fu Panda', 'Luca', 'Turning Red', 'Encanto'], 2, { clue: '🐼 🔴 🍁 🎤' }),
   ],
 };
 
 const kahoot = {
   questions: [
-    quiz('Diwali is popularly known as the festival of…', ['Colours', 'Lights', 'Kites', 'Harvest'], 1),
-    quiz('Diwali celebrates whose return to Ayodhya?', ['Lord Krishna', 'Lord Shiva', 'Lord Rama', 'Lord Ganesha'], 2),
-    quiz('How many years of exile did Lord Rama complete?', ['7', '10', '12', '14'], 3),
-    quiz('Which goddess of wealth is worshipped on Diwali night?', ['Saraswati', 'Lakshmi', 'Durga', 'Parvati'], 1),
-    quiz('Choti Diwali is also called…', ['Dhanteras', 'Bhai Dooj', 'Naraka Chaturdashi', 'Govardhan Puja'], 2),
-    quiz('The small clay oil lamps lit on Diwali are called…', ['Diyas', 'Torans', 'Kalash', 'Kandils'], 0),
-    quiz('Colourful patterns made on the floor at the entrance are called…', ['Mehndi', 'Rangoli', 'Alpana Dance', 'Kolam Chai'], 1),
-    quiz('Which festival celebrating siblings comes two days after Diwali?', ['Raksha Bandhan', 'Karva Chauth', 'Bhai Dooj', 'Teej'], 2),
-    quiz('Sikhs celebrate Bandi Chhor Divas, marking the release of which Guru?', ['Guru Nanak', 'Guru Hargobind', 'Guru Gobind Singh', 'Guru Arjan'], 1),
-    quiz('For Jains, Diwali marks the nirvana of…', ['Mahavira', 'Parshvanatha', 'Rishabhanatha', 'Neminatha'], 0),
-    quiz('Which sweet is deep-fried milk-solid balls soaked in sugar syrup?', ['Rasgulla', 'Jalebi', 'Gulab Jamun', 'Barfi'], 2),
-    quiz('On Dhanteras, people traditionally buy…', ['New shoes', 'Gold, silver or utensils', 'Books', 'Plants'], 1),
+    quiz('Before her talk show, Lilly Singh’s YouTube channel was called…', ['IISuperwomanII', 'SuperDesiGirl', 'LillyLaughs', 'ScarboroughSuperstar'], 0),
+    quiz('Drake’s character on Degrassi: The Next Generation was…', ['Spinner Mason', 'Jimmy Brooks', 'Sean Cameron', 'Craig Manning'], 1),
+    quiz('Shaktimaan’s mild-mannered alter ego was…', ['Kilvish', 'Dr. Jackal', 'Gangadhar', 'Tamraj'], 2),
+    quiz('In K3G, what’s Pooja’s (Kareena’s) nickname?', ['Pinky', 'Poo', 'Chutki', 'Sweety'], 1),
+    quiz('“Kya aapke toothpaste mein namak hai?” sold which toothpaste?', ['Colgate Active Salt', 'Close-Up', 'Pepsodent', 'Babool'], 0),
+    quiz('In The Suite Life of Zack & Cody, the twins live in the…', ['Plaza', 'Tipton', 'Carlton', 'Waldorf'], 1),
+    quiz('Which Pokémon evolves into Charizard?', ['Charmander', 'Charmeleon', 'Dragonite', 'Magmar'], 1),
+    quiz('Lakshmi Puja on Diwali night falls on which lunar day?', ['Purnima', 'Ekadashi', 'Amavasya', 'Chaturthi'], 2),
+    quiz('Which form of the Goddess is worshipped on the first night of Navratri?', ['Kalaratri', 'Shailaputri', 'Siddhidatri', 'Kushmanda'], 1),
+    quiz('Garba is traditionally danced in a circle around…', ['A tulsi plant', 'A bonfire', 'A lamp in a clay pot (garbo)', 'A banyan tree'], 2),
+    quiz('Atul Purohit’s Toronto Navratri nights (2023–2025) were held at…', ['Scotiabank Arena', 'Enercare Centre', 'International Centre', 'Paramount Fine Foods Centre'], 1),
+    // HOST: confirm. Aditya Gadhvi's own tour page lists Toronto, 3 Oct 2026 (Navrang Navratri, Mississauga).
+    quiz('Aditya Gadhvi (“Khalasi”) played the GTA this Navratri. On which date?', ['Sat, Sept 26', 'Fri, Oct 2', 'Sat, Oct 3', 'Sat, Oct 10'], 2),
   ],
 };
 
 const jeopardy = {
   wrongPenalty: false,
   categories: [
-    { name: 'Bollywood Songs', clues: [
-      { value: 100, q: "'Tujhe Dekha To' is from this 1995 blockbuster", a: 'Dilwale Dulhania Le Jayenge' },
-      { value: 200, q: 'This song from RRR won the Oscar for Best Original Song', a: 'Naatu Naatu' },
-      { value: 300, q: "'Chaiyya Chaiyya' was shot on top of a moving train in this film", a: 'Dil Se' },
-      { value: 400, q: "'London Thumakda' is from this Kangana Ranaut film", a: 'Queen' },
-      { value: 500, q: "'Badtameez Dil' is from this Ranbir–Deepika film", a: 'Yeh Jawaani Hai Deewani' },
+    { name: '2000s Bollywood', clues: [
+      { value: 100, q: 'Shah Rukh’s character in Kal Ho Naa Ho', a: 'Aman Mathur' },
+      { value: 200, q: '“Main apni favourite hoon!” — say her name', a: 'Geet (Jab We Met)' },
+      { value: 300, q: 'The 2003 film where Rohit befriends an alien named Jaadu', a: 'Koi... Mil Gaya' },
+      { value: 400, q: 'Rancho’s real name in 3 Idiots', a: 'Phunsukh Wangdu' },
+      { value: 500, q: 'Farhan Akhtar’s 2001 debut about three friends, Goa and Sydney', a: 'Dil Chahta Hai' },
     ] },
-    { name: 'Desi Food', clues: [
-      { value: 100, q: 'Thin, crispy South Indian rice-and-lentil crepe', a: 'Dosa' },
-      { value: 200, q: 'Indian cottage cheese', a: 'Paneer' },
-      { value: 300, q: 'The spice that makes haldi doodh golden', a: 'Turmeric (haldi)' },
-      { value: 400, q: "Mumbai's spiced potato fritter in a bun", a: 'Vada Pav' },
-      { value: 500, q: 'Hyderabad is world-famous for this layered rice dish', a: 'Biryani' },
+    { name: 'The 6ix', clues: [
+      { value: 100, q: 'Drake’s 2016 album with him sitting on the CN Tower on the cover', a: 'Views' },
+      { value: 200, q: 'Scarborough’s own YouTuber who got an NBC late-night show', a: 'Lilly Singh' },
+      { value: 300, q: 'Brampton-raised comic: “Somebody gonna get hurt real bad”', a: 'Russell Peters' },
+      { value: 400, q: 'The year the Raptors won the NBA championship', a: '2019' },
+      { value: 500, q: 'In 2017 he became the first turbaned Sikh to lead a Canadian federal party', a: 'Jagmeet Singh' },
     ] },
-    { name: 'Cricket Fever', clues: [
-      { value: 100, q: 'Number of balls in an over', a: '6' },
-      { value: 200, q: 'Nickname of Sachin Tendulkar', a: 'The Master Blaster' },
-      { value: 300, q: 'Year India won its first Cricket World Cup', a: '1983' },
-      { value: 400, q: 'Indian captain who hit the winning six in the 2011 World Cup final', a: 'MS Dhoni' },
-      { value: 500, q: 'Captain of the 1983 World Cup–winning team', a: 'Kapil Dev' },
+    { name: 'Garba Nights', clues: [
+      { value: 100, q: 'The sticks you twirl in raas', a: 'Dandiya' },
+      { value: 200, q: 'Gujarati name for the clay-pot lamp at the centre of the circle', a: 'Garbo (garbi)' },
+      { value: 300, q: 'Number of claps in the classic “tran taali” step', a: 'Three' },
+      { value: 400, q: 'Falguni Pathak’s royal nickname', a: 'Queen of Dandiya' },
+      { value: 500, q: 'The 2023 Coke Studio Bharat song that took Aditya Gadhvi global', a: 'Khalasi' },
     ] },
-    { name: 'Incredible India', clues: [
-      { value: 100, q: 'The Taj Mahal is in this city', a: 'Agra' },
-      { value: 200, q: 'Known as the Pink City', a: 'Jaipur' },
-      { value: 300, q: "State nicknamed 'God's Own Country'", a: 'Kerala' },
-      { value: 400, q: 'Called the City of Joy', a: 'Kolkata' },
-      { value: 500, q: 'The Konark Sun Temple is in this state', a: 'Odisha' },
+    { name: 'Screen Time', clues: [
+      { value: 100, q: 'Cedric Diggory’s Hogwarts house', a: 'Hufflepuff' },
+      { value: 200, q: 'Netflix show starring Devi Vishwakumar', a: 'Never Have I Ever' },
+      { value: 300, q: 'Maitreyi Ramakrishnan, who plays Devi, grew up in this GTA city', a: 'Mississauga' },
+      { value: 400, q: 'Nolan film where Cooper’s daughter is named Murph', a: 'Interstellar' },
+      { value: 500, q: '2016 Dev Patel film about finding home using Google Earth', a: 'Lion' },
     ] },
-    { name: 'Diwali Lore', clues: [
-      { value: 100, q: 'The five-day festival begins with this day of buying gold and utensils', a: 'Dhanteras' },
-      { value: 200, q: 'Goddess who is welcomed home with lamps and open doors', a: 'Lakshmi' },
-      { value: 300, q: 'Demon defeated by Krishna, celebrated on Choti Diwali', a: 'Narakasura' },
-      { value: 400, q: 'Hill Krishna lifted on his little finger, celebrated the day after Diwali', a: 'Govardhan' },
-      { value: 500, q: 'Ravana ruled this island kingdom', a: 'Lanka' },
+    { name: 'Desi Kitchen', clues: [
+      { value: 100, q: 'Spongy, yellow, steamed Gujarati besan snack', a: 'Dhokla' },
+      { value: 200, q: 'Mango pulp served with puri in a Gujarati thali', a: 'Aamras (keri no ras)' },
+      { value: 300, q: 'The eggy-smelling salt that makes chaat taste like chaat', a: 'Kala namak (black salt)' },
+      { value: 400, q: 'On Dussehra, fafda is eaten with this sweet', a: 'Jalebi' },
+      { value: 500, q: 'The spice that is the dried stigma of a crocus flower', a: 'Saffron (kesar)' },
     ] },
   ],
 };
 
 const kbc = {
-  // Each level has a points prize; 'safe' levels are guaranteed once crossed.
-  // Each level has several questions so multiple hot-seat players get fresh ones.
+  // Played in order, easy to hard. Each later correct answer is worth less, so speed matters.
   ladder: [
     { points: 100, questions: [
-      quiz('Which animal is Lord Ganesha’s vehicle?', ['Peacock', 'Mouse', 'Bull', 'Swan'], 1),
-      quiz('Which of these is a popular Diwali sweet?', ['Kaju Katli', 'Croissant', 'Brownie', 'Macaron'], 0),
+      quiz('“Ye Baburao ka style hai!” — which film?', ['Welcome', 'Hera Pheri', 'Golmaal', 'Bhagam Bhag'], 1),
+      quiz('An Iced Capp comes from…', ['Second Cup', 'Starbucks', 'Tim Hortons', 'McDonald’s'], 2),
     ] },
     { points: 200, questions: [
-      quiz('Goddess Lakshmi is usually shown seated on a…', ['Tiger', 'Lotus', 'Peacock', 'Swan'], 1),
-      quiz('What is the national animal of India?', ['Lion', 'Elephant', 'Tiger', 'Peacock'], 2),
+      quiz('Who sang “Tum Hi Ho” from Aashiqui 2?', ['Atif Aslam', 'Arijit Singh', 'KK', 'Sonu Nigam'], 1),
+      quiz('By law, Canada’s national SUMMER sport is…', ['Soccer', 'Baseball', 'Lacrosse', 'Basketball'], 2),
     ] },
     { points: 300, safe: true, questions: [
-      quiz("Which actor is popularly called 'King Khan'?", ['Salman Khan', 'Aamir Khan', 'Shah Rukh Khan', 'Saif Ali Khan'], 2),
-      quiz('Which city is Lord Rama’s birthplace?', ['Mathura', 'Ayodhya', 'Varanasi', 'Ujjain'], 1),
+      quiz('In Kuch Kuch Hota Hai, little Anjali is named after…', ['Rahul’s mother', 'Tina’s college friend', 'Rahul’s sister', 'A film star'], 1),
+      quiz('In Canada, the first Harry Potter book is “… and the ___ Stone”', ['Sorcerer’s', 'Philosopher’s', 'Wizard’s', 'Secret'], 1),
     ] },
     { points: 500, questions: [
-      quiz('India’s first mission to Mars is called…', ['Chandrayaan', 'Gaganyaan', 'Mangalyaan', 'Aditya-L1'], 2),
-      quiz('Who wrote India’s national anthem?', ['Bankim Chandra Chatterjee', 'Rabindranath Tagore', 'Sarojini Naidu', 'Muhammad Iqbal'], 1),
+      quiz('Dhanteras honours which god of Ayurveda?', ['Kubera', 'Vishwakarma', 'Dhanvantari', 'Ashwini Kumaras'], 2),
+      quiz('Which A.R. Rahman song won the 2009 Oscar?', ['Chaiyya Chaiyya', 'Jai Ho', 'Kun Faya Kun', 'Naatu Naatu'], 1),
     ] },
     { points: 750, questions: [
-      quiz('In 2023, Chandrayaan-3 landed near which region of the Moon?', ['North pole', 'Equator', 'South pole', 'Far side'], 2),
-      quiz('Which Mughal emperor built the Taj Mahal?', ['Akbar', 'Shah Jahan', 'Aurangzeb', 'Babur'], 1),
+      quiz('In Chak De! India, Kabir Khan coaches India’s women’s ___ team', ['Kabaddi', 'Football', 'Hockey', 'Volleyball'], 2),
+      quiz('Garba star Atul Purohit is from which city?', ['Ahmedabad', 'Vadodara', 'Surat', 'Rajkot'], 1),
     ] },
     { points: 1000, safe: true, questions: [
-      quiz('Sita’s father, King Janaka, ruled which kingdom?', ['Kosala', 'Magadha', 'Mithila', 'Panchala'], 2),
-      quiz('Which of Ravana’s brothers joined Lord Rama?', ['Kumbhakarna', 'Vibhishana', 'Indrajit', 'Khara'], 1),
+      quiz('Who directed both Lagaan and Swades?', ['Rakeysh Mehra', 'Ashutosh Gowariker', 'Farhan Akhtar', 'Rajkumar Hirani'], 1),
+      quiz('India’s first-ever Oscar nomination (1958) was…', ['Pather Panchali', 'Mother India', 'Salaam Bombay!', 'Lagaan'], 1),
     ] },
     { points: 1500, questions: [
-      quiz('Who wrote the original Ramayana in Sanskrit?', ['Tulsidas', 'Ved Vyasa', 'Kalidasa', 'Valmiki'], 3),
-      quiz('Tulsidas wrote the Ramcharitmanas in which language?', ['Sanskrit', 'Awadhi', 'Braj Bhasha', 'Maithili'], 1),
+      quiz('Bandi Chhor Divas marks the release of which Guru from Gwalior Fort?', ['Guru Nanak', 'Guru Hargobind', 'Guru Gobind Singh', 'Guru Arjan'], 1),
+      quiz('How many zeros are in one crore?', ['5', '6', '7', '8'], 2),
     ] },
     { points: 2500, questions: [
-      quiz('Which was the first Indian film nominated for the Best Foreign Language Film Oscar?', ['Pather Panchali', 'Mother India', 'Salaam Bombay!', 'Lagaan'], 1),
-      quiz("Whose court was famous for its 'Navratnas' (nine gems)?", ['Jahangir', 'Humayun', 'Akbar', 'Shah Jahan'], 2),
+      quiz('Tagore wrote India’s anthem — and which other country’s?', ['Sri Lanka', 'Nepal', 'Bangladesh', 'Myanmar'], 2),
+      quiz('Shah Rukh Khan’s Bandra home is called…', ['Jalsa', 'Galaxy', 'Prateeksha', 'Mannat'], 3),
     ] },
   ],
   fastestFinger: [
-    quiz('How many days does the Diwali festival traditionally span?', ['1', '3', '5', '7'], 2, { time: 15 }),
-    quiz('Paneer is made from…', ['Soy', 'Milk', 'Rice', 'Lentils'], 1, { time: 15 }),
+    quiz('How many nights does Navratri last?', ['7', '8', '9', '10'], 2, { time: 15 }),
+    quiz('Which GTA city is home to Square One?', ['Brampton', 'Mississauga', 'Vaughan', 'Markham'], 1, { time: 15 }),
     quiz('Which festival is called the festival of colours?', ['Diwali', 'Holi', 'Onam', 'Pongal'], 1, { time: 15 }),
-    quiz('Which is the largest planet in our solar system?', ['Saturn', 'Earth', 'Jupiter', 'Neptune'], 2, { time: 15 }),
-    quiz('How many players does a cricket team field?', ['9', '10', '11', '12'], 2, { time: 15 }),
+    quiz('Paneer is made from…', ['Soy', 'Milk', 'Rice', 'Lentils'], 1, { time: 15 }),
   ],
 };
 
@@ -162,7 +166,7 @@ function defaultGames() {
     { id: 'g1', type: 'quiz', title: 'Guess the Movie', emoji: '🎬', mode: 'team', status: 'pending', content: guessTheMovie },
     { id: 'g2', type: 'hookstep', title: 'Hook Step Challenge', emoji: '💃', mode: 'team', status: 'pending', content: hookstep },
     { id: 'g3', type: 'jeopardy', title: 'Desi Jeopardy', emoji: '🧠', mode: 'team', status: 'pending', content: jeopardy },
-    { id: 'g4', type: 'quiz', title: 'Diwali Kahoot', emoji: '⚡', mode: 'individual', status: 'pending', content: kahoot },
+    { id: 'g4', type: 'quiz', title: 'Desi Kahoot', emoji: '⚡', mode: 'individual', status: 'pending', content: kahoot },
     { id: 'g5', type: 'kbc', title: 'Kaun Banega Crorepati', emoji: '💰', mode: 'individual', status: 'pending', content: kbc },
   ];
 }

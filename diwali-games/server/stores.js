@@ -138,7 +138,9 @@ function fileStore() {
 function postgresStore() {
   const { Pool } = require('pg');
   const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 4 });
-  const ready = pool.query(`
+  // A limited database login may not be allowed to create tables, so only create them when missing.
+  const ready = pool.query(`SELECT to_regclass('public.dgn_room') AS a, to_regclass('public.dgn_room_private') AS b, to_regclass('public.dgn_book') AS c, to_regclass('public.dgn_seen') AS d`)
+    .then((r) => { const x = r.rows[0] || {}; return x.a && x.b && x.c && x.d ? null : pool.query(`
     CREATE TABLE IF NOT EXISTS dgn_room (
       code text PRIMARY KEY,
       version integer NOT NULL,
@@ -162,7 +164,7 @@ function postgresStore() {
       player_id text PRIMARY KEY,
       seen_at bigint NOT NULL
     );
-  `).then(() => migrateCombinedDocument(pool)).catch((err) => {
+  `); }).then(() => migrateCombinedDocument(pool)).catch((err) => {
     console.error('[dgn] database setup failed');
     throw err;
   });
