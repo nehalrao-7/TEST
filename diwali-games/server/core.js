@@ -1,6 +1,6 @@
 // Request handling shared by the Vercel function (api/main.js) and the local dev server.
-// Each request: load state -> apply passed deadlines -> run the action -> save (with an
-// optimistic version check, retried on conflict) -> return the caller's view.
+// Each request: load state -> check who is calling -> apply passed deadlines -> run the
+// action -> save (with an optimistic version check, retried on conflict) -> return the view.
 
 const crypto = require('crypto');
 const QRCode = require('qrcode');
@@ -583,8 +583,35 @@ function needRoom(body) {
   return code;
 }
 
+// A room code is public. Deadlines, bot moves, and scoring run only after this check.
+function callerGate(body) {
+  if (body && body.role === 'host') {
+    if (!isHostToken(body.token)) throw new HttpError(401, 'Please log in again.');
+    return;
+  }
+  if (body && body.role === 'player') {
+    if (!findPlayerByToken(body.token)) throw new HttpError(401, 'Please log in again.');
+    return;
+  }
+  if (!st().tvSecret || !pinsEqual(body && body.tvSecret, st().tvSecret)) throw new HttpError(401, 'Open the TV from the host console.');
+}
+function actorGate(body) {
+  if (body && body.role === 'host') {
+    if (!isHostToken(body.token)) throw new HttpError(401, 'Please log in again.');
+    return;
+  }
+  if (!findPlayerByToken(body && body.token)) throw new HttpError(401, 'Please log in again.');
+}
+function tvGate(body) {
+  if (!st().tvSecret || !pinsEqual(body && body.tvSecret, st().tvSecret)) throw new HttpError(401, 'Open the TV from the host console.');
+}
+
 // One saved document holds every room. Engines still see a single room as the game state.
-function run(store, roomCode, mutate, touch) {
+// opts.gate runs before any deadline or bot move. opts.skipTick keeps join and host login
+// from advancing a live game; those calls still save their own changes.
+function run(store, roomCode, mutate, touch, opts) {
+  const gate = opts && opts.gate;
+  const skipTick = Boolean(opts && opts.skipTick);
   return serial(async () => {
     const code = canonRoom(roomCode);
     if (!code) throw new HttpError(400, 'Enter a 4-character room code.');
@@ -608,10 +635,13 @@ function run(store, roomCode, mutate, touch) {
         ...(loaded.online || []).filter((id) => String(id).startsWith(prefix)).map((id) => String(id).slice(prefix.length)),
         ...Object.values(st().players).filter((p) => p.bot).map((p) => p.id),
       ]);
+      if (gate) gate();
       const before = JSON.stringify(env.rooms[code]);
-      Bots.takeReacts();
-      tick(st());
-      Bots.tick(st(), { engines, playGame, online: ONLINE, usePowerup: S.usePowerup });
+      if (!skipTick) {
+        Bots.takeReacts();
+        tick(st());
+        Bots.tick(st(), { engines, playGame, online: ONLINE, usePowerup: S.usePowerup });
+      }
       const afterTick = JSON.stringify(st());
       let result;
       let error = null;
@@ -754,11 +784,10 @@ async function handle(store, method, path, body = {}, query = {}) {
     if (path === 'applause') {
       // The TV's microphone reports how loud the crowd cheered for a Hook Step dance.
       await run(store, needRoom(body), () => {
-        if (!st().tvSecret || !pinsEqual(body.tvSecret, st().tvSecret)) throw new HttpError(401, 'Open the TV from the host console.');
         const live = st().live;
         const game = live && st().games.find((g) => g.id === live.gameId);
         if (game && game.type === 'hookstep') engines.hookstep.applause(live, String(body.id || ''), body.level);
-      });
+      }, false, { gate: () => tvGate(body) });
       return { json: { ok: true } };
     }
     if (path === 'react') {
@@ -769,23 +798,17 @@ async function handle(store, method, path, body = {}, query = {}) {
       return { json: { ok: true } };
     }
     if (path === 'view' || path === 'tick') {
-      const { result, version } = await run(store, needRoom(body), () => viewFor(body.role, body.token, body.tvSecret));
+      const { result, version } = await run(store, needRoom(body), () => viewFor(body.role, body.token, body.tvSecret), false, { gate: () => callerGate(body) });
       if (result.role === 'player' && store.seen) await store.seen(ROOM + ':' + result.me.id).catch(() => {});
       return { json: { ...result, version } };
     }
 
     if (path === 'act') {
       const { result, version } = await run(store, needRoom(body), () => {
-        if (body.role === 'host') {
-          if (!isHostToken(body.token)) throw new HttpError(401, 'Please log in again.');
-          hostAction(body.action || {});
-        } else {
-          const p = findPlayerByToken(body.token);
-          if (!p) throw new HttpError(401, 'Please log in again.');
-          playerAction(p, body.action || {});
-        }
+        if (body.role === 'host') hostAction(body.action || {});
+        else playerAction(findPlayerByToken(body.token), body.action || {});
         return viewFor(body.role, body.token, body.tvSecret);
-      }, true);
+      }, true, { gate: () => actorGate(body) });
       return { json: { ok: true, view: { ...result, version } } };
     }
 
@@ -820,7 +843,7 @@ async function handle(store, method, path, body = {}, query = {}) {
         const t = token();
         st().hostTokens = [...st().hostTokens.slice(-9), t];
         return { token: t, code: st().code };
-      }, true);
+      }, true, { skipTick: true });
       if (result.locked) throw new HttpError(429, 'Too many tries. Wait a few minutes and try again.');
       if (result.bad) throw new HttpError(401, 'Wrong room code or host PIN.');
       pinMisses.delete(code);
@@ -850,13 +873,13 @@ async function handle(store, method, path, body = {}, query = {}) {
         const code = String(crypto.randomInt(100000, 1000000));
         st().pending[phone] = { code, name: existing ? existing.name : name, avatar: body.avatar, expires: Date.now() + 10 * 60000, attempts: 0, at: Date.now(), via: smsEnabled ? 'sms' : 'host' };
         return { code };
-      }, true);
+      }, true, { skipTick: true });
       let via = viaPublic;
       if (smsEnabled) {
         try { await sendSms(phone, `${result.code} is your Diwali Game Night code 🪔`); via = 'sms'; } catch (e) {
           console.error('[sms] text failed');
           via = 'host';
-          await run(store, roomCode, () => { if (st().pending[phone]) st().pending[phone].via = 'host'; });
+          await run(store, roomCode, () => { if (st().pending[phone]) st().pending[phone].via = 'host'; }, false, { skipTick: true });
         }
       }
       return { json: { ok: true, via } };
@@ -888,7 +911,7 @@ async function handle(store, method, path, body = {}, query = {}) {
         const t = token();
         p.tokens = [...p.tokens.slice(-4), t];
         return { token: t, isNew };
-      }, true);
+      }, true, { skipTick: true });
       if (result.wrong) throw new HttpError(400, 'That code is not right. Try again!');
       return { json: result };
     }
