@@ -10,76 +10,77 @@ const quiz = (q, options, answer, extra = {}) => ({ q, options, answer, time: 20
 
 const guessTheMovie = {
   questions: [
+    quiz('Guess the movie!', ['The Lunchbox', 'Cheeni Kum', 'Piku', 'Chef'], 0, { clue: '🍱 📮 💌 🚂' }),
+    quiz('Guess the movie!', ['Namastey London', 'Patiala House', 'Bend It Like Beckham', 'Bride & Prejudice'], 2, { clue: '⚽ 🥔 🥦 👧🏽 🇬🇧' }),
+    quiz('Which of these was NOT filmed in Toronto?', ['Mean Girls', 'Scott Pilgrim vs. the World', 'Chicago', 'Slumdog Millionaire'], 3),
     quiz('Guess the movie!', ['Kabhi Alvida Naa Kehna', 'Kal Ho Naa Ho', 'New York', 'My Name Is Khan'], 1, { clue: '🗽 ❤️‍🩹 🩺 ⏳' }),
-    quiz('Guess the movie!', ['Jab We Met', 'Chennai Express', 'Yeh Jawaani Hai Deewani', 'Dilwale Dulhania Le Jayenge'], 0, { clue: '🚆 🙋‍♀️ 💔 🏔️' }),
-    quiz('Guess the movie!', ['Interstellar', 'Tenet', 'Inception', 'The Matrix'], 2, { clue: '💤 🌀 🏙️ 🔝' }),
-    quiz('Guess the movie!', ['Stanley Ka Dabba', 'Taare Zameen Par', 'Iqbal', 'I Am Kalam'], 1, { clue: '🎨 🔤 🏫 ⭐' }),
-    quiz('Guess the movie!', ['Karan Arjun', 'Om Shanti Om', 'Housefull', 'Krrish'], 1, { clue: '🎬 🔥 🔁 👻' }),
-    quiz('Guess the movie!', ['Rocket Singh', 'Mission Mangal', 'Swades', 'Rocketry'], 2, { clue: '🚀 🇺🇸 ➡️ 🇮🇳 💡' }),
-    quiz('Guess the movie!', ['Dil Chahta Hai', 'Rang De Basanti', 'Lakshya', 'Fanaa'], 1, { clue: '🎥 🟡 🛩️ 🕯️' }),
-    quiz('Guess the movie!', ['Clueless', 'Legally Blonde', 'Easy A', 'Mean Girls'], 3, { clue: '💗 📓 👑 🚌' }),
-    quiz('Guess the movie!', ['Lion', 'Life of Pi', 'The Jungle Book', 'Cast Away'], 1, { clue: '🐅 🚣 🌊 🧘' }),
-    quiz('Guess the movie!', ['Magadheera', 'RRR', 'KGF: Chapter 2', 'Baahubali 2'], 3, { clue: '🤔 🗡️ 🔙 👑' }),
-    quiz('Guess the movie!', ['Devdas', 'Saawariya', 'Bajirao Mastani', 'Mughal-e-Azam'], 0, { clue: '🥃 💔 🪔 💃' }),
-    quiz('Guess the movie!', ['Kung Fu Panda', 'Luca', 'Turning Red', 'Encanto'], 2, { clue: '🐼 🔴 🍁 🎤' }),
+    quiz('Guess the movie!', ['Superbad', 'Harold & Kumar Go to White Castle', 'Pineapple Express', 'Dude, Where’s My Car?'], 1, { clue: '🍔 🏰 🚗 🌙' }),
+    quiz('Deepa Mehta’s 2002 Toronto comedy: a desi guy hires a fake fiancée to please his family', ['Monsoon Wedding', 'Bride & Prejudice', 'Bollywood/Hollywood', 'Namastey London'], 2),
+    quiz('Guess the movie!', ['The Hundred-Foot Journey', 'Julie & Julia', 'Burnt', 'Chef'], 0, { clue: '🍛 🇫🇷 ⭐ 👨‍👩‍👦' }),
+    quiz('Guess the movie!', ['Band Baaja Baaraat', 'Monsoon Wedding', 'Shaadi Ke Side Effects', 'Bride & Prejudice'], 1, { clue: '💍 🌧️ 🌼 🏕️' }),
+    quiz('The 2011 hockey movie about a Sikh team, shot in the GTA and backed by Akshay Kumar', ['Patiala House', 'Speedy Singhs', 'Chak De! India', 'Singh Is Kinng'], 1),
+    quiz('Guess the movie!', ['Pardes', 'Swades', 'Namastey London', 'Aa Ab Laut Chalen'], 0, { clue: '🇺🇸 💍 👧🏽 🌾 🎸' }),
+    quiz('Guess the movie!', ['Kabhi Khushi Kabhie Gham', 'Hum Saath-Saath Hain', 'Kal Ho Naa Ho', 'Baghban'], 0, { clue: '👨‍👩‍👦‍👦 🇬🇧 🚁 🏰' }),
+    quiz('Guess the movie!', ['Kuch Kuch Hota Hai', 'Dilwale Dulhania Le Jayenge', 'Pardes', 'Mohabbatein'], 1, { clue: '🇬🇧 🚂 🌻 🇨🇭' }),
   ],
 };
 
 const kahoot = {
   questions: [
-    quiz('Before her talk show, Lilly Singh’s YouTube channel was called…', ['IISuperwomanII', 'SuperDesiGirl', 'LillyLaughs', 'ScarboroughSuperstar'], 0),
-    quiz('Drake’s character on Degrassi: The Next Generation was…', ['Spinner Mason', 'Jimmy Brooks', 'Sean Cameron', 'Craig Manning'], 1),
-    quiz('Shaktimaan’s mild-mannered alter ego was…', ['Kilvish', 'Dr. Jackal', 'Gangadhar', 'Tamraj'], 2),
-    quiz('In K3G, what’s Pooja’s (Kareena’s) nickname?', ['Pinky', 'Poo', 'Chutki', 'Sweety'], 1),
-    quiz('“Kya aapke toothpaste mein namak hai?” sold which toothpaste?', ['Colgate Active Salt', 'Close-Up', 'Pepsodent', 'Babool'], 0),
-    quiz('In The Suite Life of Zack & Cody, the twins live in the…', ['Plaza', 'Tipton', 'Carlton', 'Waldorf'], 1),
-    quiz('Which Pokémon evolves into Charizard?', ['Charmander', 'Charmeleon', 'Dragonite', 'Magmar'], 1),
-    quiz('Lakshmi Puja on Diwali night falls on which lunar day?', ['Purnima', 'Ekadashi', 'Amavasya', 'Chaturthi'], 2),
-    quiz('Which form of the Goddess is worshipped on the first night of Navratri?', ['Kalaratri', 'Shailaputri', 'Siddhidatri', 'Kushmanda'], 1),
-    quiz('Garba is traditionally danced in a circle around…', ['A tulsi plant', 'A bonfire', 'A lamp in a clay pot (garbo)', 'A banyan tree'], 2),
-    quiz('Atul Purohit’s Toronto Navratri nights (2023–2025) were held at…', ['Scotiabank Arena', 'Enercare Centre', 'International Centre', 'Paramount Fine Foods Centre'], 1),
-    // HOST: confirm. Aditya Gadhvi's own tour page lists Toronto, 3 Oct 2026 (Navrang Navratri, Mississauga).
-    quiz('Aditya Gadhvi (“Khalasi”) played the GTA this Navratri. On which date?', ['Sat, Sept 26', 'Fri, Oct 2', 'Sat, Oct 3', 'Sat, Oct 10'], 2),
+    quiz('To graduate high school in Ontario you need how many volunteer hours?', ['20', '30', '40', '60'], 2),
+    quiz('Finish the jingle: “Pizza Pizza, 967-…”', ['11-11', '12-12', '10-10', '00-00'], 0),
+    quiz('The Ontario test you wrote in Grade 3 and Grade 6 was the…', ['OSSLT', 'EQAO', 'PAT', 'SAT'], 1),
+    quiz('On MSN Messenger, shaking your friend’s chat window was a…', ['Buzz', 'Poke', 'Nudge', 'Wink'], 2),
+    quiz('BlackBerry — and your BBM PIN — came out of which Ontario city?', ['Ottawa', 'Waterloo', 'Kitchener', 'Mississauga'], 1),
+    quiz('Tulsi in Kyunki Saas Bhi Kabhi Bahu Thi was played by…', ['Shweta Tiwari', 'Sakshi Tanwar', 'Smriti Irani', 'Ekta Kapoor'], 2),
+    quiz('CID: “Daya, ___ tod do!”', ['Darwaza', 'Taala', 'Khidki', 'Deewar'], 0),
+    quiz('In Shaka Laka Boom Boom, Sanju’s magic object was a…', ['Paintbrush', 'Pencil', 'Chalk', 'Pen'], 1),
+    quiz('Hrithik Roshan’s 2000 debut film was…', ['Fiza', 'Mission Kashmir', 'Kaho Naa... Pyaar Hai', 'Koi... Mil Gaya'], 2),
+    quiz('In Main Hoon Na, Major Ram goes undercover as a…', ['Teacher', 'College student', 'Cook', 'Bodyguard'], 1),
+    quiz('Atul Purohit headlined a big Sharad Purnima garba in Toronto back in…', ['2006', '2010', '2014', '2017'], 1),
+    quiz('Aditya Gadhvi’s sold-out GTA garba night this year was on…', ['Mon, Sept 7', 'Sat, Sept 26', 'Sat, Oct 3', 'Sat, Oct 17'], 2),
   ],
 };
 
 const jeopardy = {
   wrongPenalty: false,
+  // The last category ("group: true") is swapped for questions about the guests when the
+  // questionnaire has enough answers. It keeps its name; these clues are the fallback.
   categories: [
-    { name: '2000s Bollywood', clues: [
-      { value: 100, q: 'Shah Rukh’s character in Kal Ho Naa Ho', a: 'Aman Mathur' },
+    { name: 'Filmy Chakkar', clues: [
+      { value: 100, q: '“Kitne aadmi the?” — who’s asking?', a: 'Gabbar Singh (Sholay)' },
       { value: 200, q: '“Main apni favourite hoon!” — say her name', a: 'Geet (Jab We Met)' },
       { value: 300, q: 'The 2003 film where Rohit befriends an alien named Jaadu', a: 'Koi... Mil Gaya' },
-      { value: 400, q: 'Rancho’s real name in 3 Idiots', a: 'Phunsukh Wangdu' },
-      { value: 500, q: 'Farhan Akhtar’s 2001 debut about three friends, Goa and Sydney', a: 'Dil Chahta Hai' },
+      { value: 400, q: '“Mogambo khush hua!” is from this film', a: 'Mr. India' },
+      { value: 500, q: 'Rancho’s real name in 3 Idiots', a: 'Phunsukh Wangdu' },
     ] },
-    { name: 'The 6ix', clues: [
-      { value: 100, q: 'Drake’s 2016 album with him sitting on the CN Tower on the cover', a: 'Views' },
-      { value: 200, q: 'Scarborough’s own YouTuber who got an NBC late-night show', a: 'Lilly Singh' },
-      { value: 300, q: 'Brampton-raised comic: “Somebody gonna get hurt real bad”', a: 'Russell Peters' },
-      { value: 400, q: 'The year the Raptors won the NBA championship', a: '2019' },
-      { value: 500, q: 'In 2017 he became the first turbaned Sikh to lead a Canadian federal party', a: 'Jagmeet Singh' },
-    ] },
-    { name: 'Garba Nights', clues: [
-      { value: 100, q: 'The sticks you twirl in raas', a: 'Dandiya' },
-      { value: 200, q: 'Gujarati name for the clay-pot lamp at the centre of the circle', a: 'Garbo (garbi)' },
-      { value: 300, q: 'Number of claps in the classic “tran taali” step', a: 'Three' },
-      { value: 400, q: 'Falguni Pathak’s royal nickname', a: 'Queen of Dandiya' },
-      { value: 500, q: 'The 2023 Coke Studio Bharat song that took Aditya Gadhvi global', a: 'Khalasi' },
-    ] },
-    { name: 'Screen Time', clues: [
-      { value: 100, q: 'Cedric Diggory’s Hogwarts house', a: 'Hufflepuff' },
-      { value: 200, q: 'Netflix show starring Devi Vishwakumar', a: 'Never Have I Ever' },
-      { value: 300, q: 'Maitreyi Ramakrishnan, who plays Devi, grew up in this GTA city', a: 'Mississauga' },
-      { value: 400, q: 'Nolan film where Cooper’s daughter is named Murph', a: 'Interstellar' },
-      { value: 500, q: '2016 Dev Patel film about finding home using Google Earth', a: 'Lion' },
-    ] },
-    { name: 'Desi Kitchen', clues: [
+    { name: 'Khaana Peena', clues: [
       { value: 100, q: 'Spongy, yellow, steamed Gujarati besan snack', a: 'Dhokla' },
       { value: 200, q: 'Mango pulp served with puri in a Gujarati thali', a: 'Aamras (keri no ras)' },
       { value: 300, q: 'The eggy-smelling salt that makes chaat taste like chaat', a: 'Kala namak (black salt)' },
       { value: 400, q: 'On Dussehra, fafda is eaten with this sweet', a: 'Jalebi' },
-      { value: 500, q: 'The spice that is the dried stigma of a crocus flower', a: 'Saffron (kesar)' },
+      { value: 500, q: 'Undhiyu is the star dish of this January kite festival', a: 'Uttarayan (Makar Sankranti)' },
+    ] },
+    { name: 'Mera Bharat Mahaan', clues: [
+      { value: 100, q: 'The state where garba was born', a: 'Gujarat' },
+      { value: 200, q: 'Known as the Pink City', a: 'Jaipur' },
+      { value: 300, q: 'The Statue of Unity, the world’s tallest statue, honours him', a: 'Sardar Vallabhbhai Patel' },
+      { value: 400, q: 'The Rann of Kutch is a vast white desert of this', a: 'Salt' },
+      { value: 500, q: 'Nickname of India’s first mission to Mars', a: 'Mangalyaan' },
+    ] },
+    { name: 'Screen Time Pass', clues: [
+      { value: 100, q: 'Netflix show starring Devi Vishwakumar', a: 'Never Have I Ever' },
+      { value: 200, q: 'Maitreyi Ramakrishnan, who plays Devi, grew up in this GTA city', a: 'Mississauga' },
+      { value: 300, q: 'Jethalal is the lovable lead of this long-running sitcom', a: 'Taarak Mehta Ka Ooltah Chashmah' },
+      { value: 400, q: 'Hasan Minhaj’s Netflix comedy news show', a: 'Patriot Act' },
+      { value: 500, q: 'Mindy Kaling’s character on The Office', a: 'Kelly Kapoor' },
+    ] },
+    { name: 'Apni Toli', group: true, clues: [
+      { value: 100, q: 'The sticks you twirl in raas', a: 'Dandiya' },
+      { value: 200, q: 'Number of claps in the classic “tran taali” step', a: 'Three' },
+      { value: 300, q: 'Falguni Pathak’s royal nickname', a: 'Queen of Dandiya' },
+      { value: 400, q: 'The 2023 Coke Studio Bharat song that took Aditya Gadhvi global', a: 'Khalasi' },
+      { value: 500, q: 'The Mississauga venue of Aditya Gadhvi’s two 2026 GTA shows', a: 'International Centre' },
     ] },
   ],
 };

@@ -210,7 +210,7 @@ function personalize(game, state) {
       const values = cats[c].clues.map((cl) => cl.value);
       const items = pick(pool, values.length, { kinds: ['who'], used });
       if (!items.length) continue;
-      cats[c] = { name: '✨ Know Your Guests', personal: true, clues: items.map((it, i) => ({ value: values[i], q: it.clueText, a: it.answerName || it.aboutName, personal: true, about: it.about, involves: it.involves })) };
+      cats[c] = { name: cats[c].group ? '✨ ' + cats[c].name : '✨ Know Your Guests', personal: true, clues: items.map((it, i) => ({ value: values[i], q: it.clueText, a: it.answerName || it.aboutName, personal: true, about: it.about, involves: it.involves })) };
       mark(items);
       count += items.length;
     }
