@@ -27,6 +27,8 @@
     const preset = App.roomFromQuery() || (session() && session().code) || '';
     app.innerHTML = `<div class="login-card card stack">
       <div class="center"><div style="font-size:52px">🪔</div><h2 style="font-size:28px">Host a room</h2><p class="muted">Each room is its own game. Scores stay in the room.</p></div>
+      <label class="field" for="createKey">Host key</label>
+      <input type="password" id="createKey" autocomplete="current-password" aria-label="Host key" />
       <button class="btn diya-btn big block" id="newRoom" type="button">${App.diya(true, 28)} Start a new room</button>
       <form id="lf" class="stack">
         <label class="field" for="room">Open an existing room</label>
@@ -34,7 +36,7 @@
         <input type="password" id="pin" inputmode="numeric" placeholder="Host PIN" autocomplete="current-password" aria-label="Host PIN" />
         <button class="btn block" type="submit">Open room</button>
       </form>
-      <p class="fine">Guests confirm a phone code. Texts use Twilio when it is set up. Fonts load from Google.</p>
+      <p class="fine">Starting a room needs the host key. Guests confirm a phone code. Texts use Twilio when it is set up. Fonts load from Google.</p>
       <p class="fine"><a href="/">Join as a player</a> · <a href="/tv">TV</a></p>
     </div>`;
     const pin = () => (app.querySelector('#pin') ? app.querySelector('#pin').value : '');
@@ -42,7 +44,9 @@
       const btn = app.querySelector('#newRoom');
       btn.disabled = true;
       try {
-        const r = await App.post('/api/room/create', {});
+        const key = (app.querySelector('#createKey') || {}).value || '';
+        if (!key) { App.toast('Enter the host key.', true); btn.disabled = false; return; }
+        const r = await App.post('/api/room/create', { key });
         saveSession(r.code, r.token, r.pin);
         App.room = r.code;
         history.replaceState(null, '', '/host?room=' + r.code);

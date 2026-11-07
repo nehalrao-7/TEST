@@ -25,6 +25,15 @@ function pinsEqual(given, expected) {
   const b = crypto.createHash('sha256').update(norm(expected)).digest();
   return crypto.timingSafeEqual(a, b);
 }
+function keysEqual(given, expected) {
+  const a = crypto.createHash('sha256').update(String(given ?? ''), 'utf8').digest();
+  const b = crypto.createHash('sha256').update(String(expected ?? ''), 'utf8').digest();
+  return crypto.timingSafeEqual(a, b);
+}
+function hostCreateKey() {
+  const key = String(process.env.HOST_CREATE_KEY || '');
+  return key.length >= 8 ? key : '';
+}
 const PIN_LOCK_MS = 15 * 60 * 1000;
 const pinMisses = new Map();
 const MAX_ROOMS = 30;
@@ -651,6 +660,9 @@ function claimOtp(store, phone, roomCode) {
 }
 
 function createRoom(store, body) {
+  const expected = hostCreateKey();
+  if (!expected) throw new HttpError(403, 'Room creation is turned off until a host key is set.');
+  const given = String((body && body.key) || '').slice(0, 200);
   return serial(async () => {
     for (let attempt = 0; attempt < 30; attempt++) {
       const loaded = await store.load();
@@ -658,7 +670,17 @@ function createRoom(store, body) {
       const now = Date.now();
       const before = JSON.stringify(env);
       reapRooms(env, now);
+      env.createFails = (Array.isArray(env.createFails) ? env.createFails : []).filter((t) => now - t < 10 * 60 * 1000);
       env.creates = (Array.isArray(env.creates) ? env.creates : []).filter((t) => now - t < 10 * 60 * 1000);
+      const authed = keysEqual(given, expected);
+      if (!authed) {
+        if (env.createFails.length < 8) env.createFails.push(now);
+        if (JSON.stringify(env) !== before) {
+          const v = await store.save(loaded.version, env);
+          if (v == null) { await sleep(20 + Math.random() * 60 * (attempt + 1)); continue; }
+        }
+        throw new HttpError(env.createFails.length >= 8 ? 429 : 401, env.createFails.length >= 8 ? 'Too many tries. Wait a few minutes.' : 'That host key is not right.');
+      }
       if (env.creates.length >= 8 || !freeSlot(env)) {
         if (JSON.stringify(env) !== before) {
           const v = await store.save(loaded.version, env);
