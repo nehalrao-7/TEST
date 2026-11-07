@@ -19,7 +19,7 @@ A live party-game web app for 12–16 guests, with three screens:
 
 - **Front end:** plain JS, HTML and CSS. No framework and no build step. Files are in `public/`.
 - **Back end:** Node 18+ (CommonJS). A single serverless function, `api/main.js`, handles every `/api/*` route (rewrite in `vercel.json`). Locally, `server/index.js` (Express) serves the same routes.
-- **State:** one JSON document. In production it's a single Supabase Postgres row (`dgn_state`) with a version number. Locally it's `data/state.json`.
+- **State:** one party per row. The game row has no phone numbers and no questionnaire answers; those are in a private row for that party only. Phone numbers are stored as a hash. Locally each party is its own file under `data/rooms/`.
 - **Realtime:** after every save, Supabase Realtime broadcasts `{v: version}` on channel `dgn`, and clients refetch their own view. If realtime fails, clients poll.
 - **Only npm dependencies:** `express` (local dev only) and `qrcode`. The browser loads `@supabase/supabase-js@2.45.4` from jsDelivr and the YouTube IFrame API.
 

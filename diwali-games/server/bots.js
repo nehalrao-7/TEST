@@ -33,7 +33,7 @@ function create(state, count = 8) {
   const taken = new Set(Object.values(state.players).map((p) => p.name.toLowerCase()));
   const names = S.shuffle(NAMES).filter((n) => !taken.has(n.toLowerCase())).slice(0, count);
   const created = names.map((name, i) => {
-    const p = S.createPlayer({ name, phone: `+1000000${String(Date.now() + i).slice(-5)}`, avatar: AVATARS[(i * 3) % AVATARS.length] });
+    const p = S.createPlayer({ name, avatar: AVATARS[(i * 3) % AVATARS.length] });
     p.bot = true;
     p.skill = rnd(0.45, 0.85); // how often this bot knows the answer
     return p;

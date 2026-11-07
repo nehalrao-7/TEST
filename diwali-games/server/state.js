@@ -149,12 +149,14 @@ function dealPowerups(n) {
 }
 
 function createPlayer({ name, phone, avatar }) {
+  const { phoneHash, phoneTail } = require('./privacy');
   const used = new Set(Object.values(state.players).map((p) => p.color));
   const color = COLORS.find((c) => !used.has(c)) || COLORS[crypto.randomInt(COLORS.length)];
   const p = {
     id: id(),
     name,
-    phone,
+    phoneHash: phone ? phoneHash(phone) : '',
+    phoneTail: phone ? phoneTail(phone) : '',
     avatar: AVATARS.includes(avatar) ? avatar : AVATARS[crypto.randomInt(AVATARS.length)],
     color,
     joinedAt: Date.now(),
