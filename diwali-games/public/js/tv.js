@@ -108,6 +108,7 @@
     const dancing = hook && L.phase === 'perform' && App.now() < L.until;
     box.classList.toggle('hook-veiled', dancing);
     document.body.classList.toggle('hook-screen', hook);
+    document.body.classList.toggle('hook-dancing', Boolean(hook && L.phase === 'perform'));
     if (hook !== hookFit) {
       hookFit = hook;
       playerFitted = false;
@@ -546,14 +547,15 @@
     }
     if (L.phase === 'spin') return [`<div class="gframe">${head}<div class="hook"><div class="perf">${team ? `<div class="call">${esc(team.emoji)} ${esc(team.name)}</div>` : ''}<div class="reel paper"><div class="reel-win" id="slot">🎵</div></div><div class="hand-note">Spinning the song…</div></div></div></div>`, 'spin'];
     const song = perf.song;
-    const songHtml = song ? `<div class="song">🎵 ${esc(song.title)}</div><div class="step">Hook step: <b>${esc(song.step)}</b></div>` : '';
+    const stepHtml = L.showStep && song && song.step ? `<div class="step">${esc(song.step)}</div>` : '';
+    const songHtml = song ? `<div class="song">🎵 ${esc(song.title)}</div>${stepHtml}` : '';
     if (L.phase === 'ready') {
       return [`<div class="gframe">${head}<div class="hook"><div class="perf"><div class="call big">${team ? `${esc(team.emoji)} ${esc(team.name)}` : 'Open floor!'}</div>
         <h1 class="brave">Who's brave enough? Come up!</h1>${songHtml}${dancers(perf.dancers)}</div></div></div>`, 'hook-ready-' + (song ? song.title : '')];
     }
     if (L.phase === 'perform') {
-      const veiled = App.now() < L.until;
-      return [`<div class="gframe">${head}${timerBar(L.startedAt, L.until)}<div class="hook"><div class="perf">${songHtml}<div class="big-count" data-count="${L.until}"></div>${veiled ? '<div class="hand-note">The original reveals at zero.</div>' : ''}${perf.dancers.length ? dancers(perf.dancers) : ''}</div></div></div>`, 'hook-perform'];
+      const title = song ? `<div class="song">${esc(song.title)}</div>` : '';
+      return [`<div class="gframe hook-film">${title}<div class="big-count" data-count="${L.until}"></div>${stepHtml}</div>`, 'hook-perform' + (L.showStep ? '-hint' : '')];
     }
     if (L.phase === 'judge') {
       const stars = perf.stars || 0;

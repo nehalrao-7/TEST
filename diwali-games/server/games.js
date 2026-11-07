@@ -581,6 +581,7 @@ const hookstep = {
         live.phase = 'scored';
         break;
       }
+      case 'showStep': live.showStep = !live.showStep; break;
       case 'reset': live.phase = 'idle'; live.perf = null; break;
       default:
     }
@@ -603,11 +604,15 @@ const hookstep = {
     const team = perf && perf.team ? S.entityInfo(perf.team) : null;
     const v = {
       phase: live.phase, until: live.until, startedAt: live.startedAt, spinUntil: live.spinUntil, bonus: hookstep.bonus(game),
+      showStep: Boolean(live.showStep),
       songs: songs.map((x) => x.title),
       perf: perf ? {
         team,
         members: perf.team ? S.teamMembers(S.parseEntity(perf.team).id).map((m) => pinfo(m.id)) : null,
-        song: perf.songIndex != null && live.phase !== 'spin' ? songs[perf.songIndex] : null,
+        song: (() => {
+          const raw = perf.songIndex != null && live.phase !== 'spin' ? songs[perf.songIndex] : null;
+          return raw ? { ...raw, step: (live.showStep || viewer.host) ? raw.step : '' } : null;
+        })(),
         dancers: perf.dancers.map(pinfo).filter(Boolean),
         stars: perf.stars, applause: perf.applause, measure: perf.measure,
       } : null,

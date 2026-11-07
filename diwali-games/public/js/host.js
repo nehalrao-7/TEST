@@ -355,8 +355,9 @@
     const teamSel = L.mode === 'team'
       ? `<select data-ui="hookTeam" style="width:auto">${S.teams.map((t) => opt('t:' + t.id, `${esc(t.emoji)} ${esc(t.name)}`, ui.hookTeam || (perf && perf.team ? perf.team.key : ''))).join('')}</select>` : '<span class="chip">Open floor (solo mode)</span>';
     const songSel = `<select data-ui="song" style="flex:1"><option value="">🎰 Random — spin on the TV</option>${L.songs.map((x, i) => opt(i, esc(x), ui.song)).join('')}</select>`;
+    const hintBtn = `<button class="btn small ${L.showStep ? 'gold' : 'ghost'}" data-g="showStep">${L.showStep ? 'Dance hint is on the TV' : 'Show dance hint on the TV'}</button>`;
     let body = `<div class="steps"><div class="step-row"><span class="step-n">1</span><b>Call a team up</b></div>
-      <div class="row">${teamSel}${songSel}<button class="btn" data-a="hookSetup">📣 Call them up</button></div>`;
+      <div class="row">${teamSel}${songSel}<button class="btn" data-a="hookSetup">📣 Call them up</button>${hintBtn}</div>`;
     if (!perf) return body + resultsHtml(L) + '</div>';
     const phase = L.phase;
     const team = perf.team;
