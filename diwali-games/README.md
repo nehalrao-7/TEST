@@ -1,4 +1,4 @@
-# 🪔 Diwali Game Night
+# 🪔 2026 Diwali Party
 
 A live, multiplayer party-game system for 12–16 guests: players use their phones, the host runs the show from a console, and the TV shows a big-screen display everyone watches.
 
@@ -111,7 +111,7 @@ Guests enter their name, choose an avatar and enter their phone number, then ver
 
 ## Live site
 
-**https://diwali-game-night.vercel.app**: players `/play`, host `/host`, TV `/tv`.
+**https://2026-diwali-party.vercel.app**: players `/play`, host `/host`, TV `/tv`.
 
 - **Hosting:** Vercel serves `public/`. All `/api/*` routes go to one serverless function (`api/main.js`).
 - **State:** each party is its own rows, with a version check so simultaneous answers in that room never overwrite each other. Phone numbers are stored only as a hash. Questionnaire answers sit in a private row for that party.

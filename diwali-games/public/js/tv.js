@@ -280,8 +280,8 @@
     return `<div class="lobby">
       <div class="lobby-hero">
         <div class="tv-mascot">${App.mascot()}</div>
-        <div class="title-big">${esc(S.eventName.replace(/ Game Night$/i, '') || 'Diwali')}</div>
-        <div class="title-hand">Game Night ✨</div>
+        <div class="title-big">${esc(S.eventName.replace(/^\d{4}\s+/, '') || 'Diwali Party')}</div>
+        <div class="title-hand">${esc((S.eventName.match(/^\d{4}/) || [''])[0])} ✨</div>
         <div class="sub">Type the room code on your phone. Your score stays in this room.</div>
         <div class="join-box paper">
           <img src="/api/qr.svg?u=${encodeURIComponent(url)}" alt="QR code to join" />

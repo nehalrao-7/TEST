@@ -49,7 +49,7 @@ function freshState() {
   return {
     version: 1,
     settings: {
-      eventName: 'Diwali Game Night',
+      eventName: '2026 Diwali Party',
       powerupsEnabled: true,
       powerupsPerPlayer: 2,
       personalPct: 20,
@@ -111,6 +111,8 @@ function setState(s) {
     state.questionnaireVersion = QV;
   }
   if (!state.settings) state.settings = {};
+  // The party was renamed; rooms saved with the old default pick up the new one.
+  if (/game night/i.test(state.settings.eventName || '')) state.settings.eventName = '2026 Diwali Party';
   if (state.settings.personalPct == null) state.settings.personalPct = 20;
   if (state.settings.questionnaireOpen == null) state.settings.questionnaireOpen = true;
   state.settings.difficulty = Math.max(1, Math.min(5, Math.round(Number(state.settings.difficulty) || 3)));

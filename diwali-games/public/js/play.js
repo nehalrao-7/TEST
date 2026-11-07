@@ -19,7 +19,7 @@
   const revealed = new Set(JSON.parse(store.get('dgn_revealed') || '[]'));
 
   // =================== LOGIN ===================
-  const L = { step: 'room', room: '', name: '', avatar: '🪔', cc: '1', phone: '', otp: '', via: 'host', avatars: ['🪔', '🎆', '🐘', '🦚', '🐯', '🌺', '🪷', '🍬', '🎇', '🥭', '🌶️', '🦁', '🐒', '👑', '🪁', '🍵', '🌙', '⭐'], eventName: 'Diwali Game Night', note: '' };
+  const L = { step: 'room', room: '', name: '', avatar: '🪔', cc: '1', phone: '', otp: '', via: 'host', avatars: ['🪔', '🎆', '🐘', '🦚', '🐯', '🌺', '🪷', '🍬', '🎇', '🥭', '🌶️', '🦁', '🐒', '👑', '🪁', '🍵', '🌙', '⭐'], eventName: '2026 Diwali Party', note: '' };
   const COUNTRY_CODES = [['1', '+1'], ['91', '+91'], ['44', '+44'], ['971', '+971'], ['61', '+61'], ['65', '+65']];
 
   function remember(room, token) {
@@ -442,7 +442,7 @@
     const pct = top && top.score > 0 ? Math.max(4, Math.round((100 * me.score) / top.score)) : 0;
     const board = S.players.slice(0, 5).map((p) => `<div class="lb-mini ${p.id === me.id ? 'me' : ''}"><b class="rk">#${p.rank}</b>${av(p)}<span>${esc(p.name)}</span><em>${fmt(p.score)}</em></div>`).join('');
     return `<div class="night-card">
-      <div class="nc-top"><span class="hand">${esc(S.eventName)} · ${year}</span></div>
+      <div class="nc-top"><span class="hand">${esc(S.eventName)}${String(S.eventName).includes(String(year)) ? '' : ' · ' + year}</span></div>
       <div class="ring" style="--p:${pct}"><div><b>${fmt(me.score)}</b><small>pts</small></div></div>
       <h2>${esc(me.name)}</h2>
       <div class="nc-rank">Rank <b>#${me.rank}</b> of ${S.players.length}</div>

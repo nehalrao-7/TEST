@@ -1,4 +1,4 @@
-# Handoff guide — Diwali Game Night
+# Handoff guide — 2026 Diwali Party
 
 Read this first, then `README.md` (feature tour). This file covers what a developer or AI coding assistant needs to keep building safely.
 
@@ -12,8 +12,8 @@ A live party-game web app for 12–16 guests, with three screens:
 | Phone | `/play` | **Controller only.** One "moment" at a time: shape buttons, buzzer, Sahi/Galat, "eyes on TV". |
 | Host | `/host` | **Control room** (dark theme). Run-of-show plus a single "Next cue" button (Space). Questions editor, players, scores. |
 
-- **Live site:** https://diwali-game-night.vercel.app
-- **Code:** GitHub `nehalrao-7/TEST`, branch `diwali-game-night`, folder `diwali-games/`
+- **Live site:** https://2026-diwali-party.vercel.app
+- **Code:** GitHub `nehalrao-7/TEST`, branch `cursor/rooms-and-difficulty-1cc7`, folder `diwali-games/`
 
 ## 2. Stack (deliberately simple)
 
@@ -102,7 +102,7 @@ Requests inside one instance are serialised (the `serial()` queue) because engin
 
 ## 8. Deploying
 
-- **Vercel project** `diwali-game-night` (team "nehalrao97-gmailcoms-projects"), region `iad1`. Every push builds a preview; production is promoted from branch `cursor/rooms-and-difficulty-1cc7`.
+- **Vercel project** `2026-diwali-party` (team "nehalrao97-gmailcoms-projects"), region `iad1`. Every push builds a preview; production is promoted from branch `cursor/rooms-and-difficulty-1cc7`.
 - **Database:** Supabase project `diwali-game-night`, tables `dgn_room`, `dgn_room_private`, `dgn_book`, `dgn_seen` (see `supabase/schema.sql`). The app connects through the Supabase pooler as login `dgn_app`, which can only read and write those four tables (RLS policies `dgn_app_all`).
 - **Vercel environment variables:**
 

@@ -759,7 +759,7 @@ async function handle(store, method, path, body = {}, query = {}) {
       return { svg: await QRCode.toString(text, { type: 'svg', margin: 1, color: { dark: '#2a0845', light: '#ffffff' } }) };
     }
     if (path === 'meta') {
-      return { json: { eventName: 'Diwali Game Night', avatars: S.AVATARS, smsEnabled, realtime: store.realtime || null } };
+      return { json: { eventName: '2026 Diwali Party', avatars: S.AVATARS, smsEnabled, realtime: store.realtime || null } };
     }
     if (method !== 'POST') return { status: 405, json: { error: 'Method not allowed' } };
 
@@ -876,7 +876,7 @@ async function handle(store, method, path, body = {}, query = {}) {
       }, true, { skipTick: true });
       let via = viaPublic;
       if (smsEnabled) {
-        try { await sendSms(phone, `${result.code} is your Diwali Game Night code 🪔`); via = 'sms'; } catch (e) {
+        try { await sendSms(phone, `${result.code} is your 2026 Diwali Party code 🪔`); via = 'sms'; } catch (e) {
           console.error('[sms] text failed');
           via = 'host';
           await run(store, roomCode, () => { const slot = st().pending[phoneHash(phone)]; if (slot) slot.via = 'host'; }, false, { skipTick: true });
