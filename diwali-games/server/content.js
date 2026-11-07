@@ -129,7 +129,7 @@ const kbc = {
 // Official music videos. `t` starts a couple of seconds before each video's most-replayed
 // moment (usually the hook step). `level` sets the order Spin draws them: easy, then medium, then hard.
 // Dola Re Dola has no official full video; its link and start time are best guesses to check.
-const hookVideo = (id, t) => ({ youtube: `https://www.youtube.com/watch?v=${id}&t=${t}s`, clip: 45, showVideo: true });
+const hookVideo = (id, t) => ({ youtube: `https://www.youtube.com/watch?v=${id}&t=${t}s`, clip: 25, showVideo: true });
 const HOOK_SONGS = [
   { level: 'easy', title: 'Sheila Ki Jawani — Tees Maar Khan', step: 'The hip sway with hands framing the face', ...hookVideo('ZTmF2v59CtI', 171) },
   { level: 'easy', title: 'Chikni Chameli — Agneepath', step: 'The big jhatka with arms overhead', ...hookVideo('QcQpqWhTBCE', 31) },
@@ -180,7 +180,7 @@ function applyHookVideos(content) {
 }
 
 const hookstep = {
-  performSeconds: 45,
+  performSeconds: 25,
   himmatBonus: 100,
   songs: HOOK_SONGS,
 };

@@ -266,3 +266,4 @@ body.play:has(#dock:not(:empty)) .pwrap { padding-bottom: 108px; }
 body.play .toast { bottom: auto; top: 50px; transform: translateX(-50%) translateY(-220%); }
 body.play .toast.show { transform: translateX(-50%) translateY(0); }
 body.offline .pwrap::before { content: 'Reconnecting…'; display: block; text-align: center; background: var(--sindoor); color: #fff; border-radius: 10px; padding: 6px; margin-bottom: 10px; font-weight: 800; }
+.lb-mini .avatar { flex: none; }

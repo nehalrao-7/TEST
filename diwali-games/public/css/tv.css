@@ -427,3 +427,12 @@ body.in-game .diya-row { opacity: 0; }
 .hook-scored-fit .call.big { font-size: 3vw; }
 .hook-scored-fit .dancer .avatar { width: 4.2vw; height: 4.2vw; font-size: 2.3vw; }
 .hook-scored-fit .song { font-size: 2.2vw; }
+
+/* One of everything per screen. The lobby already shows the name and code large; the standings
+   and awards already rank everyone; a game's title card already names the game. */
+.view-lobby .tv-top .logo, .view-lobby .ticker { visibility: hidden; }
+.view-lobby .mini-top, .view-leaderboard .mini-top, .view-podium .mini-top, .view-awards .mini-top { visibility: hidden; }
+body:has(.stage .intro) .now-playing { visibility: hidden; }
+.join-box .room-code { margin: 0; }
+.jclue.solo { grid-template-columns: 1fr; }
+.award-card .desc { color: var(--ink); opacity: .7; }

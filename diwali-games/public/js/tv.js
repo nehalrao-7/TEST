@@ -186,16 +186,16 @@
   function render() {
     document.title = `${S.eventName} — TV`;
     App.patch($('eventName'), S.eventName.split(' ').length > 2 ? esc(S.eventName).replace(/(\S+\s+\S+)$/, '<span>$1</span>') : esc(S.eventName));
-    App.patch($('nowPlaying'), S.live ? `<span class="plaque">${esc(S.live.emoji)} ${esc(S.live.title)} · ${S.live.mode === 'team' ? 'Teams' : 'Solo'}${S.live.difficultyName ? ' · ' + esc(S.live.difficultyName) : ''}${S.live.practice ? ' · 🧪 Practice' : ''}</span>` : `<span class="plaque">Room ${esc(S.code || '')}</span>`);
+    // One name per screen: the game title lives here during a game, the room code in the footer.
+    const inGame = S.live && S.tv.view === 'game';
+    App.patch($('nowPlaying'), inGame ? `<span class="plaque">${esc(S.live.emoji)} ${esc(S.live.title)}${S.live.practice ? ' · 🧪 Practice' : ''}</span>` : '');
     const mini = S.live && S.live.mode === 'team' && S.teams.length
       ? [...S.teams].sort((a, b) => (b.gamePoints - a.gamePoints) || (b.total - a.total)).filter((t) => (t.gamePoints || t.total) > 0).slice(0, 3)
         .map((t, i) => `<div class="m">${['🥇', '🥈', '🥉'][i]} <span class="avatar" style="--c:${t.color}">${esc(t.emoji)}</span> ${esc(String(t.name).replace(/^Team /, ''))} · ${fmt(t.gamePoints || t.total)}</div>`).join('')
       : S.players.slice(0, 3).filter((p) => p.score > 0).map((p, i) => `<div class="m">${['🥇', '🥈', '🥉'][i]} ${av(p)} ${esc(p.name)} · ${fmt(p.score)}</div>`).join('');
     App.patch($('miniTop'), mini);
-    const line = S.feed[0];
-    App.patch($('ticker'), line
-      ? `<span class="chyron">${esc(line.emoji || '✨')} ${esc(line.text)}</span>`
-      : `<span class="chyron">Room <b>${esc(S.code || '')}</b></span>`);
+    // News already appears as announcements, so the footer only carries the room code for late arrivals.
+    App.patch($('ticker'), `<span class="chyron">Room <b>${esc(S.code || '')}</b></span>`);
     detectArrivals();
 
     let view = S.tv.view;
@@ -209,6 +209,7 @@
     else [html, key] = gameScene();
 
     document.body.classList.toggle('in-game', view === 'game');
+    ['lobby', 'leaderboard', 'podium', 'awards', 'teams'].forEach((v) => document.body.classList.toggle('view-' + v, view === v));
     document.body.classList.toggle('show-diyas', view === 'lobby');
     const stage = $('stage');
     if (key !== prev.sceneKey) {
@@ -264,7 +265,7 @@
       const style = a.style === 'lower' ? 'lower' : 'bumper';
       el.className = `announce ${style} ${a.kind || ''}`;
       el.innerHTML = style === 'lower'
-        ? `<div class="box"><div class="em">${esc(a.emoji || '✨')}</div><div><h1>${esc(a.title)}</h1><p>${esc(a.text || '')}</p></div></div>`
+        ? `<div class="box"><div class="em">${esc(a.emoji || '✨')}</div><div>${a.title ? `<h1>${esc(a.title)}</h1>` : ''}<p>${esc(a.text || '')}</p></div></div>`
         : `<div class="box paper"><div class="em">${esc(a.emoji || '✨')}</div><h1>${esc(a.title)}</h1><p>${esc(a.text || '')}</p></div>`;
       App.sfx(a.kind === 'powerup' ? 'power' : 'fanfare');
       clearTimeout(el._h);
@@ -282,13 +283,12 @@
         <div class="tv-mascot">${App.mascot()}</div>
         <div class="title-big">${esc(S.eventName.replace(/^\d{4}\s+/, '') || 'Diwali Party')}</div>
         <div class="title-hand">${esc((S.eventName.match(/^\d{4}/) || [''])[0])} ✨</div>
-        <div class="sub">Type the room code on your phone. Your score stays in this room.</div>
+        <div class="sub">Scan to join, or enter the code on your phone.</div>
         <div class="join-box paper">
           <img src="/api/qr.svg?u=${encodeURIComponent(url)}" alt="QR code to join" />
-          <div><div class="step">Room code</div><div class="room-code">${esc(S.code || '')}</div>
-          <div class="games">${S.games.map((g) => esc(g.emoji)).join(' ')}</div></div>
+          <div><div class="room-code">${esc(S.code || '')}</div></div>
         </div>
-        ${S.questionnaire && S.questionnaire.open && ps.length ? `<div class="q-note">📝 <b>${S.questionnaire.done}</b> of ${ps.length} guests have answered. Some of those answers become tonight's questions.</div>` : ''}
+        ${S.questionnaire && S.questionnaire.open && ps.length ? `<div class="q-note">📝 <b>${S.questionnaire.done}</b> of ${ps.length} answered the quick questions</div>` : ''}
       </div>
       <div>
         <div class="guest-head"><h2>The Guest List</h2><span class="hand-note">${ps.length} ${ps.length === 1 ? 'diya' : 'diyas'} lit</span></div>
@@ -384,7 +384,7 @@
         ${champ ? `<div class="winners"><div class="winner">${av(champ)}<b>${esc(champ.name)}</b></div></div><div class="value">${fmt(champ.score)} points · Shubh Deepavali! 🎆</div>` : ''}${dots}</div></div>`, 'award-champ'];
     }
     const a = list[i - 1];
-    return [`<div class="awards"><div class="award-card paper"><div class="kicker">award ${i} of ${list.length}</div><div class="medal">${esc(a.emoji)}</div>
+    return [`<div class="awards"><div class="award-card paper"><div class="medal">${esc(a.emoji)}</div>
       <h1>${esc(a.title)}</h1><div class="desc">${esc(a.desc)}</div><div class="drumline">and it goes to… 🥁</div>
       <div class="winners">${a.winners.map((w) => `<div class="winner">${av(w)}<b>${esc(w.name)}</b></div>`).join('')}</div>
       <div class="value">${esc(a.value)}${S.awardPoints ? ` · <b>+${S.awardPoints} points</b>` : ''}</div>${dots}</div></div>`, 'award-' + a.id];
@@ -397,7 +397,7 @@
     return fn(L);
   }
   const intro = (L, sub, rules = []) => {
-    const all = L && L.difficultyName ? rules.concat([`🎚️ ${L.difficultyName}`]) : rules;
+    const all = rules;
     return `<div class="intro"><div><div class="em">${esc(L.emoji)}</div><h1>${esc(L.title)}</h1><p>${sub}</p>${all.length ? `<div class="rules">${all.map((r) => `<span>${r}</span>`).join('')}</div>` : ''}</div></div>`;
   };
   const lockins = (ids) => {
@@ -409,9 +409,9 @@
     if (L.phase === 'intro') return [intro(L, 'Answer on your phone — match the colour and the shape!', [`${L.total} questions`, L.mode === 'team' ? '👥 teams score their average' : '⚡ faster = more points', '🔥 3 in a row = streak bonus']), 'q-intro'];
     if (L.phase === 'final') return [intro({ ...L, emoji: '🎆' }, 'Round complete! The standings are coming up…'), 'q-final'];
     const q = L.question;
-    const head = `<div class="ghead"><span class="pill gold">Q ${L.qIndex + 1} / ${L.total}</span><span class="pill">${esc(L.title)}</span>${L.doubleDiya ? '<span class="pill personal">✨ Double Diya · ×2 points</span>' : ''}${q && q.personal ? '<span class="pill personal">✨ About our guests</span>' : ''}
+    const head = `<div class="ghead"><span class="pill gold">Q ${L.qIndex + 1} / ${L.total}</span>${L.doubleDiya ? '<span class="pill personal">✨ Double Diya · ×2 points</span>' : ''}${q && q.personal ? '<span class="pill personal">✨ About our guests</span>' : ''}
       ${L.phase === 'reveal' ? '<span class="show-call">Sahi jawab hai…</span>' : ''}${L.phase === 'question' && App.now() >= L.opensAt ? medalCount(L.deadline, L.opensAt) : ''}</div>`;
-    const qcard = `<div class="qcard paper">${q.clue ? `<div class="clue">${esc(q.clue)}</div>` : ''}${q.image ? `<img class="qimg" src="${esc(q.image)}" alt=""/>` : ''}<div class="q">${esc(q.q)}</div></div>`;
+    const qcard = `<div class="qcard paper">${q.clue ? `<div class="clue">${esc(q.clue)}</div>` : ''}${q.image ? `<img class="qimg" src="${esc(q.image)}" alt=""/>` : ''}${q.clue && /^guess the movie!?$/i.test(String(q.q).trim()) ? '' : `<div class="q">${esc(q.q)}</div>`}</div>`;
 
     if (L.phase === 'question') {
       const waiting = App.now() < L.opensAt;
@@ -446,7 +446,7 @@
 
   function jeopardyScene(L) {
     const who = L.turn;
-    const head = `<div class="ghead"><span class="pill gold">🧠 ${esc(L.title)}</span>${who ? `<span class="pill control" style="--tc:${who.color}">${esc(who.emoji)} ${esc(who.name)} ${L.phase === 'clue' ? 'answers' : 'is up'}</span>` : ''}</div>`;
+    const head = `<div class="ghead">${who ? `<span class="pill control" style="--tc:${who.color}">${esc(who.emoji)} ${esc(who.name)} ${L.phase === 'clue' ? 'answers' : 'is up'}</span>` : ''}</div>`;
     if (L.phase === 'board') {
       const cats = L.categories;
       const rows = Math.max(...cats.map((c) => c.clues.length));
@@ -466,12 +466,12 @@
     const correct = answer && L.last && L.last.correct;
     const side = answer
       ? `<div class="list-card"><h3>${correct ? '✓ Team scores' : '✗ No points'}</h3><div class="lrow">${L.last && L.last.info ? `${esc(L.last.info.emoji)} ${esc(L.last.info.name)}` : ''}<span class="pts">${correct ? `+${fmt(L.last.value)} each` : '—'}</span></div></div>`
-      : `<div class="list-card"><h3>This turn</h3><div class="lrow">${who ? `${esc(who.emoji)} ${esc(who.name)}` : ''}</div><p class="small" style="margin:.6vw 0 0">Answer out loud. Everyone on the team scores.</p></div>`;
-    return [`<div class="gframe">${head}<div class="jclue"><div class="qcard paper"><div class="cat">${esc(c.category)} · ${fmt(c.value)}</div><div class="q">${esc(c.q)}</div>${answer ? `<div class="ans pop">✨ ${esc(c.a)}</div>` : ''}</div>${side}</div></div>`, `j-clue-${L.cur.c}-${L.cur.i}${answer ? (correct ? '-answer-correct' : '-answer') : ''}`];
+      : '';
+    return [`<div class="gframe">${head}<div class="jclue${side ? '' : ' solo'}"><div class="qcard paper"><div class="cat">${esc(c.category)} · ${fmt(c.value)}</div><div class="q">${esc(c.q)}</div>${answer ? `<div class="ans pop">✨ ${esc(c.a)}</div>` : ''}</div>${side}</div></div>`, `j-clue-${L.cur.c}-${L.cur.i}${answer ? (correct ? '-answer-correct' : '-answer') : ''}`];
   }
 
   function kbcScene(L) {
-    const head = `<div class="ghead"><span class="pill gold">💰 ${esc(L.title || 'Kaun Banega Crorepati')}</span><span class="pill">Solo · fastest takes the full ${L.points ? fmt(L.points) : 'points'}</span></div>`;
+    const head = '';
     if (L.phase === 'idle' || L.phase === 'done') {
       return [`<div class="gframe">${head}<div class="kbc"><div class="intro"><div><div class="em">💰</div><h1>Kaun Banega Crorepati</h1><p>${L.phase === 'done' ? 'That is the round.' : 'Every question is open to everyone. Fastest correct answer wins the full points. Each place after gets less.'}</p></div></div></div></div>`, 'kbc-' + L.phase];
     }
@@ -489,11 +489,12 @@
   function hookScene(L) {
     const perf = L.perf;
     const team = perf && perf.team;
-    const head = `<div class="ghead"><span class="pill gold">💃 ${esc(L.title)}</span>${team ? `<span class="pill control" style="--tc:${team.color}">${esc(team.emoji)} ${esc(team.name)}</span>` : ''}<span class="pill">📵 No phones · +${L.bonus} for every dancer</span>${L.phase === 'perform' ? medalCount(L.until, L.startedAt) : ''}</div>`;
+    const showTeam = team && L.phase === 'judge';
+    const head = showTeam || L.phase === 'perform' ? `<div class="ghead">${showTeam ? `<span class="pill control" style="--tc:${team.color}">${esc(team.emoji)} ${esc(team.name)}</span>` : ''}${L.phase === 'perform' ? medalCount(L.until, L.startedAt) : ''}</div>` : '';
     const dancers = (list) => `<div class="dancers">${(list || []).map((d, i) => `<div class="dancer" style="animation-delay:${i * 0.08}s">${av(d)}<b>${esc(d.name)}</b><small>+${L.bonus}</small></div>`).join('')}</div>`;
     if (L.phase === 'idle' || !perf) {
       const res = L.results.length ? `<div class="list-card hook-results"><h3>Dance-offs so far</h3>${[...L.results].sort((a, b) => b.teamPoints - a.teamPoints).map((r) => `<div class="lrow">${r.team ? `<span class="avatar" style="--c:${r.team.color}">${esc(r.team.emoji)}</span>${esc(r.team.name)}` : '💃 Open floor'} <span class="small" style="opacity:.7">${esc(r.song)} · ${'🪔'.repeat(r.stars)} · ${r.dancers.length} dancers</span><span class="pts">+${r.teamPoints}</span></div>`).join('')}</div>` : '';
-      return [`<div class="gframe">${head}<div class="hook"><div>${intro({ emoji: '💃', title: L.title }, 'Phones down. A song spins, a team is called up — <b>anyone who dances earns a personal bonus</b> on top of the team points.')}${res}</div></div></div>`, 'hook-idle'];
+      return [`<div class="gframe">${head}<div class="hook"><div>${intro({ emoji: '💃', title: L.title }, 'Phones down. When your team is called, come dance — <b>every dancer earns a bonus</b>.')}${res}</div></div></div>`, 'hook-idle'];
     }
     if (L.phase === 'spin') return [`<div class="gframe">${head}<div class="hook"><div class="perf">${team ? `<div class="call">${esc(team.emoji)} ${esc(team.name)}</div>` : ''}<div class="reel paper"><div class="reel-win" id="slot">🎵</div></div><div class="hand-note">Spinning the song…</div></div></div></div>`, 'spin'];
     const song = perf.song;
@@ -505,7 +506,7 @@
     }
     if (L.phase === 'perform') {
       const title = song ? `<div class="song">${esc(song.title)}</div>` : '';
-      return [`<div class="gframe hook-film">${title}<div class="big-count" data-count="${L.until}"></div>${stepHtml}</div>`, 'hook-perform' + (L.showStep ? '-hint' : '')];
+      return [`<div class="gframe hook-film">${title}<div class="big-count" data-count="${L.until}"></div>${stepHtml}</div>`, 'hook-perform' + (L.showStep ? '-hint' : '') + (song ? '-named' : '')];
     }
     if (L.phase === 'judge') {
       const stars = perf.stars || 0;
@@ -567,8 +568,8 @@
   setInterval(() => {
     const slot = document.getElementById('slot');
     if (!slot || !S || !S.live || S.live.type !== 'hookstep') return;
-    const songs = S.live.songs;
-    slot.textContent = '🎵 ' + songs[(Math.random() * songs.length) | 0].split(' — ')[0];
+    const icons = ['🎵', '💃', '🥁', '🎶', '🪩', '🕺'];
+    slot.textContent = icons[(Math.random() * icons.length) | 0];
     App.sfx('tick');
   }, 120);
 

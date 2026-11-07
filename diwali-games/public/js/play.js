@@ -58,18 +58,15 @@
 
   function renderLogin() {
     dock.innerHTML = '';
-    const greet = L.name.trim() ? `Happy Diwali, ${esc(L.name.trim())}!` : 'Happy Diwali';
     if (L.step === 'room') {
       app.innerHTML = `<div class="login">
         <div class="shell-card">
           <div class="breakout">${App.mascot()}</div>
-          <p class="greet">${greet}</p>
           <h1>Join a room</h1>
           <p class="muted">Ask the host for the 4-character code.</p>
         </div>
         <form class="card stack" id="fRoom">
-          <div><label class="field" for="room">Room code</label>
-            <input type="text" id="room" class="code-input" maxlength="4" autocapitalize="characters" autocomplete="off" placeholder="ABCD" aria-label="Room code" value="${esc(L.room)}" /></div>
+          <div><input type="text" id="room" class="code-input" maxlength="4" autocapitalize="characters" autocomplete="off" placeholder="ABCD" aria-label="Room code" value="${esc(L.room)}" /></div>
           ${L.note ? `<p class="muted" style="margin:0">${esc(L.note)}</p>` : ''}
           <button class="btn diya-btn big block" type="submit">${App.diya(true, 28)} Continue</button>
         </form>
@@ -89,12 +86,11 @@
       app.innerHTML = `<div class="login">
         <div class="shell-card">
           <div class="breakout">${App.mascot()}</div>
-          <p class="greet">${greet}</p>
-          <h1>${esc(L.eventName)}</h1>
+          <h1>Who’s playing?</h1>
         </div>
         <form class="card stack" id="f1">
           <div class="room-known"><span class="field">Room</span><b class="room-chip">${esc(L.room)}</b><button type="button" class="btn ghost small" id="changeRoom">Change</button></div>
-          <div><label class="field" for="name">Your name</label><input type="text" id="name" maxlength="20" placeholder="e.g. Priya" value="${esc(L.name)}" autocomplete="given-name" /></div>
+          <div><input type="text" id="name" maxlength="20" aria-label="Your name" placeholder="Your name" value="${esc(L.name)}" autocomplete="given-name" /></div>
           <div><label class="field">Pick your avatar</label><div class="avatars">${L.avatars.map((a) => `<button type="button" data-av="${a}" class="${a === L.avatar ? 'on' : ''}" aria-label="Avatar ${a}">${a}</button>`).join('')}</div></div>
           <button class="btn diya-btn big block" type="submit">${App.diya(true, 28)} Continue</button>
         </form>
@@ -113,18 +109,15 @@
     if (L.step === 'phone') {
       app.innerHTML = `<div class="login">
         <div class="shell-card slim">
-          <p class="greet">${greet}</p>
-          <h1>Your phone</h1>
-          <p class="muted">We send a code so this phone keeps your score.</p>
+          <h1>Hi ${esc(L.name.trim())}</h1>
+          <p class="muted">We’ll text a code so this phone keeps your score.</p>
         </div>
         <form class="card stack" id="fPhone">
-          <div class="room-known"><span class="field">Room</span><b class="room-chip">${esc(L.room)}</b></div>
           <div class="phone-row">
             <select id="cc" aria-label="Country code">${COUNTRY_CODES.map(([v, label]) => `<option value="${v}" ${v === L.cc ? 'selected' : ''}>${label}</option>`).join('')}</select>
             <input type="tel" id="phone" inputmode="tel" autocomplete="tel" placeholder="Phone number" value="${esc(L.phone)}" aria-label="Phone number" />
           </div>
           <button class="btn diya-btn big block" type="submit">${App.diya(true, 28)} Text me a code</button>
-          <p class="fine">Texts use Twilio when texting is on. Otherwise the host reads the code aloud. Fonts load from Google, and the live board may use Supabase.</p>
         </form>
         <button class="btn ghost small" type="button" id="backName">Back</button>
       </div>`;
@@ -147,7 +140,6 @@
     }
     app.innerHTML = `<div class="login">
       <div class="shell-card slim">
-        <p class="greet">${greet}</p>
         <h1>Enter your code</h1>
         <p class="muted">${L.via === 'sms' ? 'Check the text on this phone.' : 'Ask the host to read the code from their console.'}</p>
       </div>
@@ -250,8 +242,9 @@
     const pct = lead && lead.score > 0 ? Math.max(4, Math.round((100 * me.score) / lead.score)) : 0;
     const score = `<div class="ring ring-sm" style="--p:${me.score ? pct : 0}" role="img" aria-label="${fmt(me.score)} points"><div><b id="scoreNum">${fmt(shownScore == null ? me.score : shownScore)}</b><small>pts</small></div></div>`;
     const here = S.players.filter((p) => p.online).length;
-    App.patch(document.getElementById('hdr'), `<p class="greet">Happy Diwali, ${esc(me.name)}!</p>
-      <div class="head-row">${score}<div class="who"><div class="who-line"><b>${esc(me.name)}</b><span class="room-chip">${esc(S.code || '')}</span></div>${t ? `<span class="team-pill">${esc(t.emoji)} ${esc(t.name)}</span>` : `<span class="muted">${here} here</span>`}</div></div>`);
+    // The end-of-night card is self-contained (score, name, rank), so the header steps aside for it.
+    document.getElementById('hdr').style.display = key === 'night' ? 'none' : '';
+    App.patch(document.getElementById('hdr'), `<div class="head-row">${score}<div class="who"><div class="who-line"><b>${esc(me.name)}</b><span class="room-chip">${esc(S.code || '')}</span></div>${t ? `<span class="team-pill">${esc(t.emoji)} ${esc(t.name)}</span>` : `<span class="muted">${here} here</span>`}</div></div>`);
     if (shownScore !== me.score) {
       const el = document.getElementById('scoreNum');
       if (shownScore != null && el) { App.countUp(el, me.score, 800, shownScore); const ring = el.closest('.ring'); if (ring) { ring.classList.remove('bump'); void ring.offsetWidth; ring.classList.add('bump'); } }
@@ -328,7 +321,7 @@
         ${m.streak >= 2 ? `<span class="streak">🔥 ${m.streak} in a row</span>` : ''}</div>`, 'watch'];
       const hint = S.me.powerups.find((p) => p.type === 'hint' && !p.used);
       return [`q-open-${G.qIndex}`, `<div class="pad-head"><span class="eyebrow">Q${G.qIndex + 1} / ${G.total}</span>${dd}<span class="secs" data-count="${G.deadline}"></span></div>${timer(G.opensAt, G.deadline)}
-        <div class="shape-pad">${G.question.options.map((_, i) => `<button class="pad o${i} ${m.hint && m.hint.includes(i) ? 'gone' : ''}" data-act="answer" data-i="${i}" aria-label="${App.shapeNames[i]}">${shape(i)}<span>${App.shapeNames[i]}</span></button>`).join('')}</div>
+        <div class="shape-pad">${G.question.options.map((_, i) => `<button class="pad o${i} ${m.hint && m.hint.includes(i) ? 'gone' : ''}" data-act="answer" data-i="${i}" aria-label="${App.shapeNames[i]}">${shape(i)}</button>`).join('')}</div>
         ${hint && !m.hint && S.powerupsEnabled ? `<button class="hint-pill" data-act="use-pu" data-id="${hint.id}">✨ Phuljhari Hint — remove 2 wrong</button>` : ''}`, 'answer'];
     }
     const r = G.result;

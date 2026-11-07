@@ -226,9 +226,8 @@ function startGame(gid) {
   } else ({ content, count } = P.personalize({ ...game, content: tuned.content }, s));
   s.live = { gameId: gid, ...engines[game.type].init(game), content, personalCount: count, practice: level <= 1 || Boolean(s.settings.practice), difficulty: tuned.level, difficultyName: tuned.name };
   s.tv.view = 'game';
-  const base = game.mode === 'team' ? 'Team game — huddle up!' : 'Every player for themselves!';
-  // The intro scene is the title card. This line sits under it, so the open stays readable.
-  S.announce({ emoji: game.emoji, title: game.title, text: count ? `${base} ${count} ${count === 1 ? 'question is' : 'questions are'} about you.` : base, kind: 'start', style: 'lower', ms: 4200 });
+  // The title card already names the game and its rules. Only mention guest questions, once.
+  if (count && game.type !== 'hookstep') S.announce({ emoji: '✨', title: '', text: `${count} ${count === 1 ? 'question tonight is' : 'questions tonight are'} about our guests`, kind: 'start', style: 'lower', ms: 4200 });
 }
 
 function endGame() {
@@ -320,7 +319,7 @@ function autoMedia() {
     const song = (c.songs || [])[live.perf.songIndex];
     // Full screen for the dance. The blur lifts when the clock hits zero. The clip has no end
     // point, so it keeps playing until the host leaves this dance.
-    const media = mk(song, `song${live.perf.songIndex}-${live.results.length}`, true, song ? song.title : '');
+    const media = mk(song, `song${live.perf.songIndex}-${live.results.length}`, true, '');
     if (media) delete media.end;
     return media;
   }

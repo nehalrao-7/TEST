@@ -399,7 +399,7 @@ const hookstep = {
         if (!live.usedSongs.includes(perf.songIndex)) live.usedSongs.push(perf.songIndex);
         live.phase = 'perform';
         live.startedAt = now();
-        live.until = now() + (game.content.performSeconds || 45) * 1000;
+        live.until = now() + (game.content.performSeconds || 25) * 1000;
         break;
       }
       case 'stop': if (live.phase === 'perform') live.phase = 'judge'; break;
@@ -455,12 +455,14 @@ const hookstep = {
     const v = {
       phase: live.phase, until: live.until, startedAt: live.startedAt, spinUntil: live.spinUntil, bonus: hookstep.bonus(game),
       showStep: Boolean(live.showStep),
-      songs: songs.map((x) => x.title),
+      // Only the host sees song names ahead of time. Everyone else finds out when the blur lifts.
+      songs: viewer.host ? songs.map((x) => x.title) : [],
       perf: perf ? {
         team,
         members: perf.team ? S.teamMembers(S.parseEntity(perf.team).id).map((m) => pinfo(m.id)) : null,
         song: (() => {
-          const raw = perf.songIndex != null && live.phase !== 'spin' ? songs[perf.songIndex] : null;
+          const hidden = !viewer.host && (live.phase === 'spin' || live.phase === 'ready' || (live.phase === 'perform' && now() < live.until));
+          const raw = perf.songIndex != null && !hidden ? songs[perf.songIndex] : null;
           return raw ? { ...raw, step: (live.showStep || viewer.host) ? raw.step : '' } : null;
         })(),
         dancers: perf.dancers.map(pinfo).filter(Boolean),
@@ -510,6 +512,7 @@ function nextDeadline(state) {
   if (live) {
     if (live.phase === 'question' && live.deadline) c.push(live.deadline + 400);
     if (live.phase === 'spin') c.push(live.spinUntil + 100);
+    if (live.phase === 'perform' && live.until) c.push(live.until + 150);
   }
   if (state.demo && state.demo.plan && state.demo.plan.acts.length) c.push(state.demo.plan.acts[0].at + 50);
   const future = c.filter((x) => x > now() - 5000);

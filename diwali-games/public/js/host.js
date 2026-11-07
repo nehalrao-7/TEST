@@ -89,8 +89,8 @@
     if (pinSlot) App.patch(pinSlot, pinBanner());
     const diffSlot = document.getElementById('diffSlot');
     if (diffSlot) {
-      const liveName = S.live && (S.live.difficultyName || 'Party');
-      App.patch(diffSlot, tab === 'live' ? (S.live ? `<p class="diff-live">This round is <b>${esc(liveName)}</b></p>` : diffControl()) : '');
+      // During a game the difficulty shows as a chip on the game card, so this slot stays empty.
+      App.patch(diffSlot, tab === 'live' && !S.live ? diffControl() : '');
     }
     const main = document.getElementById('main');
     const html = { live: liveTab, games: gamesTab, questions: () => editor.html(S), players: playersTab, scores: scoresTab }[tab]();
@@ -274,8 +274,7 @@
     if (L.phase === 'question') {
       const ans = Object.keys(L.answersBy || {});
       body += `<p><b>${L.answered}</b> / ${online} online answered · <span data-count="${L.deadline}"></span>s left</p>
-        <p class="small muted">Waiting on: ${S.players.filter((p) => p.online && !ans.includes(p.id)).map((p) => esc(p.name)).join(', ') || 'nobody'}</p>
-        <button class="btn" data-g="reveal">⏩ Reveal now</button>`;
+        <p class="small muted">Waiting on: ${S.players.filter((p) => p.online && !ans.includes(p.id)).map((p) => esc(p.name)).join(', ') || 'nobody'}</p>`;
     } else if (L.phase === 'final') {
       body += `<p>🎉 All questions done.</p><button class="btn big red" data-a="end">🏁 End game & show leaderboard</button>`;
     } else {
@@ -316,8 +315,7 @@
     const n = `${L.qIndex + 1} / ${L.total}`;
     if (L.phase === 'question') {
       return `<p>Q${n} · full value <b>${fmt(L.points)}</b> · <b>${L.answered}</b> answered · <span data-count="${L.deadline}"></span>s</p>
-        <div class="qbox">${q.personal ? '<span class="chip gold">✨ From guests\' answers</span>' : ''}<div class="q">${esc(q.q)}</div><ol type="A">${q.options.map((o, i) => `<li class="${i === L.answerKey ? 'ok' : ''}">${esc(o)}${i === L.answerKey ? ' ✓' : ''}</li>`).join('')}</ol></div>
-        <button class="btn" data-g="reveal">⏩ Reveal now</button>`;
+        <div class="qbox">${q.personal ? '<span class="chip gold">✨ From guests\' answers</span>' : ''}<div class="q">${esc(q.q)}</div><ol type="A">${q.options.map((o, i) => `<li class="${i === L.answerKey ? 'ok' : ''}">${esc(o)}${i === L.answerKey ? ' ✓' : ''}</li>`).join('')}</ol></div>`;
     }
     const rows = (L.result && L.result.ranking || []).map((r) => `<div class="kv"><span>${r.rank}. ${pname(r.id)}</span><b>+${fmt(r.points)}</b></div>`).join('') || '<p class="muted">Nobody got it right.</p>';
     const last = L.qIndex + 1 >= L.total;

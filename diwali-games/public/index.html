@@ -15,10 +15,9 @@
   <main class="wrap pwrap" id="land">
     <div class="shell-card">
       <div class="breakout" id="mascot"></div>
-      <p class="greet">Happy Diwali</p>
-      <h1 id="eventName">Diwali Party 2026</h1>
+      <p class="greet" id="eventYear">2026</p>
+      <h1 id="eventName">Diwali Party</h1>
       <form id="joinForm">
-        <label class="field" for="room">Room code</label>
         <input id="room" class="code-input" type="text" maxlength="4" autocapitalize="characters" autocomplete="off" placeholder="ABCD" aria-label="Room code" />
         <button class="btn diya-btn big block" id="join" type="submit">Join the night</button>
       </form>
@@ -30,7 +29,10 @@
     document.getElementById('mascot').innerHTML = App.mascot();
     document.getElementById('join').insertAdjacentHTML('afterbegin', App.diya(true, 28));
     fetch('/api/meta').then((r) => r.json()).then((m) => {
-      if (m && m.eventName) document.getElementById('eventName').textContent = m.eventName;
+      // "2026 Diwali Party" reads as a small year over one big title.
+      const parts = m && m.eventName ? String(m.eventName).match(/^(\d{4})\s+(.+)$/) : null;
+      if (parts) { document.getElementById('eventYear').textContent = parts[1]; document.getElementById('eventName').textContent = parts[2]; }
+      else if (m && m.eventName) { document.getElementById('eventYear').textContent = 'Happy Diwali'; document.getElementById('eventName').textContent = m.eventName; }
     }).catch(() => {});
     document.getElementById('joinForm').onsubmit = async (e) => {
       e.preventDefault();
