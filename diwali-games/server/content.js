@@ -9,27 +9,29 @@ const quiz = (q, options, answer, extra = {}) => ({ q, options, answer, time: 20
 // Facts marked "HOST: confirm" in comments are local details worth a quick check.
 
 const guessTheMovie = {
+  // Easy to hard. The last question is the Double Diya.
   questions: [
+    quiz('Guess the movie!', ['Kabhi Khushi Kabhie Gham', 'Hum Saath-Saath Hain', 'Kal Ho Naa Ho', 'Baghban'], 0, { clue: '👨‍👩‍👦‍👦 🇬🇧 🚁 🏰' }),
     quiz('Guess the movie!', ['Namastey London', 'Patiala House', 'Bend It Like Beckham', 'Bride & Prejudice'], 2, { clue: '⚽ 🥔 🥦 👧🏽 🇬🇧' }),
-    quiz('Which of these was NOT filmed in Toronto?', ['Taal', 'Kal Ho Naa Ho', 'Kismat Konnection', 'Dhoom 3'], 3),
     quiz('Guess the movie!', ['Kabhi Alvida Naa Kehna', 'Kal Ho Naa Ho', 'New York', 'My Name Is Khan'], 1, { clue: '🗽 ❤️‍🩹 🩺 ⏳' }),
     quiz('The 2011 movie about a hockey team, shot in the GTA and backed by Akshay Kumar', ['Patiala House', 'Speedy Singhs', 'Chak De! India', 'Singh Is Kinng'], 1),
-    quiz('Guess the movie!', ['Kabhi Khushi Kabhie Gham', 'Hum Saath-Saath Hain', 'Kal Ho Naa Ho', 'Baghban'], 0, { clue: '👨‍👩‍👦‍👦 🇬🇧 🚁 🏰' }),
+    quiz('Which of these was NOT filmed in Toronto?', ['Kismat Konnection', 'Kal Ho Naa Ho', 'Speedy Singhs', 'Dhoom 3'], 3),
     quiz('Guess the movie!', ['Kuch Kuch Hota Hai', 'Dilwale Dulhania Le Jayenge', 'Pardes', 'Mohabbatein'], 1, { clue: '🇬🇧 🚂 🌻 🇨🇭' }),
   ],
 };
 
 const kahoot = {
+  // Easy to hard. The last question is the Double Diya.
   questions: [
-    quiz('On MSN Messenger, shaking your friend’s chat window was a…', ['Buzz', 'Poke', 'Nudge', 'Wink'], 2),
-    quiz('Tulsi in Kyunki Saas Bhi Kabhi Bahu Thi was played by…', ['Shweta Tiwari', 'Sakshi Tanwar', 'Smriti Irani', 'Ekta Kapoor'], 2),
     quiz('CID: “Daya, ___ tod do!”', ['Darwaza', 'Taala', 'Khidki', 'Deewar'], 0),
-    quiz('In Shaka Laka Boom Boom, Sanju’s magic object was a…', ['Paintbrush', 'Pencil', 'Chalk', 'Pen'], 1),
     quiz('“Main apni favourite hoon!” Which character made self-love look this cool?', ['Poo', 'Naina', 'Geet', 'Simran'], 2),
-    quiz('Hrithik Roshan’s 2000 debut film was…', ['Fiza', 'Mission Kashmir', 'Kaho Naa... Pyaar Hai', 'Koi... Mil Gaya'], 2),
-    quiz('In Main Hoon Na, Major Ram goes undercover as a…', ['Teacher', 'College student', 'Cook', 'Bodyguard'], 1),
-    quiz('“21 din mein paisa double!” The Laxmi Chit Fund scam got Raju in which film?', ['Hera Pheri', 'Phir Hera Pheri', 'Welcome', 'Bhagam Bhag'], 1),
     quiz('“How’s the josh?” Which movie made this a national catchphrase?', ['Shershaah', 'Border', 'Uri: The Surgical Strike', 'Lakshya'], 2),
+    quiz('On MSN Messenger, shaking your friend’s chat window was a…', ['Buzz', 'Poke', 'Nudge', 'Wink'], 2),
+    quiz('Hrithik Roshan’s 2000 debut film was…', ['Fiza', 'Mission Kashmir', 'Kaho Naa... Pyaar Hai', 'Koi... Mil Gaya'], 2),
+    quiz('In Shaka Laka Boom Boom, Sanju’s magic object was a…', ['Paintbrush', 'Pencil', 'Chalk', 'Pen'], 1),
+    quiz('In Main Hoon Na, Major Ram goes undercover as a…', ['Teacher', 'College student', 'Cook', 'Bodyguard'], 1),
+    quiz('Tulsi in Kyunki Saas Bhi Kabhi Bahu Thi was played by…', ['Shweta Tiwari', 'Sakshi Tanwar', 'Smriti Irani', 'Ekta Kapoor'], 2),
+    quiz('“21 din mein paisa double!” The Laxmi Chit Fund scam got Raju in which film?', ['Hera Pheri', 'Phir Hera Pheri', 'Welcome', 'Bhagam Bhag'], 1),
     quiz('“Dhoni finishes off in style!” That 2011 six won India which final?', ['1983 World Cup', '2007 T20 World Cup', '2011 ODI World Cup', '2013 Champions Trophy'], 2),
   ],
 };
@@ -116,7 +118,7 @@ const kbc = {
     ] },
     { points: 2500, questions: [
       quiz('Tagore wrote India’s anthem and which other country’s?', ['Sri Lanka', 'Nepal', 'Bangladesh', 'Myanmar'], 2),
-      quiz('Anant Ambani and Radhika Merchant’s 2024 pre-wedding bash was held in…', ['Udaipur', 'Jamnagar', 'Jodhpur', 'Lonavala'], 1),
+      quiz('Anant Ambani and Radhika Merchant’s first pre-wedding bash (2024) was in…', ['Udaipur', 'Jamnagar', 'Jodhpur', 'Lonavala'], 1),
     ] },
   ],
   fastestFinger: [

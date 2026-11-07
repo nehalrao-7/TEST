@@ -95,7 +95,7 @@ function makePlan(state, game, key) {
   const react = (n, from, to) => S.shuffle(bots).slice(0, n).forEach((b) => acts.push({ pid: b.id, at: t + rnd(from, to), react: pick(REACTS) }));
   if (key.startsWith('break')) {
     bots.forEach((b) => {
-      const pu = b.powerups.find((x) => !x.used && ['double', 'laddoo', 'steal', 'swap'].includes(x.type));
+      const pu = b.powerups.find((x) => !x.used && ['double', 'laddoo', 'steal', 'swap', 'shagun', 'rangoli'].includes(x.type));
       if (pu && Math.random() < 0.4) acts.push({ pid: b.id, at: t + rnd(4000, 20000), powerup: pu.id });
     });
   } else if (game.type === 'quiz' && key.startsWith('q')) {

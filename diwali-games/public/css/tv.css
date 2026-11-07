@@ -436,3 +436,21 @@ body:has(.stage .intro) .now-playing { visibility: hidden; }
 .join-box .room-code { margin: 0; }
 .jclue.solo { grid-template-columns: 1fr; }
 .award-card .desc { color: var(--ink); opacity: .7; }
+
+/* Keynote-style motion: scenes ease in softly, then their parts arrive in order. */
+.scene.enter { animation: sceneIn 650ms cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes sceneIn { from { opacity: 0; transform: translateY(1vw) scale(.985); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes riseIn { from { opacity: 0; transform: translateY(1.2vw); } to { opacity: 1; transform: none; } }
+.scene.enter .intro .em { animation: riseIn 700ms cubic-bezier(.2, .8, .2, 1) 80ms both; }
+.scene.enter .intro h1 { animation: riseIn 700ms cubic-bezier(.2, .8, .2, 1) 200ms both; }
+.scene.enter .intro p { animation: riseIn 700ms cubic-bezier(.2, .8, .2, 1) 340ms both; }
+.scene.enter .intro .rules span { animation: riseIn 600ms cubic-bezier(.2, .8, .2, 1) both; }
+.scene.enter .intro .rules span:nth-child(1) { animation-delay: 480ms; }
+.scene.enter .intro .rules span:nth-child(2) { animation-delay: 560ms; }
+.scene.enter .intro .rules span:nth-child(3) { animation-delay: 640ms; }
+.scene.enter .opts:not(.reveal) .opt, .scene.enter .kbc-opt { animation: riseIn 520ms cubic-bezier(.2, .8, .2, 1) both; }
+.scene.enter .opts .opt:nth-child(2), .scene.enter .kbc-opt:nth-child(2) { animation-delay: 70ms; }
+.scene.enter .opts .opt:nth-child(3), .scene.enter .kbc-opt:nth-child(3) { animation-delay: 140ms; }
+.scene.enter .opts .opt:nth-child(4), .scene.enter .kbc-opt:nth-child(4) { animation-delay: 210ms; }
+.scene.enter .jcat, .scene.enter .jcell { animation: riseIn 500ms cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--jd, 0) * 1ms); }
+.qcard, .award-card { transition: transform 400ms cubic-bezier(.2, .8, .2, 1); }

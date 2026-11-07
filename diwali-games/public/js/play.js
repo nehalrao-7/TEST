@@ -220,6 +220,10 @@
     if (!S.live && S.questionnaire.open && !answeredCount() && !store.get('dgn_q_prompted_' + S.me.id) && !modal.innerHTML) {
       store.set('dgn_q_prompted_' + S.me.id, '1');
       setTimeout(() => { if (S && !S.live && !modal.innerHTML) openQuestionnaire(); }, 1200);
+    } else if (!S.live && S.powerupsEnabled && !store.get('dgn_pu_shown_' + S.me.id) && !modal.innerHTML && S.me.powerups.length) {
+      // Everyone should know they hold secret power-ups: unwrap them once, right after joining.
+      store.set('dgn_pu_shown_' + S.me.id, '1');
+      setTimeout(() => { if (S && !S.live && !modal.innerHTML) openPowerups(); }, 900);
     }
     render();
   }
@@ -234,6 +238,7 @@
   let momentKey = null;
   function render() {
     if (!S) return;
+    App.applyTheme(S);
     const me = S.me;
     const t = me.teamId && teamOf(me.teamId);
     document.body.style.setProperty('--team', t ? t.color : 'var(--marigold)');
@@ -274,7 +279,7 @@
     let html = '';
     if (mode === 'watch' || mode === 'break') {
       html = `<div class="react-bar">${REACTS.map((e) => `<button data-react="${e}" aria-label="Send ${e} to the TV">${e}</button>`).join('')}</div>`;
-      if (mode === 'break') html = `<button class="pu-pill" data-act="powerups">🎁 <span>Power-ups</span>${unused ? `<i>${unused}</i>` : ''}</button>` + html;
+      if (mode === 'break') html = `<button class="pu-pill" data-act="powerups">🎁 <span>Power-ups</span>${unused ? `<i>${S.me.powerups.filter((p) => !p.used).map((p) => p.emoji).join(' ')}</i>` : ''}</button>` + html;
     }
     App.patch(dock, html);
   }
@@ -454,9 +459,12 @@
   }
 
   function usePowerup(pu) {
-    if (pu.type === 'steal') {
+    if (pu.type === 'steal' || pu.type === 'shagun') {
       const others = S.players.filter((p) => p.id !== S.me.id);
-      modal.innerHTML = `<div class="modal"><div class="sheet"><h3>🦹 Who do you want to rob?</h3><p class="muted small">Steals up to the host's limit. Watch out for shields!</p>
+      const head = pu.type === 'steal'
+        ? `<h3>🦹 Who do you want to rob?</h3><p class="muted small">Steals up to the host's limit. Watch out for shields!</p>`
+        : `<h3>💌 Who gets your shagun?</h3><p class="muted small">They get +101 and you get +51.</p>`;
+      modal.innerHTML = `<div class="modal"><div class="sheet">${head}
         ${others.map((p) => `<button class="pick-row" data-target="${p.id}">${av(p)} ${esc(p.name)}<span class="sc">${fmt(p.score)}</span></button>`).join('')}
         <button class="btn ghost block" data-m="no">Cancel</button></div></div>`;
       modal.querySelector('[data-m=no]').onclick = () => { modal.innerHTML = ''; };

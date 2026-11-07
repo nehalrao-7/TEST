@@ -267,3 +267,9 @@ body.play .toast { bottom: auto; top: 50px; transform: translateX(-50%) translat
 body.play .toast.show { transform: translateX(-50%) translateY(0); }
 body.offline .pwrap::before { content: 'Reconnecting…'; display: block; text-align: center; background: var(--sindoor); color: #fff; border-radius: 10px; padding: 6px; margin-bottom: 10px; font-weight: 800; }
 .lb-mini .avatar { flex: none; }
+
+/* Softer, Keynote-style moment changes on the phone. */
+#moment.m-enter { animation: momentIn 480ms cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes momentIn { from { opacity: 0; transform: translateY(14px) scale(.985); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+.pad { transition: transform 160ms cubic-bezier(.2, .8, .2, 1), filter 160ms ease; }
+.pad:active { transform: scale(.96); }

@@ -358,6 +358,17 @@
       setTimeout(() => el.remove(), 3800);
     },
 
+    // Diwali colour for the game on screen, in run order. Lobby and standings keep the house maroon.
+    themeFor(S) {
+      const THEMES = ['marigold', 'rani', 'peacock', 'mehendi', 'indigo'];
+      if (!S || !S.live || !Array.isArray(S.games)) return '';
+      const i = S.games.findIndex((g) => g.id === S.live.gameId);
+      return i < 0 ? '' : THEMES[i % THEMES.length];
+    },
+    applyTheme(S) {
+      const t = App.themeFor(S);
+      if (document.body.dataset.theme !== t) document.body.dataset.theme = t;
+    },
     fmt(n) { return Number(n || 0).toLocaleString('en-IN'); },
     letters: ['A', 'B', 'C', 'D', 'E', 'F'],
   };

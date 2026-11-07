@@ -24,9 +24,11 @@ const POWERUPS = {
   laddoo: { name: 'Lucky Laddoo', emoji: '🍬', desc: 'Open a mystery box worth 50 to 300 points!' },
   swap: { name: 'Ulta Pulta', emoji: '🔄', desc: 'Swap scores with the player ranked just above you (capped swing).' },
   hint: { name: 'Phuljhari Hint', emoji: '✨', desc: 'Use during a quiz question to knock out two wrong answers.' },
+  shagun: { name: 'Shagun Lifafa', emoji: '💌', desc: 'Send a shagun envelope: they get +101, and the blessing returns +51 to you.', target: true },
+  rangoli: { name: 'Rangoli Rush', emoji: '🎨', desc: 'Your whole team gets +50 each. Playing solo? You get +100.' },
 };
 // Weighted pool used when dealing power-ups.
-const POWERUP_POOL = ['double', 'double', 'steal', 'steal', 'shield', 'shield', 'laddoo', 'laddoo', 'swap', 'hint', 'hint'];
+const POWERUP_POOL = ['double', 'double', 'steal', 'steal', 'shield', 'shield', 'laddoo', 'laddoo', 'swap', 'hint', 'hint', 'shagun', 'shagun', 'rangoli', 'rangoli'];
 
 const id = (n = 8) => crypto.randomBytes(n).toString('base64url').slice(0, n);
 const shuffle = (arr) => {
@@ -51,7 +53,7 @@ function freshState() {
     settings: {
       eventName: '2026 Diwali Party',
       powerupsEnabled: true,
-      powerupsPerPlayer: 2,
+      powerupsPerPlayer: 3,
       personalPct: 20,
       questionnaireOpen: true,
       difficulty: 3,
@@ -361,6 +363,26 @@ function usePowerup(player, puId, targetId, liveCtx) {
       award(victim.id, -diff, `Ulta Pulta by ${player.name} 🔄`, null, { kind: 'powerup' });
       award(player.id, diff, `Ulta Pulta with ${victim.name}`, null, { kind: 'powerup', noDouble: true });
       announce({ emoji: '🔄', title: 'ULTA PULTA!', text: `${player.name} swapped fortunes with ${victim.name} (${diff} point swing)!`, kind: 'powerup' });
+      break;
+    }
+    case 'shagun': {
+      const friend = state.players[targetId];
+      if (!friend || friend.id === player.id) throw new Error('Pick someone to send your shagun to.');
+      award(friend.id, 101, `Shagun from ${player.name} 💌`, null, { kind: 'powerup', noDouble: true });
+      award(player.id, 51, `Shagun blessing for ${friend.name}`, null, { kind: 'powerup', noDouble: true });
+      announce({ emoji: '💌', title: 'SHAGUN LIFAFA!', text: `${player.name} sent ${friend.name} +101. The blessing returns +51!`, kind: 'powerup' });
+      break;
+    }
+    case 'rangoli': {
+      const mates = player.teamId ? Object.values(state.players).filter((p) => p.teamId === player.teamId) : [];
+      if (mates.length > 1) {
+        mates.forEach((m) => award(m.id, 50, `Rangoli Rush by ${player.name} 🎨`, null, { kind: 'powerup', noDouble: true }));
+        const team = state.teams[player.teamId];
+        announce({ emoji: '🎨', title: 'RANGOLI RUSH!', text: `${player.name} gave ${team ? team.name : 'their team'} +50 each!`, kind: 'powerup' });
+      } else {
+        award(player.id, 100, 'Rangoli Rush 🎨', null, { kind: 'powerup', noDouble: true });
+        announce({ emoji: '🎨', title: 'RANGOLI RUSH!', text: `${player.name} drew themselves +100!`, kind: 'powerup' });
+      }
       break;
     }
     case 'hint': {

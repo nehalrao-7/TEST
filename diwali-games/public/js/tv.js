@@ -184,6 +184,7 @@
   })();
 
   function render() {
+    App.applyTheme(S);
     document.title = `${S.eventName} — TV`;
     App.patch($('eventName'), S.eventName.split(' ').length > 2 ? esc(S.eventName).replace(/(\S+\s+\S+)$/, '<span>$1</span>') : esc(S.eventName));
     // One name per screen: the game title lives here during a game, the room code in the footer.
@@ -336,7 +337,8 @@
     }).join('');
     const teams = S.teams.length ? `<div class="teams-strip">${[...S.teams].sort((a, b) => b.total - a.total).map((t) => `<span class="t" style="--tc:${t.color}">${esc(t.emoji)} ${esc(t.name)} · ${fmt(t.total)} avg</span>`).join('')}</div>` : '';
     const fin = S.tv.announce && S.tv.announce.kind === 'end' && S.tv.announce.until > App.now()
-      ? `<div class="lb-kicker">${esc(S.tv.announce.title)} · ${esc(S.tv.announce.text || '')}</div>` : '';
+      ? `<div class="lb-kicker">${esc(S.tv.announce.title)} · ${esc(S.tv.announce.text || '')}</div>`
+      : S.powerupsEnabled ? '<div class="lb-kicker">🎁 Power-ups are open — tap 🎁 on your phone</div>' : '';
     const banner = climber ? `<div class="climb-banner later" style="--d:${animate ? 2.6 : 0}s">📈 ${esc(climber.p.name)} climbs ${climber.d} places!</div>` : '';
     prev.climber = climber && climber.p.id;
     return [`<div class="lb"><div class="lb-title">${App.diya(true, 56)}<h1>The Standings</h1>${App.diya(true, 56)}</div>${fin}${teams}<div class="lb-board">${rows || '<p class="center">No players yet</p>'}</div>${banner}</div>`, key];
