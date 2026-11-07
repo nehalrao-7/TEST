@@ -61,6 +61,25 @@ const TAG_CLUE = { movie: '🎬 ✨ 🕵️', holiday: '🏝️ ✨ 🕵️', fo
 
 const shuffle = (a) => S.shuffle(a);
 const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9ऀ-ॿ]+/g, ' ').trim();
+// Two typed answers count as the same when they plainly mean the same thing: spacing, an
+// abbreviation (DDLJ), one containing the other (Katli / Kaju Katli) or a small typo.
+// Questions are only built from answers nobody else gave, so this keeps every question to one right answer.
+function lev(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+function sameAnswer(x, y) {
+  const a = norm(x), b = norm(y);
+  if (!a || !b) return false;
+  const ca = a.replace(/ /g, ''), cb = b.replace(/ /g, '');
+  if (ca === cb) return true;
+  const initials = (s) => s.split(' ').map((w) => w[0]).join('');
+  if ((initials(a) === cb && cb.length >= 3) || (initials(b) === ca && ca.length >= 3)) return true;
+  if ((ca.length >= 4 && cb.includes(ca)) || (cb.length >= 4 && ca.includes(cb))) return true;
+  return Math.min(ca.length, cb.length) >= 6 && lev(ca, cb) <= 2;
+}
 const fill = (t, v) => t.replace(/\{a\}/g, v.a || '').replace(/\{n\}/g, v.n || '').replace(/\{text\}/g, v.text || '');
 
 function cleanAnswer(a) {
@@ -136,18 +155,18 @@ function buildPool(state) {
 
     const answers = raw.map((x) => ({ p: x.p, a: cleanAnswer(x.v) })).filter((x) => x.a);
     if (!answers.length) continue;
-    const counts = {};
-    answers.forEach((x) => { counts[norm(x.a)] = (counts[norm(x.a)] || 0) + 1; });
     for (const x of answers) {
       const base = { about: x.p.id, aboutName: x.p.name, involves: [x.p.id], promptId: prompt.id, tag: prompt.tag || 'fun', answerText: x.a, personal: true };
       // "Whose favourite movie is X?" — needs a unique answer and at least one other guest.
-      if (counts[norm(x.a)] === 1 && players.length >= 2) {
+      if (answers.filter((y) => sameAnswer(y.a, x.a)).length === 1 && players.length >= 2) {
         const opts = shuffle([x.p.name, ...names([x.p.id])]);
         items.push({ ...base, kind: 'who', q: fill(t.who, { a: x.a, text: prompt.text }), options: opts, answer: opts.indexOf(x.p.name), clueText: fill(t.clue, { a: x.a, text: prompt.text }) });
       }
       // "What is Priya's favourite movie?" — needs two other distinct answers to the same prompt.
-      const others = [...new Map(answers.filter((y) => norm(y.a) !== norm(x.a)).map((y) => [norm(y.a), y.a])).values()];
-      if (others.length >= 2) {
+      // Wrong options must differ from the right answer and from each other.
+      const others = [];
+      for (const y of answers) if (!sameAnswer(y.a, x.a) && !others.some((o) => sameAnswer(o, y.a))) others.push(y.a);
+      if (others.length >= 2 && answers.filter((y) => sameAnswer(y.a, x.a)).length === 1) {
         const opts = shuffle([x.a, ...shuffle(others).slice(0, 3)]);
         items.push({ ...base, kind: 'what', q: fill(t.what, { n: x.p.name, text: prompt.text }), options: opts, answer: opts.indexOf(x.a) });
       }

@@ -15,7 +15,7 @@ const guessTheMovie = {
     quiz('Guess the movie!', ['Namastey London', 'Patiala House', 'Bend It Like Beckham', 'Bride & Prejudice'], 2, { clue: '⚽ 🥔 🥦 👧🏽 🇬🇧' }),
     quiz('Guess the movie!', ['Kabhi Alvida Naa Kehna', 'Kal Ho Naa Ho', 'New York', 'My Name Is Khan'], 1, { clue: '🗽 ❤️‍🩹 🩺 ⏳' }),
     quiz('The 2011 movie about a hockey team, shot in the GTA and backed by Akshay Kumar', ['Patiala House', 'Speedy Singhs', 'Chak De! India', 'Singh Is Kinng'], 1),
-    quiz('Which of these was NOT filmed in Toronto?', ['Kismat Konnection', 'Kal Ho Naa Ho', 'Speedy Singhs', 'Dhoom 3'], 3),
+    quiz('Which of these was NOT filmed in Toronto?', ['Kismat Konnection', 'Bollywood/Hollywood', 'Speedy Singhs', 'Dhoom 3'], 3),
     quiz('Guess the movie!', ['Kuch Kuch Hota Hai', 'Dilwale Dulhania Le Jayenge', 'Pardes', 'Mohabbatein'], 1, { clue: '🇬🇧 🚂 🌻 🇨🇭' }),
   ],
 };
@@ -27,12 +27,12 @@ const kahoot = {
     quiz('“Main apni favourite hoon!” Which character made self-love look this cool?', ['Poo', 'Naina', 'Geet', 'Simran'], 2),
     quiz('“How’s the josh?” Which movie made this a national catchphrase?', ['Shershaah', 'Border', 'Uri: The Surgical Strike', 'Lakshya'], 2),
     quiz('On MSN Messenger, shaking your friend’s chat window was a…', ['Buzz', 'Poke', 'Nudge', 'Wink'], 2),
-    quiz('Hrithik Roshan’s 2000 debut film was…', ['Fiza', 'Mission Kashmir', 'Kaho Naa... Pyaar Hai', 'Koi... Mil Gaya'], 2),
+    quiz('Hrithik Roshan’s first film as the lead hero (2000) was…', ['Fiza', 'Mission Kashmir', 'Kaho Naa... Pyaar Hai', 'Koi... Mil Gaya'], 2),
     quiz('In Shaka Laka Boom Boom, Sanju’s magic object was a…', ['Paintbrush', 'Pencil', 'Chalk', 'Pen'], 1),
     quiz('In Main Hoon Na, Major Ram goes undercover as a…', ['Teacher', 'College student', 'Cook', 'Bodyguard'], 1),
-    quiz('Tulsi in Kyunki Saas Bhi Kabhi Bahu Thi was played by…', ['Shweta Tiwari', 'Sakshi Tanwar', 'Smriti Irani', 'Ekta Kapoor'], 2),
+    quiz('The original Tulsi in Kyunki Saas Bhi Kabhi Bahu Thi was played by…', ['Shweta Tiwari', 'Sakshi Tanwar', 'Smriti Irani', 'Ekta Kapoor'], 2),
     quiz('“21 din mein paisa double!” The Laxmi Chit Fund scam got Raju in which film?', ['Hera Pheri', 'Phir Hera Pheri', 'Welcome', 'Bhagam Bhag'], 1),
-    quiz('“Dhoni finishes off in style!” That 2011 six won India which final?', ['1983 World Cup', '2007 T20 World Cup', '2011 ODI World Cup', '2013 Champions Trophy'], 2),
+    quiz('“Dhoni finishes off in style!” That winning six came in which final?', ['1983 World Cup', '2007 T20 World Cup', '2011 ODI World Cup', '2013 Champions Trophy'], 2),
   ],
 };
 
@@ -46,17 +46,17 @@ const jeopardy = {
       { value: 200, q: '“Mogambo khush hua!” — name the film', a: 'Mr. India' },
       { value: 300, q: 'The 2003 film where Rohit befriends an alien', a: 'Koi... Mil Gaya' },
       { value: 400, q: '“Control Uday, control!” — which character made this a meme forever?', a: 'Majnu Bhai (Welcome)' },
-      { value: 500, q: 'How many films have Akshay Kumar and Katrina Kaif starred in together?', a: '7 — Humko Deewana Kar Gaye, Namastey London, Welcome, Singh Is Kinng, De Dana Dan, Tees Maar Khan, Sooryavanshi (accept 6–8)' },
+      { value: 500, q: 'Akshay & Katrina film where Akshay plays Happy Singh', a: 'Singh Is Kinng' },
     ] },
     { name: 'Khaana Peena', clues: [
-      { value: 100, q: 'Spongy, yellow, steamed Gujarati besan snack', a: 'Khaman' },
+      { value: 100, q: 'Thin besan rolls, tempered with mustard seeds and curry leaves', a: 'Khandvi' },
       { value: 200, q: 'Mango pulp served with puri in a Gujarati thali', a: 'Aamras' },
       { value: 300, q: 'The eggy-smelling salt that makes chaat taste like chaat', a: 'Kala namak' },
       { value: 400, q: 'On Dussehra, fafda is eaten with this sweet', a: 'Jalebi' },
       { value: 500, q: 'Undhiyu is the star dish of this festival', a: 'Uttarayan (Makar Sankranti)' },
     ] },
     { name: 'Mera Bharat Mahaan', clues: [
-      { value: 100, q: 'Baroda’s legendary garba ground', a: 'United Way' },
+      { value: 100, q: 'Baroda’s famous garba, run by a charity', a: 'United Way (of Baroda)' },
       { value: 200, q: 'Known as the Pink City', a: 'Jaipur' },
       { value: 300, q: 'The Statue of Unity honours this leader', a: 'Sardar Vallabhbhai Patel' },
       { value: 400, q: 'The Rann of Kutch is a vast white desert of this', a: 'Salt' },
@@ -73,7 +73,7 @@ const jeopardy = {
       { value: 100, q: '“Washing powder ___, washing powder ___…” — name the brand', a: 'Nirma' },
       { value: 200, q: '“Daag achhe hain” — whose famous tagline?', a: 'Surf Excel' },
       { value: 300, q: '“Yeh ___ ka mazboot jod hai, tootega nahi!”', a: 'Fevicol' },
-      { value: 400, q: 'An elephant, a wall, and cement so strong it became legendary. Which brand?', a: 'Ambuja Cement' },
+      { value: 400, q: '“Thanda matlab…?” — Aamir Khan’s famous line', a: 'Coca-Cola' },
       { value: 500, q: 'A girl dances onto a cricket field to celebrate a six. “Kuch khaas hai…” Which chocolate?', a: 'Cadbury Dairy Milk' },
     ] },
     { name: 'Apni Toli', group: true, clues: [
@@ -98,7 +98,7 @@ const kbc = {
       quiz('Shah Rukh Khan’s Bandra home is called…', ['Jalsa', 'Galaxy', 'Prateeksha', 'Mannat'], 3),
     ] },
     { points: 300, safe: true, questions: [
-      quiz('In Kuch Kuch Hota Hai, little Anjali is named after…', ['Rahul’s mother', 'Tina’s college friend', 'Rahul’s sister', 'A film star'], 1),
+      quiz('In Kuch Kuch Hota Hai, little Anjali is named after…', ['Rahul’s mother', 'Rahul’s college best friend', 'Rahul’s sister', 'A film star'], 1),
     ] },
     { points: 500, questions: [
       quiz('Which A.R. Rahman song won the 2009 Oscar?', ['Chaiyya Chaiyya', 'Jai Ho', 'Kun Faya Kun', 'Naatu Naatu'], 1),
@@ -117,7 +117,7 @@ const kbc = {
       quiz('How many zeros are in one crore?', ['5', '6', '7', '8'], 2),
     ] },
     { points: 2500, questions: [
-      quiz('Tagore wrote India’s anthem and which other country’s?', ['Sri Lanka', 'Nepal', 'Bangladesh', 'Myanmar'], 2),
+      quiz('Tagore wrote India’s anthem and which other country’s?', ['Pakistan', 'Nepal', 'Bangladesh', 'Myanmar'], 2),
       quiz('Anant Ambani and Radhika Merchant’s first pre-wedding bash (2024) was in…', ['Udaipur', 'Jamnagar', 'Jodhpur', 'Lonavala'], 1),
     ] },
   ],
