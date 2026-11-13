@@ -1,4 +1,0 @@
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "prisma generate && prisma db push --skip-generate && tsx prisma/ensure-seed.ts && next build"
-}
