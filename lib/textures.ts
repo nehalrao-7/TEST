@@ -399,7 +399,7 @@ export function courtTexture(assets: BrandAssets, width = 4096) {
  * A seamless strip of alternating brand / sponsor tiles. The returned texture
  * repeats along X; `metersPerRepeat` tells geometry how to map UVs.
  */
-export function ribbonTexture(assets: BrandAssets, heightPx = 128, tileAspect = 6) {
+export function ribbonTexture(assets: BrandAssets, heightPx = 112, tileAspect = 5) {
   const tiles = sponsors.length * 2;
   const tileW = heightPx * tileAspect;
   const { c, ctx } = canvas(tileW * tiles, heightPx);

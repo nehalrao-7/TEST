@@ -21,7 +21,7 @@ function buildTextures(assets: BrandAssets, quality: "high" | "low") {
   const hallLen = TUNNEL.endX - TUNNEL.mouthX;
   return {
     court: courtTexture(assets, quality === "high" ? 4096 : 2048),
-    ribbon: ribbonTexture(assets, quality === "high" ? 128 : 96),
+    ribbon: ribbonTexture(assets, quality === "high" ? 112 : 80),
     scoreboardFront: scoreboardTexture(assets, 1600, 900, 0),
     scoreboardSide: scoreboardTexture(assets, 1000, 900, 1),
     table: tableTexture(assets),

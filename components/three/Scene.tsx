@@ -78,7 +78,10 @@ function CameraRig({ onArena }: { onArena: (inArena: boolean) => void }) {
 
     cam.position.copy(tmp.pos);
     cam.lookAt(tmp.look);
-    const fov = THREE.MathUtils.lerp(60, 44, smoothstep(CROSSING - 0.02, 0.95, p));
+    // On portrait screens widen the vertical FOV so the horizontal view stays similar.
+    const baseFov = THREE.MathUtils.lerp(60, 44, smoothstep(CROSSING - 0.02, 0.95, p));
+    const widen = THREE.MathUtils.clamp(1.4 / cam.aspect, 1, 2.2);
+    const fov = Math.min(95, THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(baseFov) / 2) * widen)));
     if (Math.abs(cam.fov - fov) > 0.01) {
       cam.fov = fov;
       cam.updateProjectionMatrix();

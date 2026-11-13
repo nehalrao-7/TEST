@@ -56,7 +56,7 @@ a {
   font-size: clamp(36px, 5.6vw, 84px);
 }
 .display--xl {
-  font-size: clamp(76px, 17vw, 260px);
+  font-size: clamp(72px, 13vw, 200px);
   line-height: 0.85;
 }
 
