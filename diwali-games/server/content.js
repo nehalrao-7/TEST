@@ -9,30 +9,30 @@ const quiz = (q, options, answer, extra = {}) => ({ q, options, answer, time: 20
 // Facts marked "HOST: confirm" in comments are local details worth a quick check.
 
 const guessTheMovie = {
-  // Round two. Easy to hard. The last question is the Double Diya.
+  // All films from 2000 onwards. Easy to hard; the last question is the Double Diya.
   questions: [
-    quiz('Guess the movie!', ['Chillar Party', 'Stanley Ka Dabba', 'I Am Kalam', 'Taare Zameen Par'], 3, { clue: '🎨 🧒 🔤 🌟' }),
-    quiz('Guess the movie!', ['Rockstar', 'Chennai Express', 'Jab We Met', 'Love Aaj Kal'], 2, { clue: '🚆 💁‍♀️ 💔 🏔️' }),
-    quiz('Guess the movie!', ['Robot', 'PK', 'Ra.One', 'Krrish'], 1, { clue: '👽 📻 👂 🙏' }),
-    quiz('Guess the movie!', ['Rock On!!', 'Rockstar', 'Aashiqui 2', 'Gully Boy'], 3, { clue: '🎤 🏙️ 🧢 🔥' }),
-    quiz('Guess the movie!', ['Om Shanti Om', 'Karan Arjun', 'Main Hoon Na', 'Rab Ne Bana Di Jodi'], 0, { clue: '🎬 🔥 🔁 🌟' }),
-    quiz('Guess the movie!', ['Piku', 'Barfi!', 'The Lunchbox', 'Masaan'], 2, { clue: '🍱 ✉️ 🚂 💌' }),
+    quiz('Guess the movie!', ['Kabhi Khushi Kabhie Gham', 'Hum Saath-Saath Hain', 'Kal Ho Naa Ho', 'Baghban'], 0, { clue: '👨‍👩‍👦‍👦 🇬🇧 🚁 🏰' }),
+    quiz('Guess the movie!', ['Chhichhore', '3 Idiots', 'Munna Bhai M.B.B.S.', 'Student of the Year'], 1, { clue: '🎓 🔧 💡 😂' }),
+    quiz('Guess the movie!', ['Kabhi Alvida Naa Kehna', 'New York', 'Kal Ho Naa Ho', 'My Name Is Khan'], 2, { clue: '🗽 ❤️‍🩹 🩺 ⏳' }),
+    quiz('Guess the movie!', ['Chhichhore', 'Dil Chahta Hai', 'Rock On!!', 'Kai Po Che!'], 3, { clue: '🪁 👬 👦 🏪' }),
+    quiz('Guess the movie!', ['Baahubali 2', 'Magadheera', 'RRR', 'KGF: Chapter 2'], 0, { clue: '🤔 🗡️ 👑' }),
+    quiz('Guess the movie!', ['Housefull', 'Om Shanti Om', 'Krrish', 'Bhool Bhulaiyaa'], 1, { clue: '🎬 🔥 🔁 ⭐' }),
   ],
 };
 
 const kahoot = {
-  // Round two. Easy to hard. The last question is the Double Diya.
+  // Easy to hard. The last question is the Double Diya.
   questions: [
-    quiz('“Pushpa, I hate tears” — which superstar said it?', ['Rajesh Khanna', 'Dev Anand', 'Amitabh Bachchan', 'Dharmendra'], 0),
-    quiz('“Bade bade deshon mein aisi chhoti chhoti baatein…” Which film?', ['Kuch Kuch Hota Hai', 'Dilwale Dulhania Le Jayenge', 'Pardes', 'Dil To Pagal Hai'], 1),
-    quiz('In Taarak Mehta Ka Ooltah Chashmah, Jethalal’s wife is…', ['Babita', 'Anjali', 'Madhavi', 'Daya'], 3),
-    quiz('On Orkut, messages left on someone’s profile were called…', ['Scraps', 'Pokes', 'Walls', 'Notes'], 0),
-    quiz('“Mere paas maa hai!” Which film?', ['Deewaar', 'Sholay', 'Zanjeer', 'Trishul'], 0),
-    quiz('Which Bollywood awards show came to Toronto in 2011?', ['IIFA', 'Filmfare', 'Zee Cine', 'Screen'], 0),
-    quiz('Hum Paanch and Banegi Apni Baat aired on which channel?', ['Star Plus', 'Sony', 'Zee TV', 'DD National'], 2),
-    quiz('In 3 Idiots, the real Rancho turns out to be…', ['Raju Rastogi', 'Chatur Ramalingam', 'Phunsukh Wangdu', 'Farhan Qureshi'], 2),
-    quiz('Who played Don in the 2006 remake?', ['Amitabh Bachchan', 'Ranveer Singh', 'Hrithik Roshan', 'Shah Rukh Khan'], 3),
-    quiz('Which Indo-Canadian director made “Fire” and “Water”?', ['Mira Nair', 'Gurinder Chadha', 'Deepa Mehta', 'Lilly Singh'], 2),
+    quiz('Diwali celebrates Ram’s return to…', ['Mathura', 'Ayodhya', 'Lanka', 'Dwarka'], 1),
+    quiz('Lord Ganesha’s vehicle is a…', ['Peacock', 'Bull', 'Mouse', 'Swan'], 2),
+    quiz('In Canada, the $2 coin is the…', ['Toonie', 'Loonie', 'Queenie', 'Beaver'], 0),
+    quiz('What do you shout when you cut a kite on Uttarayan?', ['Jai Shree Krishna', 'Saal Mubarak', 'Khamma Ghani', 'Kai Po Che!'], 3),
+    quiz('How many years was Ram in exile?', ['7', '12', '14', '16'], 2),
+    quiz('A Tim Hortons “double-double” is…', ['A double shot', '2 creams, 2 sugars', 'Two cups', 'Extra large'], 1),
+    quiz('Krishna was born in…', ['Gokul', 'Vrindavan', 'Dwarka', 'Mathura'], 3),
+    quiz('The Gujarati New Year, the day after Diwali, is…', ['Bestu Varas', 'Bhai Beej', 'Labh Pancham', 'Dhanteras'], 0),
+    quiz('Who wrote down the Mahabharata as Ved Vyasa dictated it?', ['Hanuman', 'Narad', 'Ganesha', 'Valmiki'], 2),
+    quiz('“Pushpa… naam sunke flower samjhe kya? ___ hai main!”', ['Power', 'Fire', 'Tiger', 'Rowdy'], 1),
   ],
 };
 
@@ -41,47 +41,47 @@ const jeopardy = {
   // The last category ("group: true") is swapped for questions about the guests when the
   // questionnaire has enough answers. It keeps its name; these clues are the fallback.
   categories: [
-    { name: 'Dialogue Baazi', clues: [
-      { value: 100, q: '“Rahul… naam toh suna hoga” — who says it?', a: 'Shah Rukh Khan' },
-      { value: 200, q: '“Tension lene ka nahi, sirf dene ka” — which Bhai?', a: 'Munna Bhai' },
-      { value: 300, q: '“Rishte mein toh hum tumhare baap lagte hain…” — name the film', a: 'Shahenshah' },
-      { value: 400, q: '“Thappad se darr nahi lagta sahab, pyaar se lagta hai” — name the film', a: 'Dabangg' },
-      { value: 500, q: '“Babumoshai, zindagi badi honi chahiye, lambi nahi” — name the film', a: 'Anand' },
+    { name: 'Filmy Chakkar', clues: [
+      { value: 100, q: '“Main apni favourite hoon!” — say her name', a: 'Geet (Jab We Met)' },
+      { value: 200, q: '“Control Uday, control!” — which character says it?', a: 'Majnu Bhai (Welcome)' },
+      { value: 300, q: 'The film where Akshay Kumar plays Happy Singh', a: 'Singh Is Kinng' },
+      { value: 400, q: '“Kabhi kabhi lagta hai apun hi bhagwan hai” — which series?', a: 'Sacred Games' },
+      { value: 500, q: '“How’s the josh?” — which film?', a: 'Uri: The Surgical Strike' },
     ] },
-    { name: 'Chaat & Mithai', clues: [
-      { value: 100, q: 'Hollow crispy puris filled with spicy tangy water', a: 'Pani puri / golgappa' },
-      { value: 200, q: 'Diamond-shaped cashew sweet, often topped with silver varq', a: 'Kaju katli' },
-      { value: 300, q: 'Gujarati dessert of strained yogurt with saffron and cardamom', a: 'Shrikhand' },
-      { value: 400, q: 'Bengali sweet: soft chhena balls in light sugar syrup', a: 'Rasgulla' },
-      { value: 500, q: 'Translucent sweet from Agra, made from ash gourd', a: 'Petha' },
+    { name: 'Ramayan Katha', clues: [
+      { value: 100, q: 'Ravana’s kingdom', a: 'Lanka' },
+      { value: 200, q: 'Sita’s father', a: 'King Janaka' },
+      { value: 300, q: 'The herb Hanuman flew to fetch for Lakshman', a: 'Sanjeevani' },
+      { value: 400, q: 'Ravana’s brother who joined Ram', a: 'Vibhishana' },
+      { value: 500, q: 'He wrote the original Ramayana', a: 'Valmiki' },
     ] },
-    { name: 'Desi Map', clues: [
-      { value: 100, q: 'The Gateway of India stands in this city', a: 'Mumbai' },
-      { value: 200, q: 'The Golden Temple is in this city', a: 'Amritsar' },
-      { value: 300, q: "Gujarat's Gir Forest is the only wild home of these big cats", a: 'Asiatic lions' },
-      { value: 400, q: "Gujarat's Somnath temple stands on the shore of this sea", a: 'Arabian Sea' },
-      { value: 500, q: "Mainland India's southern tip, where three seas meet", a: 'Kanyakumari' },
+    { name: 'Krishna Leela', clues: [
+      { value: 100, q: 'Krishna’s evil uncle', a: 'Kansa' },
+      { value: 200, q: 'The hill Krishna lifted on his little finger', a: 'Govardhan' },
+      { value: 300, q: 'In the Mahabharata war, Krishna was Arjuna’s…', a: 'Charioteer (sarathi)' },
+      { value: 400, q: 'The demon Krishna defeated, remembered on Kali Chaudas / Choti Diwali', a: 'Narakasura' },
+      { value: 500, q: 'How many Kaurava brothers were there?', a: '100' },
     ] },
-    { name: 'Bachpan Ke Din', clues: [
-      { value: 100, q: 'Noodles that took "bas do minute"', a: 'Maggi' },
-      { value: 200, q: 'The cat-and-mouse duo every desi kid watched on Cartoon Network', a: 'Tom and Jerry' },
-      { value: 300, q: 'Bubblegum brand: "Big ___"', a: 'Big Babol' },
-      { value: 400, q: 'Mukesh Khanna’s Doordarshan superhero', a: 'Shaktimaan' },
-      { value: 500, q: 'Zee TV singing show Sonu Nigam hosted in the 90s', a: 'Sa Re Ga Ma (Pa)' },
+    { name: 'Garvi Gujarat', clues: [
+      { value: 100, q: 'The only forest home of Asiatic lions', a: 'Gir' },
+      { value: 200, q: 'Eaten with jalebi on Dussehra', a: 'Fafda' },
+      { value: 300, q: 'Krishna’s kingdom on Gujarat’s coast', a: 'Dwarka' },
+      { value: 400, q: 'Gandhi’s birthplace', a: 'Porbandar' },
+      { value: 500, q: 'The first of the 12 jyotirlingas, on Gujarat’s coast', a: 'Somnath' },
     ] },
-    { name: 'Gaana Bajana', clues: [
-      { value: 100, q: 'The “Desi Girl” in Dostana’s hit song', a: 'Priyanka Chopra' },
-      { value: 200, q: 'He sang the “Kal Ho Naa Ho” title track', a: 'Sonu Nigam' },
-      { value: 300, q: 'He sang “Chaiyya Chaiyya” with Sapna Awasthi', a: 'Sukhwinder Singh' },
-      { value: 400, q: 'Mumbai rapper behind “Mere Gully Mein” with Naezy', a: 'DIVINE' },
-      { value: 500, q: 'Composer trio behind “Dil Chahta Hai” and “Kal Ho Naa Ho”', a: 'Shankar–Ehsaan–Loy' },
+    { name: 'Ad Break 📺', clues: [
+      { value: 100, q: '“Washing powder ___, washing powder ___…” — name the brand', a: 'Nirma' },
+      { value: 200, q: '“Daag achhe hain” — whose famous tagline?', a: 'Surf Excel' },
+      { value: 300, q: '“Yeh ___ ka mazboot jod hai, tootega nahi!”', a: 'Fevicol' },
+      { value: 400, q: '“Thanda matlab…?” — Aamir Khan’s famous line', a: 'Coca-Cola' },
+      { value: 500, q: 'A girl dances onto a cricket field to celebrate a six. “Kuch khaas hai…” Which chocolate?', a: 'Cadbury Dairy Milk' },
     ] },
     { name: 'Apni Toli', group: true, clues: [
-      { value: 100, q: 'Navratri honours this goddess', a: 'Durga (Amba)' },
-      { value: 200, q: 'The festival that comes the day after Navratri ends', a: 'Dussehra' },
-      { value: 300, q: 'The lamp in a pierced clay pot that garba circles around', a: 'Garbo / garbi' },
-      { value: 400, q: 'Mirrored, flared skirt-and-blouse worn for garba', a: 'Chaniya choli' },
-      { value: 500, q: 'UNESCO added garba to this list in 2023', a: 'Intangible Cultural Heritage' },
+      { value: 100, q: 'The sticks you twirl in raas', a: 'Dandiya' },
+      { value: 200, q: 'Number of claps in the classic “tran taali” step', a: 'Three' },
+      { value: 300, q: 'Falguni Pathak’s royal nickname', a: 'Queen of Dandiya' },
+      { value: 400, q: 'The 2023 Coke Studio Bharat song that took Aditya Gadhvi global', a: 'Khalasi' },
+      { value: 500, q: 'The date and venue of Aditya Gadhvi’s last 2026 GTA show', a: 'Sat, Oct 3 — International Centre, Mississauga' },
     ] },
   ],
 };
@@ -90,41 +90,42 @@ const kbc = {
   // Played in order, easy to hard. Each later correct answer is worth less, so speed matters.
   ladder: [
     { points: 100, questions: [
-      quiz('Which fruit is called the “king of fruits” in India?', ['Mango', 'Banana', 'Guava', 'Lychee'], 0),
-      quiz('Tim Hortons’ bite-sized doughnut holes are called…', ['Munchkins', 'Donettes', 'Timbits', 'Bites'], 2),
+      quiz('How many heads does Ravana have?', ['5', '7', '10', '12'], 2),
+      quiz('An Iced Capp comes from…', ['Second Cup', 'Starbucks', 'Tim Hortons', 'McDonald’s'], 2),
     ] },
     { points: 200, questions: [
-      quiz('Which city is called the “Silicon Valley of India”?', ['Hyderabad', 'Pune', 'Bengaluru', 'Chennai'], 2),
-      quiz('Who played Poo in Kabhi Khushi Kabhie Gham?', ['Kajol', 'Kareena Kapoor', 'Rani Mukerji', 'Preity Zinta'], 1),
+      quiz('Who sang “Tum Hi Ho” from Aashiqui 2?', ['Atif Aslam', 'Arijit Singh', 'KK', 'Sonu Nigam'], 1),
+      quiz('Shah Rukh Khan’s Bandra home is called…', ['Jalsa', 'Galaxy', 'Prateeksha', 'Mannat'], 3),
     ] },
     { points: 300, safe: true, questions: [
-      quiz('Ustad Zakir Hussain was a legend of which instrument?', ['Sitar', 'Sarod', 'Santoor', 'Tabla'], 3),
+      quiz('Which goddess is worshipped on Diwali night?', ['Saraswati', 'Lakshmi', 'Durga', 'Parvati'], 1),
+      quiz('Hanuman’s mother is…', ['Kaushalya', 'Sumitra', 'Anjana', 'Kaikeyi'], 2),
     ] },
     { points: 500, questions: [
-      quiz('What is the capital of Gujarat?', ['Ahmedabad', 'Surat', 'Gandhinagar', 'Vadodara'], 2),
-      quiz('Who won India’s javelin gold at the Tokyo 2020 Olympics?', ['Neeraj Chopra', 'Abhinav Bindra', 'P. V. Sindhu', 'Mirabai Chanu'], 0),
+      quiz('Which A.R. Rahman song won the 2009 Oscar?', ['Chaiyya Chaiyya', 'Jai Ho', 'Kun Faya Kun', 'Naatu Naatu'], 1),
+      quiz('Before a Gujarati wedding begins, the bride’s mother welcomes the groom with…', ['Pithi', 'Mameru', 'Ponkvu', 'Saptapadi'], 2),
     ] },
     { points: 750, questions: [
-      quiz('How many spokes does the Ashoka Chakra on India’s flag have?', ['12', '16', '24', '32'], 2),
-      quiz('In the Mahabharata, who was Arjuna’s charioteer at Kurukshetra?', ['Bhishma', 'Krishna', 'Drona', 'Karna'], 1),
+      quiz('The Bhagavad Gita is Krishna’s advice to…', ['Bhima', 'Arjuna', 'Yudhishthira', 'Karna'], 1),
+      quiz('Garba star Atul Purohit is from which city?', ['Ahmedabad', 'Vadodara', 'Surat', 'Rajkot'], 1),
     ] },
     { points: 1000, safe: true, questions: [
-      quiz('How many Vedas are there?', ['1', '2', '3', '4'], 3),
-      quiz('Who directed Lagaan?', ['Ashutosh Gowariker', 'Rajkumar Hirani', 'Farhan Akhtar', 'Karan Johar'], 0),
+      quiz('“Ek chutki sindoor ki keemat tum kya jaano…” — who?', ['Rahul babu', 'Ramesh babu', 'Raju babu', 'Mohan babu'], 1),
+      quiz('“Kajra Re” got all three Bachchans on screen. Which film?', ['Kabhi Alvida Naa Kehna', 'Jhoom Barabar Jhoom', 'Bunty Aur Babli', 'Bluffmaster!'], 2),
     ] },
     { points: 1500, questions: [
-      quiz('Which classical dance from Kerala is famous for its elaborate painted faces?', ['Bharatanatyam', 'Kathak', 'Kathakali', 'Odissi'], 2),
-      quiz('Gandhi’s 1930 Salt March ended at which coastal village in Gujarat?', ['Dandi', 'Porbandar', 'Sabarmati', 'Surat'], 0),
+      quiz('At a Gujarati wedding, the gift ceremony from the bride’s maternal uncle is…', ['Pithi', 'Mameru', 'Jaan', 'Saptapadi'], 1),
+      quiz('How many zeros are in one crore?', ['5', '6', '7', '8'], 2),
     ] },
     { points: 2500, questions: [
-      quiz('In which year did Satyajit Ray receive his honorary Oscar?', ['1985', '1992', '1999', '2004'], 1),
-      quiz('The Kohinoor diamond was mined in which present-day Indian state?', ['Karnataka', 'Odisha', 'Madhya Pradesh', 'Andhra Pradesh'], 3),
+      quiz('Gujarat’s capital is…', ['Ahmedabad', 'Gandhinagar', 'Vadodara', 'Surat'], 1),
+      quiz('Anant Ambani and Radhika Merchant’s first pre-wedding bash (2024) was in…', ['Udaipur', 'Jamnagar', 'Jodhpur', 'Lonavala'], 1),
     ] },
   ],
   fastestFinger: [
-    quiz('Which planet is known as the Red Planet?', ['Venus', 'Mars', 'Mercury', 'Jupiter'], 1, { time: 15 }),
-    quiz('Ghee is made from…', ['Butter', 'Coconut', 'Mustard', 'Sesame'], 0, { time: 15 }),
-    quiz('On which festival do sisters tie a rakhi?', ['Bhai Dooj', 'Karva Chauth', 'Raksha Bandhan', 'Teej'], 2, { time: 15 }),
+    quiz('How many nights does Navratri last?', ['7', '8', '9', '10'], 2, { time: 15 }),
+    quiz('Which festival is called the festival of colours?', ['Diwali', 'Holi', 'Onam', 'Pongal'], 1, { time: 15 }),
+    quiz('Paneer is made from…', ['Soy', 'Milk', 'Rice', 'Lentils'], 1, { time: 15 }),
   ],
 };
 
