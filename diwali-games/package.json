@@ -1,5 +1,5 @@
 {
-  "name": "diwali-game-night",
+  "name": "2026-diwali-party",
   "version": "1.0.0",
   "description": "Live multiplayer Diwali party games: players on phones, host console, TV display.",
   "main": "server/index.js",
@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "express": "^4.22.3",
+    "pg": "^8.23.1",
     "qrcode": "^1.5.4"
   },
   "engines": {

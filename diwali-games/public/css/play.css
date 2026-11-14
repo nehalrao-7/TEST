@@ -10,9 +10,10 @@ body.play:has(#dock:not(:empty)) .pwrap { padding-bottom: 108px; }
 /* ---------- Login ---------- */
 .login { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: 12px; overflow: hidden; }
 .login .shell-card { margin-top: 52px; padding: 52px 18px 14px; flex: none; }
+.login .shell-card.slim { margin-top: 12px; padding: 16px 18px 12px; }
+.login .fine { font-size: 12px; line-height: 1.35; }
 .login .shell-card h1 { font-size: 28px; }
-.login form.card { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; gap: 10px; }
-.login form .btn { margin-top: auto; }
+.login form.card { flex: none; display: flex; flex-direction: column; gap: 10px; }
 .hero { text-align: center; color: var(--cream); }
 .hero .em { display: inline-block; filter: drop-shadow(0 0 22px rgba(255, 180, 60, 0.8)); animation: floaty 4s ease-in-out infinite; }
 .hero .em .diya-svg { width: 92px; height: 92px; }
@@ -22,7 +23,15 @@ body.play:has(#dock:not(:empty)) .pwrap { padding-bottom: 108px; }
 .avatars button { font-size: 22px; width: 48px; height: 48px; flex: none; border-radius: 16px; border: 0; background: var(--shell); cursor: pointer; padding: 0; color: var(--text); transition: transform 150ms ease, opacity 150ms ease; }
 .avatars button.on { background: var(--accent); transform: scale(1.06); }
 .phone-row { display: grid; grid-template-columns: 120px 1fr; gap: 8px; }
-.code-input { font-size: 28px !important; letter-spacing: 8px; text-align: center; font-weight: 700; }
+.code-input { font-size: 28px !important; letter-spacing: .35em; text-align: center; font-weight: 700; text-transform: uppercase; }
+.room-chip { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 99px; background: var(--shell); color: var(--cream); font-size: 12px; font-weight: 700; letter-spacing: .14em; }
+.who-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.who-line b { min-width: 0; }
+.room-known { display: flex; align-items: center; gap: 8px; }
+.room-known .room-chip { font-size: 18px; letter-spacing: .18em; padding: 4px 10px; }
+#land .shell-card { margin-top: 28px; padding: 52px 18px 16px; }
+#land .code-input { margin: 8px 0 4px; }
+#land .field { text-align: left; }
 .relay { background: var(--shell); border-radius: 16px; padding: 12px; font-size: 14px; color: var(--cream); }
 @keyframes floaty { 50% { transform: translateY(-6px); } }
 
@@ -257,3 +266,10 @@ body.play:has(#dock:not(:empty)) .pwrap { padding-bottom: 108px; }
 body.play .toast { bottom: auto; top: 50px; transform: translateX(-50%) translateY(-220%); }
 body.play .toast.show { transform: translateX(-50%) translateY(0); }
 body.offline .pwrap::before { content: 'Reconnecting…'; display: block; text-align: center; background: var(--sindoor); color: #fff; border-radius: 10px; padding: 6px; margin-bottom: 10px; font-weight: 800; }
+.lb-mini .avatar { flex: none; }
+
+/* Softer, Keynote-style moment changes on the phone. */
+#moment.m-enter { animation: momentIn 480ms cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes momentIn { from { opacity: 0; transform: translateY(14px) scale(.985); filter: blur(4px); } to { opacity: 1; transform: none; filter: none; } }
+.pad { transition: transform 160ms cubic-bezier(.2, .8, .2, 1), filter 160ms ease; }
+.pad:active { transform: scale(.96); }

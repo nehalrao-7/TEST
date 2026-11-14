@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Diwali Game Night — design system
+   2026 Diwali Party — design system
    Kohl night sky, marigold & haldi, sindoor & rani, peacock & mango leaf,
    brass instead of flat gold, cream invitation-card paper.
    ========================================================================== */
@@ -64,6 +64,21 @@
 
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; overflow-x: hidden; }
+/* Each game gets its own Diwali colour. The tones are registered so the whole room
+   crossfades smoothly from one game to the next instead of snapping. */
+@property --bg { syntax: '<color>'; inherits: true; initial-value: #2B0F15; }
+@property --shell { syntax: '<color>'; inherits: true; initial-value: #3A141C; }
+@property --surface { syntax: '<color>'; inherits: true; initial-value: #5A2029; }
+@property --surface-raised { syntax: '<color>'; inherits: true; initial-value: #6B2A32; }
+@property --glow-a { syntax: '<color>'; inherits: true; initial-value: rgba(242, 163, 58, 0.22); }
+@property --glow-b { syntax: '<color>'; inherits: true; initial-value: rgba(227, 93, 79, 0.16); }
+body { --glow-a: rgba(242, 163, 58, 0.22); --glow-b: rgba(227, 93, 79, 0.16);
+  transition: --bg 1.4s ease, --shell 1.4s ease, --surface 1.4s ease, --surface-raised 1.4s ease, --glow-a 1.4s ease, --glow-b 1.4s ease; }
+body[data-theme="marigold"] { --bg: #2E1607; --shell: #40200C; --surface: #603214; --surface-raised: #723E1A; --glow-a: rgba(255, 176, 40, 0.34); --glow-b: rgba(255, 96, 40, 0.18); }
+body[data-theme="rani"]     { --bg: #2C0A22; --shell: #3E1131; --surface: #5E1C4A; --surface-raised: #702457; --glow-a: rgba(255, 84, 170, 0.30); --glow-b: rgba(255, 170, 60, 0.16); }
+body[data-theme="peacock"]  { --bg: #06242A; --shell: #0B3239; --surface: #134A53; --surface-raised: #1A5A64; --glow-a: rgba(0, 205, 190, 0.26); --glow-b: rgba(255, 200, 80, 0.14); }
+body[data-theme="mehendi"]  { --bg: #0F2412; --shell: #17331B; --surface: #234B28; --surface-raised: #2C5A31; --glow-a: rgba(130, 215, 90, 0.24); --glow-b: rgba(255, 200, 80, 0.16); }
+body[data-theme="indigo"]   { --bg: #140F33; --shell: #1E1747; --surface: #2E2466; --surface-raised: #382C78; --glow-a: rgba(130, 110, 255, 0.30); --glow-b: rgba(255, 200, 80, 0.18); }
 body {
   font-family: var(--font);
   font-size: 16px;
@@ -71,8 +86,8 @@ body {
   color: var(--text);
   background-color: var(--bg);
   background-image:
-    radial-gradient(80% 50% at 50% -10%, rgba(242, 163, 58, 0.22), transparent 60%),
-    radial-gradient(70% 40% at 100% 100%, rgba(227, 93, 79, 0.16), transparent 70%);
+    radial-gradient(80% 50% at 50% -10%, var(--glow-a), transparent 60%),
+    radial-gradient(70% 40% at 100% 100%, var(--glow-b), transparent 70%);
   background-attachment: fixed;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
@@ -138,10 +153,13 @@ a { color: var(--cream); }
 .stack > * + * { margin-top: 12px; }
 .center { text-align: center; }
 
-input[type=text], input[type=tel], input[type=number], input[type=password], select, textarea {
+input[type=text], input[type=tel], input[type=number], input[type=password], select, textarea,
+input.code-input {
   width: 100%; border: 0; background: var(--shell); color: var(--text); border-radius: 16px;
   padding: 14px 16px; font-size: 16px; min-height: 48px; outline: none;
 }
+.code-input { text-align: center; font-weight: 700; letter-spacing: .28em; text-transform: uppercase; font-size: 28px; }
+.code-input::placeholder { color: var(--text-muted); opacity: 1; }
 input:focus, select:focus, textarea:focus { box-shadow: 0 0 0 3px var(--accent); }
 textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 14px; min-height: 260px; }
 label.field { display: block; font-weight: 500; font-size: 14px; color: var(--text-muted); margin-bottom: 6px; }

@@ -3,140 +3,171 @@
 
 const quiz = (q, options, answer, extra = {}) => ({ q, options, answer, time: 20, ...extra });
 
+// Written for guests born 1995–2000 in the Indian-Canadian GTA crowd: Bollywood, desi TV,
+// diaspora films, desi food, garba. Every question is Indian. No cricket.
+// Hard but fair: every answer is something this room has seen, heard or danced to.
+// Facts marked "HOST: confirm" in comments are local details worth a quick check.
+
 const guessTheMovie = {
+  // All films from 2000 onwards. Easy to hard; the last question is the Double Diya.
   questions: [
-    quiz('Guess the movie!', ['Kuch Kuch Hota Hai', 'Dilwale Dulhania Le Jayenge', 'Veer-Zaara', 'Kabhi Khushi Kabhie Gham'], 1, { clue: '🚂 👫 🌻 🇨🇭' }),
-    quiz('Guess the movie!', ['Lagaan', 'Chak De! India', 'Iqbal', '83'], 0, { clue: '🏏 🇬🇧 💰 🌧️' }),
-    quiz('Guess the movie!', ['Munna Bhai MBBS', 'Chhichhore', '3 Idiots', 'Student of the Year'], 2, { clue: '🎓 🔧 💡 😂 👬👦' }),
-    quiz('Guess the movie!', ['Sultan', 'Dangal', 'Mary Kom', 'Gold'], 1, { clue: '🤼‍♀️ 👨‍👧‍👧 🥇' }),
-    quiz('Guess the movie!', ['Kal Ho Naa Ho', 'Kabhi Khushi Kabhie Gham', 'Hum Saath-Saath Hain', 'Baghban'], 1, { clue: '👨‍👩‍👧‍👦 🚁 🏰 ❤️' }),
-    quiz('Guess the movie!', ['Baahubali', 'Padmaavat', 'Bajirao Mastani', 'Jodhaa Akbar'], 0, { clue: '💧 ⛰️ 🗡️ 👑' }),
-    quiz('Guess the movie!', ['Paan Singh Tomar', 'M.S. Dhoni', 'Bhaag Milkha Bhaag', 'Chak De! India'], 2, { clue: '🏃‍♂️ 🇮🇳 🥇 ⏱️' }),
-    quiz('Guess the movie!', ['Krrish', 'Koi... Mil Gaya', 'PK', 'Ra.One'], 1, { clue: '👽 📞 🌟 🧒' }),
-    quiz('Guess the movie!', ['Dil Chahta Hai', 'Zindagi Na Milegi Dobara', 'Yeh Jawaani Hai Deewani', 'Queen'], 1, { clue: '🚗 🇪🇸 👬👦 🤿' }),
-    quiz('Guess the movie!', ['KGF', 'Pushpa', 'RRR', 'Kantara'], 2, { clue: '🔥 💧 🤝 🏍️' }),
-    quiz('Guess the movie!', ['Drishyam', 'Andhadhun', 'Kahaani', 'Talaash'], 1, { clue: '🧑‍🦯 🎹 🔫 🐇' }),
-    quiz('Guess the movie!', ['Stree', 'Bhool Bhulaiyaa', 'Raaz', 'Tumbbad'], 1, { clue: '🏰 👻 💃 🔒' }),
+    quiz('Guess the movie!', ['Kabhi Khushi Kabhie Gham', 'Hum Saath-Saath Hain', 'Kal Ho Naa Ho', 'Baghban'], 0, { clue: '👨‍👩‍👦‍👦 🇬🇧 🚁 🏰' }),
+    quiz('Guess the movie!', ['Chhichhore', '3 Idiots', 'Munna Bhai M.B.B.S.', 'Student of the Year'], 1, { clue: '🎓 🔧 💡 😂' }),
+    quiz('Guess the movie!', ['Kabhi Alvida Naa Kehna', 'New York', 'Kal Ho Naa Ho', 'My Name Is Khan'], 2, { clue: '🗽 ❤️‍🩹 🩺 ⏳' }),
+    quiz('Guess the movie!', ['Chhichhore', 'Dil Chahta Hai', 'Rock On!!', 'Kai Po Che!'], 3, { clue: '🪁 👬 👦 🏪' }),
+    quiz('Guess the movie!', ['Baahubali 2', 'Magadheera', 'RRR', 'KGF: Chapter 2'], 0, { clue: '🤔 🗡️ 👑' }),
+    quiz('Guess the movie!', ['Housefull', 'Om Shanti Om', 'Krrish', 'Bhool Bhulaiyaa'], 1, { clue: '🎬 🔥 🔁 ⭐' }),
   ],
 };
 
 const kahoot = {
+  // Easy to hard. The last question is the Double Diya.
   questions: [
-    quiz('Diwali is popularly known as the festival of…', ['Colours', 'Lights', 'Kites', 'Harvest'], 1),
-    quiz('Diwali celebrates whose return to Ayodhya?', ['Lord Krishna', 'Lord Shiva', 'Lord Rama', 'Lord Ganesha'], 2),
-    quiz('How many years of exile did Lord Rama complete?', ['7', '10', '12', '14'], 3),
-    quiz('Which goddess of wealth is worshipped on Diwali night?', ['Saraswati', 'Lakshmi', 'Durga', 'Parvati'], 1),
-    quiz('Choti Diwali is also called…', ['Dhanteras', 'Bhai Dooj', 'Naraka Chaturdashi', 'Govardhan Puja'], 2),
-    quiz('The small clay oil lamps lit on Diwali are called…', ['Diyas', 'Torans', 'Kalash', 'Kandils'], 0),
-    quiz('Colourful patterns made on the floor at the entrance are called…', ['Mehndi', 'Rangoli', 'Alpana Dance', 'Kolam Chai'], 1),
-    quiz('Which festival celebrating siblings comes two days after Diwali?', ['Raksha Bandhan', 'Karva Chauth', 'Bhai Dooj', 'Teej'], 2),
-    quiz('Sikhs celebrate Bandi Chhor Divas, marking the release of which Guru?', ['Guru Nanak', 'Guru Hargobind', 'Guru Gobind Singh', 'Guru Arjan'], 1),
-    quiz('For Jains, Diwali marks the nirvana of…', ['Mahavira', 'Parshvanatha', 'Rishabhanatha', 'Neminatha'], 0),
-    quiz('Which sweet is deep-fried milk-solid balls soaked in sugar syrup?', ['Rasgulla', 'Jalebi', 'Gulab Jamun', 'Barfi'], 2),
-    quiz('On Dhanteras, people traditionally buy…', ['New shoes', 'Gold, silver or utensils', 'Books', 'Plants'], 1),
+    quiz('Diwali celebrates Ram’s return to…', ['Mathura', 'Ayodhya', 'Lanka', 'Dwarka'], 1),
+    quiz('Lord Ganesha’s vehicle is a…', ['Peacock', 'Bull', 'Mouse', 'Swan'], 2),
+    quiz('In Canada, the $2 coin is the…', ['Toonie', 'Loonie', 'Queenie', 'Beaver'], 0),
+    quiz('What do you shout when you cut a kite on Uttarayan?', ['Jai Shree Krishna', 'Saal Mubarak', 'Khamma Ghani', 'Kai Po Che!'], 3),
+    quiz('How many years was Ram in exile?', ['7', '12', '14', '16'], 2),
+    quiz('A Tim Hortons “double-double” is…', ['A double shot', '2 creams, 2 sugars', 'Two cups', 'Extra large'], 1),
+    quiz('Krishna was born in…', ['Gokul', 'Vrindavan', 'Dwarka', 'Mathura'], 3),
+    quiz('The Gujarati New Year, the day after Diwali, is…', ['Bestu Varas', 'Bhai Beej', 'Labh Pancham', 'Dhanteras'], 0),
+    quiz('Who wrote down the Mahabharata as Ved Vyasa dictated it?', ['Hanuman', 'Narad', 'Ganesha', 'Valmiki'], 2),
+    quiz('“Pushpa… naam sunke flower samjhe kya? ___ hai main!”', ['Power', 'Fire', 'Tiger', 'Rowdy'], 1),
   ],
 };
 
 const jeopardy = {
   wrongPenalty: false,
+  // The last category ("group: true") is swapped for questions about the guests when the
+  // questionnaire has enough answers. It keeps its name; these clues are the fallback.
   categories: [
-    { name: 'Bollywood Songs', clues: [
-      { value: 100, q: "'Tujhe Dekha To' is from this 1995 blockbuster", a: 'Dilwale Dulhania Le Jayenge' },
-      { value: 200, q: 'This song from RRR won the Oscar for Best Original Song', a: 'Naatu Naatu' },
-      { value: 300, q: "'Chaiyya Chaiyya' was shot on top of a moving train in this film", a: 'Dil Se' },
-      { value: 400, q: "'London Thumakda' is from this Kangana Ranaut film", a: 'Queen' },
-      { value: 500, q: "'Badtameez Dil' is from this Ranbir–Deepika film", a: 'Yeh Jawaani Hai Deewani' },
+    { name: 'Filmy Chakkar', clues: [
+      { value: 100, q: '“Main apni favourite hoon!” — say her name', a: 'Geet (Jab We Met)' },
+      { value: 200, q: '“Control Uday, control!” — which character says it?', a: 'Majnu Bhai (Welcome)' },
+      { value: 300, q: 'The film where Akshay Kumar plays Happy Singh', a: 'Singh Is Kinng' },
+      { value: 400, q: '“Kabhi kabhi lagta hai apun hi bhagwan hai” — which series?', a: 'Sacred Games' },
+      { value: 500, q: '“How’s the josh?” — which film?', a: 'Uri: The Surgical Strike' },
     ] },
-    { name: 'Desi Food', clues: [
-      { value: 100, q: 'Thin, crispy South Indian rice-and-lentil crepe', a: 'Dosa' },
-      { value: 200, q: 'Indian cottage cheese', a: 'Paneer' },
-      { value: 300, q: 'The spice that makes haldi doodh golden', a: 'Turmeric (haldi)' },
-      { value: 400, q: "Mumbai's spiced potato fritter in a bun", a: 'Vada Pav' },
-      { value: 500, q: 'Hyderabad is world-famous for this layered rice dish', a: 'Biryani' },
+    { name: 'Ramayan Katha', clues: [
+      { value: 100, q: 'Ravana’s kingdom', a: 'Lanka' },
+      { value: 200, q: 'Sita’s father', a: 'King Janaka' },
+      { value: 300, q: 'The herb Hanuman flew to fetch for Lakshman', a: 'Sanjeevani' },
+      { value: 400, q: 'Ravana’s brother who joined Ram', a: 'Vibhishana' },
+      { value: 500, q: 'He wrote the original Ramayana', a: 'Valmiki' },
     ] },
-    { name: 'Cricket Fever', clues: [
-      { value: 100, q: 'Number of balls in an over', a: '6' },
-      { value: 200, q: 'Nickname of Sachin Tendulkar', a: 'The Master Blaster' },
-      { value: 300, q: 'Year India won its first Cricket World Cup', a: '1983' },
-      { value: 400, q: 'Indian captain who hit the winning six in the 2011 World Cup final', a: 'MS Dhoni' },
-      { value: 500, q: 'Captain of the 1983 World Cup–winning team', a: 'Kapil Dev' },
+    { name: 'Krishna Leela', clues: [
+      { value: 100, q: 'Krishna’s evil uncle', a: 'Kansa' },
+      { value: 200, q: 'The hill Krishna lifted on his little finger', a: 'Govardhan' },
+      { value: 300, q: 'In the Mahabharata war, Krishna was Arjuna’s…', a: 'Charioteer (sarathi)' },
+      { value: 400, q: 'The demon Krishna defeated, remembered on Kali Chaudas / Choti Diwali', a: 'Narakasura' },
+      { value: 500, q: 'How many Kaurava brothers were there?', a: '100' },
     ] },
-    { name: 'Incredible India', clues: [
-      { value: 100, q: 'The Taj Mahal is in this city', a: 'Agra' },
-      { value: 200, q: 'Known as the Pink City', a: 'Jaipur' },
-      { value: 300, q: "State nicknamed 'God's Own Country'", a: 'Kerala' },
-      { value: 400, q: 'Called the City of Joy', a: 'Kolkata' },
-      { value: 500, q: 'The Konark Sun Temple is in this state', a: 'Odisha' },
+    { name: 'Garvi Gujarat', clues: [
+      { value: 100, q: 'The only forest home of Asiatic lions', a: 'Gir' },
+      { value: 200, q: 'Eaten with jalebi on Dussehra', a: 'Fafda' },
+      { value: 300, q: 'Krishna’s kingdom on Gujarat’s coast', a: 'Dwarka' },
+      { value: 400, q: 'Gandhi’s birthplace', a: 'Porbandar' },
+      { value: 500, q: 'The first of the 12 jyotirlingas, on Gujarat’s coast', a: 'Somnath' },
     ] },
-    { name: 'Diwali Lore', clues: [
-      { value: 100, q: 'The five-day festival begins with this day of buying gold and utensils', a: 'Dhanteras' },
-      { value: 200, q: 'Goddess who is welcomed home with lamps and open doors', a: 'Lakshmi' },
-      { value: 300, q: 'Demon defeated by Krishna, celebrated on Choti Diwali', a: 'Narakasura' },
-      { value: 400, q: 'Hill Krishna lifted on his little finger, celebrated the day after Diwali', a: 'Govardhan' },
-      { value: 500, q: 'Ravana ruled this island kingdom', a: 'Lanka' },
+    { name: 'Ad Break 📺', clues: [
+      { value: 100, q: '“Washing powder ___, washing powder ___…” — name the brand', a: 'Nirma' },
+      { value: 200, q: '“Daag achhe hain” — whose famous tagline?', a: 'Surf Excel' },
+      { value: 300, q: '“Yeh ___ ka mazboot jod hai, tootega nahi!”', a: 'Fevicol' },
+      { value: 400, q: '“Thanda matlab…?” — Aamir Khan’s famous line', a: 'Coca-Cola' },
+      { value: 500, q: 'A girl dances onto a cricket field to celebrate a six. “Kuch khaas hai…” Which chocolate?', a: 'Cadbury Dairy Milk' },
+    ] },
+    { name: 'Apni Toli', group: true, clues: [
+      { value: 100, q: 'The sticks you twirl in raas', a: 'Dandiya' },
+      { value: 200, q: 'Number of claps in the classic “tran taali” step', a: 'Three' },
+      { value: 300, q: 'Falguni Pathak’s royal nickname', a: 'Queen of Dandiya' },
+      { value: 400, q: 'The 2023 Coke Studio Bharat song that took Aditya Gadhvi global', a: 'Khalasi' },
+      { value: 500, q: 'The date and venue of Aditya Gadhvi’s last 2026 GTA show', a: 'Sat, Oct 3 — International Centre, Mississauga' },
     ] },
   ],
 };
 
 const kbc = {
-  // Each level has a points prize; 'safe' levels are guaranteed once crossed.
-  // Each level has several questions so multiple hot-seat players get fresh ones.
+  // Played in order, easy to hard. Each later correct answer is worth less, so speed matters.
   ladder: [
     { points: 100, questions: [
-      quiz('Which animal is Lord Ganesha’s vehicle?', ['Peacock', 'Mouse', 'Bull', 'Swan'], 1),
-      quiz('Which of these is a popular Diwali sweet?', ['Kaju Katli', 'Croissant', 'Brownie', 'Macaron'], 0),
+      quiz('How many heads does Ravana have?', ['5', '7', '10', '12'], 2),
+      quiz('An Iced Capp comes from…', ['Second Cup', 'Starbucks', 'Tim Hortons', 'McDonald’s'], 2),
     ] },
     { points: 200, questions: [
-      quiz('Goddess Lakshmi is usually shown seated on a…', ['Tiger', 'Lotus', 'Peacock', 'Swan'], 1),
-      quiz('What is the national animal of India?', ['Lion', 'Elephant', 'Tiger', 'Peacock'], 2),
+      quiz('Who sang “Tum Hi Ho” from Aashiqui 2?', ['Atif Aslam', 'Arijit Singh', 'KK', 'Sonu Nigam'], 1),
+      quiz('Shah Rukh Khan’s Bandra home is called…', ['Jalsa', 'Galaxy', 'Prateeksha', 'Mannat'], 3),
     ] },
     { points: 300, safe: true, questions: [
-      quiz("Which actor is popularly called 'King Khan'?", ['Salman Khan', 'Aamir Khan', 'Shah Rukh Khan', 'Saif Ali Khan'], 2),
-      quiz('Which city is Lord Rama’s birthplace?', ['Mathura', 'Ayodhya', 'Varanasi', 'Ujjain'], 1),
+      quiz('Which goddess is worshipped on Diwali night?', ['Saraswati', 'Lakshmi', 'Durga', 'Parvati'], 1),
+      quiz('Hanuman’s mother is…', ['Kaushalya', 'Sumitra', 'Anjana', 'Kaikeyi'], 2),
     ] },
     { points: 500, questions: [
-      quiz('India’s first mission to Mars is called…', ['Chandrayaan', 'Gaganyaan', 'Mangalyaan', 'Aditya-L1'], 2),
-      quiz('Who wrote India’s national anthem?', ['Bankim Chandra Chatterjee', 'Rabindranath Tagore', 'Sarojini Naidu', 'Muhammad Iqbal'], 1),
+      quiz('Which A.R. Rahman song won the 2009 Oscar?', ['Chaiyya Chaiyya', 'Jai Ho', 'Kun Faya Kun', 'Naatu Naatu'], 1),
+      quiz('Before a Gujarati wedding begins, the bride’s mother welcomes the groom with…', ['Pithi', 'Mameru', 'Ponkvu', 'Saptapadi'], 2),
     ] },
     { points: 750, questions: [
-      quiz('In 2023, Chandrayaan-3 landed near which region of the Moon?', ['North pole', 'Equator', 'South pole', 'Far side'], 2),
-      quiz('Which Mughal emperor built the Taj Mahal?', ['Akbar', 'Shah Jahan', 'Aurangzeb', 'Babur'], 1),
+      quiz('The Bhagavad Gita is Krishna’s advice to…', ['Bhima', 'Arjuna', 'Yudhishthira', 'Karna'], 1),
+      quiz('Garba star Atul Purohit is from which city?', ['Ahmedabad', 'Vadodara', 'Surat', 'Rajkot'], 1),
     ] },
     { points: 1000, safe: true, questions: [
-      quiz('Sita’s father, King Janaka, ruled which kingdom?', ['Kosala', 'Magadha', 'Mithila', 'Panchala'], 2),
-      quiz('Which of Ravana’s brothers joined Lord Rama?', ['Kumbhakarna', 'Vibhishana', 'Indrajit', 'Khara'], 1),
+      quiz('“Ek chutki sindoor ki keemat tum kya jaano…” — who?', ['Rahul babu', 'Ramesh babu', 'Raju babu', 'Mohan babu'], 1),
+      quiz('“Kajra Re” got all three Bachchans on screen. Which film?', ['Kabhi Alvida Naa Kehna', 'Jhoom Barabar Jhoom', 'Bunty Aur Babli', 'Bluffmaster!'], 2),
     ] },
     { points: 1500, questions: [
-      quiz('Who wrote the original Ramayana in Sanskrit?', ['Tulsidas', 'Ved Vyasa', 'Kalidasa', 'Valmiki'], 3),
-      quiz('Tulsidas wrote the Ramcharitmanas in which language?', ['Sanskrit', 'Awadhi', 'Braj Bhasha', 'Maithili'], 1),
+      quiz('At a Gujarati wedding, the gift ceremony from the bride’s maternal uncle is…', ['Pithi', 'Mameru', 'Jaan', 'Saptapadi'], 1),
+      quiz('How many zeros are in one crore?', ['5', '6', '7', '8'], 2),
     ] },
     { points: 2500, questions: [
-      quiz('Which was the first Indian film nominated for the Best Foreign Language Film Oscar?', ['Pather Panchali', 'Mother India', 'Salaam Bombay!', 'Lagaan'], 1),
-      quiz("Whose court was famous for its 'Navratnas' (nine gems)?", ['Jahangir', 'Humayun', 'Akbar', 'Shah Jahan'], 2),
+      quiz('Gujarat’s capital is…', ['Ahmedabad', 'Gandhinagar', 'Vadodara', 'Surat'], 1),
+      quiz('Anant Ambani and Radhika Merchant’s first pre-wedding bash (2024) was in…', ['Udaipur', 'Jamnagar', 'Jodhpur', 'Lonavala'], 1),
     ] },
   ],
   fastestFinger: [
-    quiz('How many days does the Diwali festival traditionally span?', ['1', '3', '5', '7'], 2, { time: 15 }),
-    quiz('Paneer is made from…', ['Soy', 'Milk', 'Rice', 'Lentils'], 1, { time: 15 }),
+    quiz('How many nights does Navratri last?', ['7', '8', '9', '10'], 2, { time: 15 }),
     quiz('Which festival is called the festival of colours?', ['Diwali', 'Holi', 'Onam', 'Pongal'], 1, { time: 15 }),
-    quiz('Which is the largest planet in our solar system?', ['Saturn', 'Earth', 'Jupiter', 'Neptune'], 2, { time: 15 }),
-    quiz('How many players does a cricket team field?', ['9', '10', '11', '12'], 2, { time: 15 }),
+    quiz('Paneer is made from…', ['Soy', 'Milk', 'Rice', 'Lentils'], 1, { time: 15 }),
   ],
 };
 
-// Official music videos. `t` is where the hook choreography starts; `clip` matches the dance clock.
-const hookVideo = (id, t) => ({ youtube: `https://www.youtube.com/watch?v=${id}&t=${t}s`, clip: 45, showVideo: true });
+// Official music videos. `t` starts a couple of seconds before each video's most-replayed
+// moment (usually the hook step). `level` sets the order Spin draws them: easy, then medium, then hard.
+// Dola Re Dola has no official full video; its link and start time are best guesses to check.
+const hookVideo = (id, t) => ({ youtube: `https://www.youtube.com/watch?v=${id}&t=${t}s`, clip: 25, showVideo: true });
 const HOOK_SONGS = [
-  { title: 'Naatu Naatu — RRR', step: 'The lightning foot shuffle, arms on each other’s shoulders', ...hookVideo('4_eEgJhsBMo', 68) },
-  { title: 'Lungi Dance — Chennai Express', step: 'Twirl the (imaginary) lungi and swing those hips', ...hookVideo('2kWLyInyjOE', 46) },
-  { title: 'Kala Chashma — Baar Baar Dekho', step: 'The big squat-drop on “kala chashma jachda”', ...hookVideo('k4yXQkG2s1E', 48) },
-  { title: 'Srivalli — Pushpa', step: 'The swagger walk with one slipper dragging', ...hookVideo('hcMzwMrr1tE', 55) },
-  { title: 'Tamma Tamma Again — Badrinath Ki Dulhania', step: 'The hand-roll and shoulder bounce', ...hookVideo('EEX_XM6SxmY', 24) },
-  { title: 'Chaiyya Chaiyya — Dil Se', step: 'Groove like you’re on top of a moving train', ...hookVideo('9yT4F8hzykY', 20) },
-  { title: 'Gallan Goodiyaan — Dil Dhadakne Do', step: 'Full bhangra shoulders, nonstop', ...hookVideo('jCEdTq3j-0U', 22) },
-  { title: 'Butta Bomma — Ala Vaikunthapurramuloo', step: 'The smooth side-step shuffle', ...hookVideo('2mDCVzruYzQ', 18) },
-  { title: 'Jhoome Jo Pathaan — Pathaan', step: 'The arm-flip and lean-back hook', ...hookVideo('YxWlaYCA8MU', 55) },
-  { title: 'London Thumakda — Queen', step: 'Maximum thumkas, wedding-style', ...hookVideo('udra3Mfw2oo', 38) },
+  { level: 'easy', title: 'Sheila Ki Jawani — Tees Maar Khan', step: 'The hip sway with hands framing the face', ...hookVideo('ZTmF2v59CtI', 171) },
+  { level: 'easy', title: 'Chikni Chameli — Agneepath', step: 'The big jhatka with arms overhead', ...hookVideo('QcQpqWhTBCE', 31) },
+  { level: 'easy', title: 'Aankh Marey — Simmba', step: 'The wink, the point, the shoulder bounce', ...hookVideo('_KhQT-LGb-4', 12) },
+  { level: 'easy', title: 'Badtameez Dil — Yeh Jawaani Hai Deewani', step: 'Ranbir’s loose, jumpy shuffle', ...hookVideo('II2EO3Nw4m0', 49) },
+  { level: 'easy', title: 'Mauja Hi Mauja — Jab We Met', step: 'Arms up, full bhangra shoulders', ...hookVideo('PaDaoNnOQaM', 105) },
+  { level: 'easy', title: 'Kala Chashma — Baar Baar Dekho', step: 'The squat-drop on “kala chashma”', ...hookVideo('k4yXQkG2s1E', 42) },
+  { level: 'easy', title: 'Lungi Dance — Chennai Express', step: 'Twirl the (imaginary) lungi and swing those hips', ...hookVideo('fbwCgt1hMD4', 104) },
+  { level: 'easy', title: 'Brown Rang — Yo Yo Honey Singh', step: 'Collar pop and swagger walk', ...hookVideo('iX4qQlm-0NY', 114) },
+  { level: 'easy', title: 'Character Dheela — Ready', step: 'Salman’s lazy shoulder shimmy', ...hookVideo('ruEQPQX90fI', 153) },
+  { level: 'easy', title: 'Gallan Goodiyaan — Dil Dhadakne Do', step: 'Bhangra shoulders, nonstop', ...hookVideo('jCEdTq3j-0U', 45) },
+  { level: 'medium', title: 'Dus Bahane — Dus', step: 'The cool side-slide', ...hookVideo('qE3DfF66DNA', 75) },
+  { level: 'medium', title: 'Soni De Nakhre — Partner', step: 'Govinda’s arms-and-hips comedy groove', ...hookVideo('GFljvZMZI0U', 98) },
+  { level: 'medium', title: 'Aahun Aahun — Love Aaj Kal', step: 'Punjabi jumps and claps', ...hookVideo('Qk9bPR2wfJ4', 73) },
+  { level: 'medium', title: 'Ainvayi Ainvayi — Band Baaja Baaraat', step: 'Ranveer’s wild wedding flail', ...hookVideo('pElk1ShPrcE', 91) },
+  { level: 'medium', title: 'Angreji Beat — Gippy Grewal', step: 'Bhangra bounce with one arm up', ...hookVideo('YEf_hnXBbyI', 149) },
+  { level: 'medium', title: 'Kar Gayi Chull — Kapoor & Sons', step: 'Fist-pump party bounce', ...hookVideo('NTHz9ephYTw', 18) },
+  { level: 'medium', title: 'It’s The Time To Disco — Kal Ho Naa Ho', step: 'Retro disco finger-point', ...hookVideo('M03GOY5eINg', 144) },
+  { level: 'medium', title: 'Pappu Can’t Dance — Jaane Tu... Ya Jaane Na', step: 'Dance as badly as Pappu, on purpose', ...hookVideo('dbdtBQ16CXc', 32) },
+  { level: 'medium', title: 'Saturday Saturday — Humpty Sharma Ki Dulhania', step: 'Bouncy shoulder shrugs', ...hookVideo('OljkSVLIt6c', 152) },
+  { level: 'medium', title: 'Amplifier — Imran Khan', step: 'Head-bob and arm swing', ...hookVideo('uuCFRaFWjwY', 98) },
+  { level: 'medium', title: 'Baby Doll — Ragini MMS 2', step: 'The slow, smooth hip sway', ...hookVideo('yP9KiFTyBks', 30) },
+  { level: 'medium', title: 'Dola Re Dola — Devdas', step: 'Hands up, spin and twirl', ...hookVideo('ORm16CK59_Q', 93) },
+  { level: 'medium', title: 'Rowdy Baby — Maari 2', step: 'Dhanush & Sai Pallavi’s quick kicks', ...hookVideo('x6Q7c9RyMzk', 137) },
+  { level: 'medium', title: 'Tamma Tamma Again — Badrinath Ki Dulhania', step: 'The hand-roll and shoulder bounce', ...hookVideo('EEX_XM6SxmY', 23) },
+  { level: 'hard', title: 'O O Jaane Jaana — Pyaar Kiya To Darna Kya', step: 'Salman’s arm-wave (shirt optional)', ...hookVideo('x_elT6zkqN0', 47) },
+  { level: 'hard', title: 'Fevicol Se — Dabangg 2', step: 'Kareena’s thumka, maximum attitude', ...hookVideo('zE7Pwgl6sLA', 37) },
+  { level: 'hard', title: 'Dhinka Chika — Ready', step: 'The hop-shuffle, thumbs in the belt', ...hookVideo('p6D8u6lEDjQ', 58) },
+  { level: 'hard', title: 'Hoth Rasiley — Welcome', step: 'The slow, sassy hip sway', ...hookVideo('VHxKSyiOxgE', 63) },
+  { level: 'hard', title: 'Anarkali Disco Chali — Housefull 2', step: 'Thumka, twirl, repeat', ...hookVideo('sONw3dihCRs', 38) },
+  { level: 'hard', title: 'Crazy Kiya Re — Dhoom 2', step: 'Aishwarya’s sharp pop-and-lock', ...hookVideo('J2Bh68GTUOU', 212) },
+  { level: 'hard', title: 'Desi Boyz — Desi Boyz', step: 'Swagger walk to “make some noise”', ...hookVideo('lyWHtKq1PcQ', 50) },
+  { level: 'hard', title: 'Lucky Boy — Bachna Ae Haseeno', step: 'Club bounce with finger guns', ...hookVideo('0AqZzax9_Og', 116) },
+  { level: 'hard', title: 'Shut Up & Bounce — Dostana', step: 'Just bounce. Shut up and bounce.', ...hookVideo('0akqVN4ts0w', 164) },
+  { level: 'hard', title: 'Proper Patola — Namaste England', step: 'Badshah-style bhangra shoulders', ...hookVideo('YmXJp4RtBCM', 31) },
 ];
 const hookKey = (title) => String(title || '').split('—')[0].split('(')[0].trim().toLowerCase();
 const HOOK_LINKS = Object.fromEntries(HOOK_SONGS.map((s) => [hookKey(s.title), { youtube: s.youtube, clip: s.clip, showVideo: true }]));
@@ -152,7 +183,7 @@ function applyHookVideos(content) {
 }
 
 const hookstep = {
-  performSeconds: 45,
+  performSeconds: 25,
   himmatBonus: 100,
   songs: HOOK_SONGS,
 };
@@ -162,7 +193,7 @@ function defaultGames() {
     { id: 'g1', type: 'quiz', title: 'Guess the Movie', emoji: '🎬', mode: 'team', status: 'pending', content: guessTheMovie },
     { id: 'g2', type: 'hookstep', title: 'Hook Step Challenge', emoji: '💃', mode: 'team', status: 'pending', content: hookstep },
     { id: 'g3', type: 'jeopardy', title: 'Desi Jeopardy', emoji: '🧠', mode: 'team', status: 'pending', content: jeopardy },
-    { id: 'g4', type: 'quiz', title: 'Diwali Kahoot', emoji: '⚡', mode: 'individual', status: 'pending', content: kahoot },
+    { id: 'g4', type: 'quiz', title: 'Desi Kahoot', emoji: '⚡', mode: 'individual', status: 'pending', content: kahoot },
     { id: 'g5', type: 'kbc', title: 'Kaun Banega Crorepati', emoji: '💰', mode: 'individual', status: 'pending', content: kbc },
   ];
 }

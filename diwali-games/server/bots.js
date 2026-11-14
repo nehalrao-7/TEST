@@ -9,6 +9,11 @@ const S = require('./state');
 const NAMES = ['Aarav', 'Diya', 'Kabir', 'Meera', 'Rohan', 'Anaya', 'Vihaan', 'Ishita', 'Arjun', 'Tara', 'Neel', 'Kiara', 'Dev', 'Zoya'];
 const AVATARS = ['🐯', '🦚', '🌺', '🪷', '🍬', '🎇', '🥭', '🌶️', '🦁', '🐘', '👑', '🪁', '🌙', '⭐'];
 const POOLS = {
+  karaoke: ['Kal Ho Naa Ho', 'Tum Hi Ho', 'Chaiyya Chaiyya', 'Kajra Re', 'Senorita', 'Ilahi', 'Gerua', 'Badtameez Dil', 'Tujhe Dekha To', 'Kesariya'],
+  everyday: ['Pav bhaji', 'Dal chawal', 'Masala dosa', 'Pani puri', 'Biryani', 'Thepla', 'Chole bhature', 'Undhiyu', 'Maggi', 'Rajma chawal'],
+  dreamJob: ['Pilot', 'Astronaut', 'Cricketer', 'Bollywood star', 'Doctor', 'Teacher', 'Chef', 'Detective', 'Rock star', 'Vet'],
+  binge: ['Panchayat', 'Kota Factory', 'Made in Heaven', 'Heeramandi', 'The Family Man', 'Mirzapur', 'Scam 1992', 'Gullak', 'Farzi', 'Laapataa Ladies'],
+  garbaSnack: ['Fafda-jalebi', 'Dabeli', 'Khaman', 'Masala chai', 'Pani puri', 'Vada pav', 'Sev puri', 'Samosa', 'Kulfi', 'Bhel'],
   movie: ['Lagaan', '3 Idiots', 'Sholay', 'Queen', 'Dangal', 'Kahaani', 'Swades', 'Andhadhun', 'Barfi', 'Dil Chahta Hai', 'Jab We Met', 'Om Shanti Om'],
   star: ['Shah Rukh Khan', 'Deepika Padukone', 'Ranbir Kapoor', 'Alia Bhatt', 'Aamir Khan', 'Priyanka Chopra', 'Hrithik Roshan', 'Kajol', 'Ranveer Singh', 'Madhuri Dixit'],
   holiday: ['Bali', 'Santorini', 'Maldives', 'Japan', 'Iceland', 'Kerala', 'Ladakh', 'Peru', 'Switzerland', 'Goa', 'Banff', 'the Amalfi Coast'],
@@ -33,7 +38,7 @@ function create(state, count = 8) {
   const taken = new Set(Object.values(state.players).map((p) => p.name.toLowerCase()));
   const names = S.shuffle(NAMES).filter((n) => !taken.has(n.toLowerCase())).slice(0, count);
   const created = names.map((name, i) => {
-    const p = S.createPlayer({ name, phone: `+1000000${String(Date.now() + i).slice(-5)}`, avatar: AVATARS[(i * 3) % AVATARS.length] });
+    const p = S.createPlayer({ name, avatar: AVATARS[(i * 3) % AVATARS.length] });
     p.bot = true;
     p.skill = rnd(0.45, 0.85); // how often this bot knows the answer
     return p;
@@ -81,16 +86,8 @@ function phaseKey(state, game) {
   const L = state.live;
   if (!L) return `break-${state.games.filter((g) => g.status === 'done').length}`;
   if (game.type === 'quiz') return L.phase === 'question' ? `q${L.qIndex}-${L.opensAt}` : L.phase === 'reveal' ? `r${L.qIndex}` : null;
-  if (game.type === 'kbc') {
-    if (L.phase === 'ff' && L.ff) return `ff${L.ff.opensAt}`;
-    const h = L.hot;
-    if (L.phase === 'hot' && h) {
-      if (h.poll && h.poll.open) return `poll${h.seat}-${h.qLevel}`;
-      if (h.qPhase === 'question') return `hot${h.seat}-${h.qLevel}-${h.locked == null ? 'u' : 'l'}`;
-    }
-    return null;
-  }
-  if (game.type === 'jeopardy') return L.phase === 'clue' && L.cur && L.buzzOpen && !L.ddActive ? `c${L.cur.c}-${L.cur.i}-${L.openedAt}-${L.locked.length}` : null;
+  if (game.type === 'kbc') return L.phase === 'question' ? `k${L.qIndex}-${L.opensAt}` : L.phase === 'reveal' ? `kr${L.qIndex}` : null;
+  if (game.type === 'jeopardy') return null;
   if (game.type === 'hookstep') return L.phase === 'perform' ? `p${L.results.length}-${L.startedAt}` : L.phase === 'scored' ? `s${L.results.length}` : null;
   return null;
 }
@@ -103,7 +100,7 @@ function makePlan(state, game, key) {
   const react = (n, from, to) => S.shuffle(bots).slice(0, n).forEach((b) => acts.push({ pid: b.id, at: t + rnd(from, to), react: pick(REACTS) }));
   if (key.startsWith('break')) {
     bots.forEach((b) => {
-      const pu = b.powerups.find((x) => !x.used && ['double', 'laddoo', 'steal', 'swap'].includes(x.type));
+      const pu = b.powerups.find((x) => !x.used && ['double', 'laddoo', 'steal', 'swap', 'shagun', 'rangoli'].includes(x.type));
       if (pu && Math.random() < 0.4) acts.push({ pid: b.id, at: t + rnd(4000, 20000), powerup: pu.id });
     });
   } else if (game.type === 'quiz' && key.startsWith('q')) {
@@ -116,33 +113,13 @@ function makePlan(state, game, key) {
     });
   } else if (key.startsWith('r') || key.startsWith('s')) {
     react(crypto.randomInt(1, 4), 600, 3000);
-  } else if (key.startsWith('ff')) {
-    const q = game.content.fastestFinger[L.ff.qi];
+  } else if (game.type === 'kbc' && key.startsWith('k') && !key.startsWith('kr')) {
+    const q = require('./games').engines.kbc.list(game)[L.qIndex];
+    const window = Math.max(2500, L.deadline - L.opensAt - 800);
     bots.forEach((b) => {
       const knows = Math.random() < b.skill;
-      acts.push({ pid: b.id, at: L.ff.opensAt + rnd(1500, 9000), action: { type: 'ffAnswer', choice: knows ? q.answer : (q.answer + 1 + crypto.randomInt(q.options.length - 1)) % q.options.length } });
+      acts.push({ pid: b.id, at: L.opensAt + rnd(700, Math.min(window, knows ? 6000 : 12000)), action: { type: 'answer', choice: knows ? q.answer : (q.answer + 1 + crypto.randomInt(q.options.length - 1)) % q.options.length } });
     });
-  } else if (key.startsWith('poll')) {
-    const lvl = game.content.ladder[L.hot.qLevel];
-    const q = require('./games').engines.kbc.currentQ(game, L.hot);
-    bots.filter((b) => b.id !== L.hot.pid).forEach((b) => {
-      const choices = [0, 1, 2, 3].filter((i) => !L.hot.removed.includes(i));
-      acts.push({ pid: b.id, at: t + rnd(1500, 12000), action: { type: 'pollVote', choice: Math.random() < 0.7 ? q.answer : pick(choices) } });
-    });
-    void lvl;
-  } else if (key.startsWith('hot')) {
-    const q = require('./games').engines.kbc.currentQ(game, L.hot);
-    const b = state.players[L.hot.pid];
-    if (isBot(b) && L.hot.locked == null) {
-      const p = Math.max(0.35, b.skill + 0.15 - L.hot.qLevel * 0.07);
-      const choices = [0, 1, 2, 3].filter((i) => !L.hot.removed.includes(i) && i !== q.answer);
-      acts.push({ pid: b.id, at: t + rnd(5000, 10000), action: { type: 'lock', choice: Math.random() < p ? q.answer : pick(choices) } });
-    }
-    // The audience predicts Sahi / Galat.
-    bots.filter((x) => x.id !== L.hot.pid && !(L.hot.predictions || {})[x.id]).forEach((x) => acts.push({ pid: x.id, at: t + rnd(1500, 8000), action: { type: 'predict', pick: Math.random() < 0.65 ? 'sahi' : 'galat' } }));
-  } else if (key.startsWith('c')) {
-    const n = Math.min(bots.length, crypto.randomInt(1, 4));
-    S.shuffle(bots).slice(0, n).forEach((b) => acts.push({ pid: b.id, at: t + rnd(900, 5000), action: { type: 'buzz' } }));
   } else if (key.startsWith('p')) {
     // The crowd cheers the dancers on.
     react(crypto.randomInt(3, 7), 2000, Math.max(4000, L.until - t - 2000));

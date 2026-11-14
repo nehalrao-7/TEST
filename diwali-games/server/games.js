@@ -8,7 +8,6 @@ const now = () => Date.now();
 // Timers are not kept in memory (the app runs on serverless functions). Deadlines are
 // enforced by tick(), which runs at the start of every request.
 function schedule() {}
-
 const pickWrong = (q, n) => S.shuffle(q.options.map((_, i) => i).filter((i) => i !== q.answer)).slice(0, n);
 const countBy = (answers, n) => {
   const c = Array(n).fill(0);
@@ -161,360 +160,206 @@ const quiz = {
 };
 
 // ======================= JEOPARDY =======================
-// The board lives on the TV; the host picks clues. Buzzers stay "armed" until the host opens them
-// (buzzing early earns a short lockout, as on the real show). The team in control picks next,
-// and two hidden Daily Doubles let the team in control wager.
+// Teams take one turn at a time. There are no buzzers. A right answer pays every person on that team.
 const jeopardy = {
-  init: () => ({ phase: 'board', used: {}, cur: null, buzzOpen: false, buzzes: [], locked: [], active: null, last: null, early: {}, control: null, dd: null, wager: null, ddActive: false }),
+  init: () => ({ phase: 'board', used: {}, cur: null, turn: 0, active: null, last: null }),
   clue: (game, cur) => game.content.categories[cur.c].clues[cur.i],
-  EARLY_LOCK: 2000,
-  ANSWER_MS: 12000,
 
-  ensureSetup(live, game) {
-    if (!live.dd) {
-      const cells = [];
-      game.content.categories.forEach((c, ci) => c.clues.forEach((_, i) => { if (i > 0) cells.push(`${ci}-${i}`); }));
-      live.dd = S.shuffle(cells).slice(0, Math.min(2, Math.max(0, cells.length - 3)));
-    }
-    if (!live.control) {
-      if (game.mode === 'team') { const t = S.shuffle(Object.values(S.state.teams))[0]; live.control = t ? 't:' + t.id : null; }
-      else { const p = S.shuffle(Object.values(S.state.players))[0]; live.control = p ? 'p:' + p.id : null; }
-    }
+  order(game) {
+    if (game.mode === 'team') return Object.values(S.state.teams).map((t) => 't:' + t.id);
+    return Object.values(S.state.players).map((p) => 'p:' + p.id);
   },
-
-  advance(live) {
-    const next = live.buzzes.find((b) => !live.locked.includes(b.key));
-    live.active = next ? next.key : null;
-    live.answerUntil = live.active && !live.ddActive ? now() + jeopardy.ANSWER_MS : null;
+  at(live, game) {
+    const keys = jeopardy.order(game);
+    if (!keys.length) return null;
+    const i = ((live.turn || 0) % keys.length + keys.length) % keys.length;
+    return keys[i];
   },
-
-  maxWager(live, game) {
-    const top = Math.max(...game.content.categories.flatMap((c) => c.clues.map((cl) => cl.value)));
-    const e = S.parseEntity(live.control);
-    let score = 0;
-    if (e && e.kind === 'team') { const t = S.teamsView().find((x) => x.id === e.id); score = t ? t.gamePoints : 0; }
-    else if (e) {
-      score = S.state.ledger.filter((x) => x.playerId === e.id && x.gameId === game.id).reduce((n, x) => n + x.amount, 0);
-    }
-    return Math.max(top, score);
+  advance(live, game) {
+    const n = jeopardy.order(game).length || 1;
+    live.turn = ((live.turn || 0) + 1) % n;
   },
 
   host(live, game, a) {
-    jeopardy.ensureSetup(live, game);
+    if (!['board', 'clue', 'answer'].includes(live.phase)) { live.phase = 'board'; live.cur = null; }
     const key = live.cur ? `${live.cur.c}-${live.cur.i}` : null;
     switch (a.type) {
       case 'pick': {
+        if (live.phase !== 'board') return;
         const k = `${a.c}-${a.i}`;
         const cat = game.content.categories[a.c];
         if (!cat || !cat.clues[a.i] || live.used[k]) return;
-        const isDD = live.dd.includes(k) && live.control;
-        Object.assign(live, { phase: isDD ? 'dd' : 'clue', cur: { c: a.c, i: a.i }, buzzOpen: false, buzzes: [], locked: [], active: null, openedAt: null, answerUntil: null, last: null, early: {}, wager: null, ddActive: false });
-        if (isDD) S.announce({ emoji: '💎', title: 'DAILY DOUBLE!', text: `${(S.entityInfo(live.control) || {}).name || 'The team in control'} — make your wager!`, kind: 'dd', ms: 3500 });
-        break;
-      }
-      case 'wager': {
-        if (live.phase !== 'dd') return;
-        const max = jeopardy.maxWager(live, game);
-        live.wager = Math.max(100, Math.min(max, Math.round(Number(a.amount) / 50) * 50 || 100));
-        live.ddActive = true;
-        live.active = live.control;
+        const who = jeopardy.at(live, game);
+        if (!who) throw new Error('Add teams first, then pick a clue.');
         live.phase = 'clue';
+        live.cur = { c: Number(a.c), i: Number(a.i) };
+        live.active = who;
+        live.last = null;
         break;
       }
-      case 'openBuzz': if (live.phase === 'clue' && !live.ddActive) { live.buzzOpen = true; live.openedAt = now(); } break;
-      case 'setControl': if (S.entityInfo(a.key)) live.control = a.key; break;
-      case 'correct': {
-        if (!live.active || live.phase !== 'clue') return;
-        const clue = jeopardy.clue(game, live.cur);
-        const value = live.ddActive ? live.wager : clue.value;
-        S.awardEntity(live.active, value, `${game.title}: ${game.content.categories[live.cur.c].name} ${live.ddActive ? '💎 Daily Double' : clue.value}`, game.id);
-        const buzzer = live.buzzes.find((b) => b.key === live.active);
-        if (buzzer) S.stat(buzzer.pid).buzzWins++;
-        live.used[key] = { by: live.active, value };
-        live.last = { key: live.active, correct: true, value, dd: live.ddActive };
-        live.control = live.active; // correct answer takes control of the board
-        live.phase = 'answer';
-        live.buzzOpen = false;
-        live.answerUntil = null;
+      case 'setTurn': {
+        if (live.phase !== 'board') return;
+        const i = jeopardy.order(game).indexOf(a.key);
+        if (i >= 0) live.turn = i;
         break;
       }
-      case 'wrong': {
-        if (!live.active || live.phase !== 'clue') return;
-        const clue = jeopardy.clue(game, live.cur);
-        if (live.ddActive) {
-          S.awardEntity(live.active, -live.wager, `${game.title}: 💎 Daily Double`, game.id);
-          live.used[key] = { by: null };
-          live.last = { key: live.active, correct: false, value: live.wager, dd: true };
-          live.phase = 'answer';
-          live.answerUntil = null;
-          break;
-        }
-        if (game.content.wrongPenalty) S.awardEntity(live.active, -clue.value, `${game.title}: wrong answer`, game.id);
-        live.last = { key: live.active, correct: false, value: clue.value };
-        live.locked.push(live.active);
-        jeopardy.advance(live);
-        break;
-      }
+      case 'correct':
+      case 'wrong':
       case 'reveal': {
-        if (!live.cur) return;
-        live.used[key] = live.used[key] || { by: null };
+        if (live.phase !== 'clue' || !live.cur) return;
+        const clue = jeopardy.clue(game, live.cur);
+        const who = live.active;
+        const catName = game.content.categories[live.cur.c].name;
+        const correct = a.type === 'correct';
+        if (correct) {
+          S.awardEntity(who, clue.value, `${game.title}: ${catName} ${clue.value}`, game.id);
+          const e = S.parseEntity(who);
+          const members = e && e.kind === 'team' ? S.teamMembers(e.id) : [S.state.players[e && e.id]].filter(Boolean);
+          members.forEach((p) => { S.stat(p.id).buzzWins++; });
+        }
+        live.used[key] = { by: correct ? who : null, value: correct ? clue.value : 0 };
+        live.last = { key: who, correct, value: clue.value };
         live.phase = 'answer';
-        live.buzzOpen = false;
-        live.answerUntil = null;
+        jeopardy.advance(live, game);
         break;
       }
-      case 'board': Object.assign(live, { phase: 'board', cur: null, buzzOpen: false, buzzes: [], locked: [], active: null, answerUntil: null, wager: null, ddActive: false }); break;
+      case 'board':
+        live.phase = 'board';
+        live.cur = null;
+        live.active = null;
+        break;
       default:
     }
   },
 
-  player(live, game, p, a) {
-    if (a.type !== 'buzz') return;
-    if (live.phase !== 'clue' || live.ddActive) throw new Error('No buzzing right now.');
-    const key = S.entityKeyFor(p, game);
-    if (!key) throw new Error('You are not on a team yet — ask the host.');
-    if (!live.buzzOpen) {
-      live.early = live.early || {};
-      if (!live.early[key]) {
-        live.early[key] = now();
-        const who = S.entityInfo(key);
-        if (who) S.announce({ emoji: '⏳', title: `${who.name} jumped the gun`, text: 'Buzzers are still closed.', kind: 'jump', ms: 2200 });
-      }
-      return;
-    }
-    if (live.early && live.early[key] && now() < live.openedAt + jeopardy.EARLY_LOCK) throw new Error('Too early! Locked for a moment…');
-    if (live.locked.includes(key)) throw new Error('Your buzz is locked for this clue.');
-    if (live.buzzes.some((b) => b.key === key)) return;
-    live.buzzes.push({ key, pid: p.id, ms: now() - live.openedAt });
-    if (!live.active) jeopardy.advance(live);
+  player() {
+    throw new Error('No buzzers — answer out loud when your team is up.');
   },
 
   view(live, game, viewer) {
-    jeopardy.ensureSetup(live, game);
+    if (!['board', 'clue', 'answer'].includes(live.phase)) live.phase = 'board';
+    const upKey = live.phase === 'clue' ? live.active : jeopardy.at(live, game);
     const cats = game.content.categories.map((c, ci) => ({
       name: c.name,
-      clues: c.clues.map((cl, i) => ({ value: cl.value, used: Boolean(live.used[`${ci}-${i}`]), by: live.used[`${ci}-${i}`] ? live.used[`${ci}-${i}`].by : null, dd: viewer.host ? live.dd.includes(`${ci}-${i}`) : undefined })),
+      clues: c.clues.map((cl, i) => ({ value: cl.value, used: Boolean(live.used[`${ci}-${i}`]), by: live.used[`${ci}-${i}`] ? live.used[`${ci}-${i}`].by : null })),
     }));
-    const clue = live.cur ? jeopardy.clue(game, live.cur) : null;
+    const clue = live.cur && live.phase !== 'board' ? jeopardy.clue(game, live.cur) : null;
     const v = {
-      phase: live.phase, categories: cats, cur: live.cur, buzzOpen: live.buzzOpen, openedAt: live.openedAt,
-      clue: clue ? { q: clue.q, value: live.ddActive ? live.wager : clue.value, category: game.content.categories[live.cur.c].name, a: live.phase === 'answer' || viewer.host ? clue.a : null } : null,
-      buzzes: live.buzzes.map((b) => ({ ...S.entityInfo(b.key), pid: b.pid, buzzerName: S.state.players[b.pid] ? S.state.players[b.pid].name : '', ms: b.ms })),
-      active: live.active ? S.entityInfo(live.active) : null,
-      control: live.control ? S.entityInfo(live.control) : null,
-      dd: live.phase === 'dd' || live.ddActive, wager: live.wager, answerUntil: live.answerUntil || null,
-      locked: live.locked, last: live.last ? { ...live.last, info: S.entityInfo(live.last.key) } : null,
+      phase: live.phase,
+      categories: cats,
+      cur: live.phase === 'board' ? null : live.cur,
+      clue: clue ? { q: clue.q, value: clue.value, category: game.content.categories[live.cur.c].name, a: live.phase === 'answer' || viewer.host ? clue.a : null } : null,
+      turn: upKey ? S.entityInfo(upKey) : null,
+      last: live.last && live.phase === 'answer' ? { ...live.last, info: S.entityInfo(live.last.key) } : null,
       entities: Object.fromEntries(Object.values(live.used).filter((u) => u.by).map((u) => [u.by, S.entityInfo(u.by)])),
     };
-    if (viewer.host) v.maxWager = jeopardy.maxWager(live, game);
     if (viewer.player) {
-      const key = S.entityKeyFor(viewer.player, game);
-      v.mine = { key, locked: live.locked.includes(key), buzzed: live.buzzes.some((b) => b.key === key), active: live.active === key,
-        early: Boolean(live.early && live.early[key]), inControl: live.control === key,
-        position: live.buzzes.findIndex((b) => b.key === key) + 1 };
+      const mine = S.entityKeyFor(viewer.player, game);
+      v.mine = { key: mine, up: Boolean(mine && upKey === mine), earned: v.last && v.last.correct && v.last.key === mine ? v.last.value : 0 };
     }
     return v;
   },
 };
 
 // ======================= KBC =======================
+// Solo. Every question is open to the whole room. The fastest right answer gets the full
+// value, and each later right answer gets less.
+function placePoints(full, rank) {
+  let pts = full;
+  for (let i = 0; i < rank; i++) {
+    const next = Math.round((pts * 0.7) / 10) * 10;
+    pts = next < pts ? next : pts - 10;
+  }
+  return Math.max(10, pts);
+}
+
 const kbc = {
-  init: () => ({ phase: 'idle', seatCount: 0, ffIndex: -1, ff: null, hot: null, history: [] }),
-  currentQ: (game, hot) => {
-    const qs = game.content.ladder[hot.qLevel].questions;
-    // Never ask the hot-seat guest a personal question about themselves.
-    for (let k = 0; k < qs.length; k++) {
-      const q = qs[(hot.seat + k) % qs.length];
-      const who = q.involves || (q.about ? [q.about] : []);
-      if (!who.includes(hot.pid)) return q;
+  init: () => ({ phase: 'idle', qIndex: -1, answers: {}, result: null }),
+  list(game) {
+    const out = [];
+    (game.content.ladder || []).forEach((level) => {
+      (level.questions || []).forEach((q) => out.push({ ...q, points: level.points || 100, time: q.time || 20 }));
+    });
+    return out;
+  },
+  close(live, game) {
+    if (live.phase !== 'question' || live.result) return;
+    const q = kbc.list(game)[live.qIndex];
+    if (!q) return;
+    const correct = Object.entries(live.answers).filter(([, a]) => a.choice === q.answer).sort((a, b) => a[1].at - b[1].at);
+    const ranking = correct.map(([pid, a], rank) => {
+      const paid = S.award(pid, placePoints(q.points, rank), `${game.title}: #${rank + 1}`, game.id) || 0;
+      if (rank === 0) S.stat(pid).fastest++;
+      S.stat(pid).correct++;
+      S.stat(pid).answered++;
+      S.stat(pid).kbcBest = Math.max(S.stat(pid).kbcBest, paid);
+      return { id: pid, ms: Math.max(0, a.at - live.opensAt), points: paid, rank: rank + 1 };
+    });
+    Object.keys(live.answers).forEach((pid) => { if (!correct.some(([id]) => id === pid)) S.stat(pid).answered++; });
+    live.result = { answer: q.answer, points: q.points, counts: countBy(live.answers, q.options.length), ranking };
+    live.phase = 'reveal';
+  },
+
+  host(live, game, a) {
+    if (!['idle', 'question', 'reveal', 'done'].includes(live.phase)) {
+      Object.assign(live, { phase: 'idle', qIndex: -1, answers: {}, result: null });
     }
-    return qs[hot.seat % qs.length];
-  },
-  safeAmount(game, levelReached) {
-    let amt = 0;
-    game.content.ladder.forEach((l, i) => { if (l.safe && i < levelReached) amt = l.points; });
-    return amt;
-  },
-
-  finish(live, game, winnings, outcome) {
-    const hot = live.hot;
-    hot.status = outcome;
-    hot.winnings = winnings;
-    hot.qPhase = 'over';
-    if (winnings > 0) S.award(hot.pid, winnings, `${game.title} hot seat`, game.id);
-    S.stat(hot.pid).kbcBest = Math.max(S.stat(hot.pid).kbcBest, winnings);
-    const p = S.state.players[hot.pid];
-    live.history.push({ pid: hot.pid, winnings, level: hot.level, outcome });
-    const lines = { won: `${p.name} conquered the whole ladder — ${winnings} points! 🏆`, walked: `${p.name} walks away with ${winnings} points.`, wrong: `${p.name} leaves the hot seat with ${winnings} points.` };
-    S.announce({ emoji: outcome === 'won' ? '🏆' : '💰', title: outcome === 'won' ? 'CROREPATI!' : 'HOT SEAT OVER', text: lines[outcome], kind: 'kbc' });
-  },
-
-  resume(live, game, ctx) {
-    if (live.phase === 'ff' && live.ff) schedule('kbc-ff', live.ff.deadline + 300, () => kbc.ffClose(live, game));
-    if (live.hot && live.hot.poll && live.hot.poll.open) schedule('kbc-poll', live.hot.poll.deadline, () => { live.hot.poll.open = false; });
-  },
-
-  ffClose(live, game) {
-    if (live.phase !== 'ff') return;
-    const q = game.content.fastestFinger[live.ff.qi];
-    const correct = Object.entries(live.ff.answers).filter(([, a]) => a.choice === q.answer).sort((a, b) => a[1].at - b[1].at);
-    live.ff.ranking = correct.map(([pid, a]) => ({ id: pid, ms: a.at - live.ff.opensAt }));
-    live.ff.winner = correct.length ? correct[0][0] : null;
-    if (live.ff.winner) S.stat(live.ff.winner).ffWins++;
-    live.ff.counts = countBy(live.ff.answers, q.options.length);
-    live.phase = 'ff-result';
-  },
-
-  host(live, game, a, ctx) {
-    const hot = live.hot;
+    const qs = kbc.list(game);
     switch (a.type) {
-      case 'ff': {
-        const pool = game.content.fastestFinger || [];
-        if (!pool.length) throw new Error('No Fastest Finger questions configured.');
-        live.ffIndex = (live.ffIndex + 1) % pool.length;
-        const q = pool[live.ffIndex];
-        const opensAt = showOpen(2800);
-        live.ff = { qi: live.ffIndex, opensAt, deadline: opensAt + (q.time || 15) * 1000, answers: {}, winner: null };
-        live.phase = 'ff';
-        live.hot = null;
-        kbc.resume(live, game, ctx);
+      case 'next': {
+        const n = (live.qIndex == null ? -1 : live.qIndex) + 1;
+        if (n >= qs.length) { live.phase = 'done'; live.result = null; return; }
+        const q = qs[n];
+        const opensAt = showOpen(1800);
+        live.qIndex = n;
+        live.answers = {};
+        live.result = null;
+        live.opensAt = opensAt;
+        live.deadline = opensAt + (q.time || 20) * 1000;
+        live.phase = 'question';
         break;
       }
-      case 'ffClose': kbc.ffClose(live, game); break;
-      case 'seat': {
-        const pid = a.playerId || (live.ff && live.ff.winner);
-        if (!pid || !S.state.players[pid]) throw new Error('Pick a player for the hot seat.');
-        live.hot = { pid, seat: live.seatCount++, level: 0, qLevel: 0, qPhase: 'question', locked: null, removed: [], poll: null, phoneUntil: null,
-          lifelines: { fifty: true, poll: true, phone: true }, status: 'playing' };
-        live.phase = 'hot';
-        const p = S.state.players[pid];
-        S.announce({ emoji: '🪑', title: 'HOT SEAT!', text: `${p.name}, welcome to Kaun Banega Crorepati!`, kind: 'kbc', ms: 4000 });
-        break;
-      }
-      case 'lock': if (hot && hot.qPhase === 'question') hot.locked = Number(a.choice); break;
-      case 'unlock': if (hot && hot.qPhase === 'question') hot.locked = null; break;
-      case 'reveal': {
-        if (!hot || hot.qPhase !== 'question' || hot.locked == null) throw new Error('No answer locked yet.');
-        const q = kbc.currentQ(game, hot);
-        hot.correct = hot.locked === q.answer;
-        hot.answer = q.answer;
-        hot.qPhase = 'reveal';
-        // Audience predictions (everyone plays along, Catan-style): calling it right earns +25.
-        const preds = hot.predictions || {};
-        const right = Object.entries(preds).filter(([, v]) => (v === 'sahi') === hot.correct).map(([pid]) => pid);
-        right.forEach((pid) => S.award(pid, 25, '🔮 Called it in KBC', game.id, { noDouble: true }));
-        hot.predResult = { right, total: Object.keys(preds).length };
-        if (hot.correct) {
-          hot.level++;
-          if (hot.level >= game.content.ladder.length) kbc.finish(live, game, game.content.ladder[hot.level - 1].points, 'won');
-        } else {
-          kbc.finish(live, game, kbc.safeAmount(game, hot.level), 'wrong');
-          hot.qPhase = 'over';
-        }
-        break;
-      }
-      case 'nextQ': if (hot && hot.qPhase === 'reveal' && hot.status === 'playing') Object.assign(hot, { qLevel: hot.level, qPhase: 'question', locked: null, removed: [], poll: null, phoneUntil: null, correct: null, answer: null, predictions: {}, predResult: null }); break;
-      case 'walk': kbc.walk(live, game); break;
-      case 'lifeline': kbc.lifeline(live, game, a.name, ctx); break;
-      case 'idle': live.phase = 'idle'; live.hot = null; live.ff = null; break;
+      case 'reveal': kbc.close(live, game); break;
       default:
     }
   },
 
-  walk(live, game) {
-    const hot = live.hot;
-    if (!hot || hot.status !== 'playing' || hot.qPhase !== 'question') throw new Error('Cannot walk away right now.');
-    const winnings = hot.level > 0 ? game.content.ladder[hot.level - 1].points : 0;
-    hot.answer = kbc.currentQ(game, hot).answer;
-    kbc.finish(live, game, winnings, 'walked');
-  },
-
-  lifeline(live, game, name, ctx) {
-    const hot = live.hot;
-    if (!hot || hot.qPhase !== 'question' || hot.locked != null) throw new Error('Lifelines are not available right now.');
-    if (!hot.lifelines[name]) throw new Error('That lifeline is used up.');
-    hot.lifelines[name] = false;
-    const q = kbc.currentQ(game, hot);
-    const p = S.state.players[hot.pid];
-    if (name === 'fifty') {
-      hot.removed = pickWrong(q, 2);
-      S.announce({ emoji: '✂️', title: '50 : 50', text: 'Two wrong answers vanish!', kind: 'kbc', ms: 3000 });
-    } else if (name === 'poll') {
-      hot.poll = { open: true, votes: {}, deadline: now() + 20000 };
-      S.announce({ emoji: '📊', title: 'AUDIENCE POLL', text: `Everyone — vote on your phones to help ${p.name}!`, kind: 'kbc', ms: 4000 });
-      kbc.resume(live, game, ctx);
-    } else if (name === 'phone') {
-      hot.phoneUntil = now() + 45000;
-      S.announce({ emoji: '📞', title: 'PHONE A FRIEND', text: `${p.name} gets 45 seconds to ask any one guest!`, kind: 'kbc', ms: 4000 });
-    }
-  },
-
   player(live, game, p, a, ctx) {
-    const hot = live.hot;
-    if (a.type === 'ffAnswer') {
-      if (live.phase !== 'ff') throw new Error('Too late!');
-      const t = now();
-      if (t < live.ff.opensAt || t > live.ff.deadline + 250 || live.ff.answers[p.id]) return;
-      live.ff.answers[p.id] = { choice: Number(a.choice), at: t };
-      if (onlineAnsweredAll(live.ff.answers, ctx.online)) kbc.ffClose(live, game);
-    } else if (a.type === 'lock') {
-      if (!hot || hot.pid !== p.id || hot.qPhase !== 'question') return;
-      const c = Number(a.choice);
-      if (hot.removed.includes(c)) return;
-      hot.locked = c;
-      S.pushFeed({ emoji: '🔒', text: `${p.name}: "Lock kiya jaaye!"` });
-    } else if (a.type === 'lifeline') {
-      if (!hot || hot.pid !== p.id) return;
-      kbc.lifeline(live, game, a.name, ctx);
-    } else if (a.type === 'walk') {
-      if (!hot || hot.pid !== p.id) return;
-      kbc.walk(live, game);
-    } else if (a.type === 'predict') {
-      if (!hot || hot.qPhase !== 'question' || hot.pid === p.id) return;
-      hot.predictions = hot.predictions || {};
-      hot.predictions[p.id] = a.pick === 'galat' ? 'galat' : 'sahi';
-    } else if (a.type === 'pollVote') {
-      if (!hot || !hot.poll || !hot.poll.open || hot.pid === p.id) return;
-      hot.poll.votes[p.id] = Number(a.choice);
-      const others = [...ctx.online].filter((x) => x !== hot.pid && S.state.players[x]);
-      if (others.every((x) => hot.poll.votes[x] !== undefined)) hot.poll.open = false;
-    }
+    if (a.type !== 'answer') return;
+    if (live.phase !== 'question') throw new Error('Too late!');
+    const t = now();
+    if (t < live.opensAt || t > live.deadline + 250 || live.answers[p.id]) return;
+    const q = kbc.list(game)[live.qIndex];
+    const choice = Number(a.choice);
+    if (!q || !Number.isInteger(choice) || choice < 0 || choice >= q.options.length) return;
+    live.answers[p.id] = { choice, at: t };
+    if (onlineAnsweredAll(live.answers, ctx.online)) kbc.close(live, game);
   },
 
   view(live, game, viewer) {
-    const ladder = game.content.ladder.map((l) => ({ points: l.points, safe: Boolean(l.safe) }));
-    const v = { phase: live.phase, ladder, history: live.history };
-    if (live.ff && (live.phase === 'ff' || live.phase === 'ff-result')) {
-      const q = game.content.fastestFinger[live.ff.qi];
-      v.ff = { question: publicQ(q), opensAt: live.ff.opensAt, deadline: live.ff.deadline, answered: Object.keys(live.ff.answers).length, answeredIds: Object.keys(live.ff.answers),
-        result: live.phase === 'ff-result' ? { answer: q.answer, winner: live.ff.winner, ranking: live.ff.ranking, counts: live.ff.counts } : null };
-      if (viewer.player) {
-        const a = live.ff.answers[viewer.player.id];
-        v.ff.mine = a ? a.choice : null;
-      }
-    }
-    if (live.hot) {
-      const hot = live.hot;
-      const q = kbc.currentQ(game, hot);
-      const showAnswer = hot.qPhase !== 'question';
-      v.hot = {
-        pid: hot.pid, level: hot.level, qPhase: hot.qPhase, locked: hot.locked, removed: hot.removed, lifelines: hot.lifelines,
-        status: hot.status, winnings: hot.winnings, correct: hot.correct, answer: showAnswer ? hot.answer : null,
-        phoneUntil: hot.phoneUntil, question: q ? publicQ(q) : null,
-        questionLevel: hot.qLevel,
-        poll: hot.poll ? { open: hot.poll.open, deadline: hot.poll.deadline, counts: countBy(Object.fromEntries(Object.entries(hot.poll.votes).map(([k, c]) => [k, { choice: c }])), 4), votes: Object.keys(hot.poll.votes).length } : null,
-        safe: kbc.safeAmount(game, hot.level),
-      };
-      if (viewer.host && q) v.hot.answerKey = q.answer;
-      if (viewer.player && hot.poll) v.hot.myVote = hot.poll.votes[viewer.player.id];
-      const preds = Object.values(hot.predictions || {});
-      v.hot.predCounts = { sahi: preds.filter((x) => x === 'sahi').length, galat: preds.filter((x) => x === 'galat').length };
-      v.hot.predResult = hot.predResult || null;
-      if (viewer.player) { v.hot.myPrediction = (hot.predictions || {})[viewer.player.id] || null; v.hot.iCalledIt = Boolean(hot.predResult && hot.predResult.right.includes(viewer.player.id)); }
+    if (!['idle', 'question', 'reveal', 'done'].includes(live.phase)) live.phase = 'idle';
+    const qs = kbc.list(game);
+    const q = live.qIndex >= 0 ? qs[live.qIndex] : null;
+    const showQ = q && (live.phase === 'question' || live.phase === 'reveal');
+    const v = {
+      phase: live.phase, qIndex: live.qIndex, total: qs.length,
+      points: q ? q.points : 0,
+      opensAt: live.opensAt || null, deadline: live.deadline || null,
+      answered: Object.keys(live.answers || {}).length,
+      answeredIds: Object.keys(live.answers || {}),
+      question: showQ ? publicQ(q) : null,
+      result: live.phase === 'reveal' && live.result ? live.result : null,
+    };
+    if (viewer.host && q && showQ) v.answerKey = q.answer;
+    if (viewer.player) {
+      const mine = (live.answers || {})[viewer.player.id];
+      const row = live.result && live.result.ranking.find((r) => r.id === viewer.player.id);
+      v.mine = { choice: mine ? mine.choice : null, rank: row ? row.rank : null, points: row ? row.points : 0 };
     }
     return v;
   },
 };
+
 
 // ======================= HOOK STEP CHALLENGE =======================
 const hookstep = {
@@ -539,6 +384,11 @@ const hookstep = {
         if (!perf) throw new Error('Pick who is up first.');
         let pool = songs.map((_, i) => i).filter((i) => !live.usedSongs.includes(i));
         if (!pool.length) pool = songs.map((_, i) => i);
+        // Easy songs come up first, then medium, then hard, so the night builds.
+        const RANK = { easy: 0, medium: 1, hard: 2 };
+        const rank = (i) => RANK[songs[i].level] ?? 1;
+        const lowest = Math.min(...pool.map(rank));
+        pool = pool.filter((i) => rank(i) === lowest);
         perf.songIndex = pool[crypto.randomInt(pool.length)];
         live.phase = 'spin';
         live.spinUntil = now() + 4200;
@@ -549,7 +399,7 @@ const hookstep = {
         if (!live.usedSongs.includes(perf.songIndex)) live.usedSongs.push(perf.songIndex);
         live.phase = 'perform';
         live.startedAt = now();
-        live.until = now() + (game.content.performSeconds || 45) * 1000;
+        live.until = now() + (game.content.performSeconds || 25) * 1000;
         break;
       }
       case 'stop': if (live.phase === 'perform') live.phase = 'judge'; break;
@@ -581,6 +431,7 @@ const hookstep = {
         live.phase = 'scored';
         break;
       }
+      case 'showStep': live.showStep = !live.showStep; break;
       case 'reset': live.phase = 'idle'; live.perf = null; break;
       default:
     }
@@ -603,11 +454,17 @@ const hookstep = {
     const team = perf && perf.team ? S.entityInfo(perf.team) : null;
     const v = {
       phase: live.phase, until: live.until, startedAt: live.startedAt, spinUntil: live.spinUntil, bonus: hookstep.bonus(game),
-      songs: songs.map((x) => x.title),
+      showStep: Boolean(live.showStep),
+      // Only the host sees song names ahead of time. Everyone else finds out when the blur lifts.
+      songs: viewer.host ? songs.map((x) => x.title) : [],
       perf: perf ? {
         team,
         members: perf.team ? S.teamMembers(S.parseEntity(perf.team).id).map((m) => pinfo(m.id)) : null,
-        song: perf.songIndex != null && live.phase !== 'spin' ? songs[perf.songIndex] : null,
+        song: (() => {
+          const hidden = !viewer.host && (live.phase === 'spin' || live.phase === 'ready' || (live.phase === 'perform' && now() < live.until));
+          const raw = perf.songIndex != null && !hidden ? songs[perf.songIndex] : null;
+          return raw ? { ...raw, step: (live.showStep || viewer.host) ? raw.step : '' } : null;
+        })(),
         dancers: perf.dancers.map(pinfo).filter(Boolean),
         stars: perf.stars, applause: perf.applause, measure: perf.measure,
       } : null,
@@ -643,18 +500,8 @@ function tick(state) {
   const game = base && live.content ? { ...base, content: live.content } : base;
   if (!game) return;
   if (game.type === 'quiz' && live.phase === 'question' && t > live.deadline + 300) quiz.reveal(live, game);
-  if (game.type === 'jeopardy' && live.phase === 'clue' && !live.ddActive && live.answerUntil && t > live.answerUntil && live.active) {
-    live.answerUntil = null;
-    jeopardy.host(live, game, { type: 'wrong' });
-  }
-  if (game.type === 'kbc') {
-    if (live.phase === 'ff' && live.ff && t > live.ff.deadline + 300) kbc.ffClose(live, game);
-    if (live.hot && live.hot.poll && live.hot.poll.open && t > live.hot.poll.deadline) live.hot.poll.open = false;
-  }
-  if (game.type === 'hookstep') {
-    if (live.phase === 'perform' && t > live.until + 1500) live.phase = 'judge';
-    if (live.phase === 'spin' && t > live.spinUntil) live.phase = 'ready';
-  }
+  if (game.type === 'kbc' && live.phase === 'question' && live.deadline && t > live.deadline + 300) kbc.close(live, game);
+  if (game.type === 'hookstep' && live.phase === 'spin' && t > live.spinUntil) live.phase = 'ready';
 }
 
 // Earliest upcoming deadline, so clients know when to ask the server to tick.
@@ -664,11 +511,8 @@ function nextDeadline(state) {
   const live = state.live;
   if (live) {
     if (live.phase === 'question' && live.deadline) c.push(live.deadline + 400);
-    if (live.phase === 'clue' && live.answerUntil) c.push(live.answerUntil + 200);
-    if (live.phase === 'ff' && live.ff) c.push(live.ff.deadline + 400);
-    if (live.hot && live.hot.poll && live.hot.poll.open) c.push(live.hot.poll.deadline + 100);
-    if (live.phase === 'perform') c.push(live.until + 1600);
     if (live.phase === 'spin') c.push(live.spinUntil + 100);
+    if (live.phase === 'perform' && live.until) c.push(live.until + 150);
   }
   if (state.demo && state.demo.plan && state.demo.plan.acts.length) c.push(state.demo.plan.acts[0].at + 50);
   const future = c.filter((x) => x > now() - 5000);
