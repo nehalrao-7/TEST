@@ -10,12 +10,12 @@
     set(k, v) { try { localStorage.setItem(k, v); } catch { /* private mode */ } },
     del(k) { try { localStorage.removeItem(k); } catch { /* ignore */ } },
   };
-  const AVATARS = ['🪔', '🎆', '🐘', '🦚', '🐯', '🌺', '🪷', '🍬', '🎇', '🥭', '🌶️', '🦁', '🐒', '👑', '🪁', '🍵', '🌙', '⭐'];
-  const REACTS = ['🔥', '😂', '👏', '😱', '💃', '🪔'];
+  const AVATARS = ['🦊', '🐼', '🐸', '🦄', '🐯', '🐙', '🦖', '🍕', '🌮', '🍩', '🌵', '🦁', '🐵', '👑', '🚀', '🎸', '🌙', '⭐'];
+  const REACTS = ['🔥', '😂', '👏', '😱', '💃', '🎉'];
   let S = null, sock = null, momentKey = '', draft = null;
-  const ui = { avatar: store.get('dgn_avatar') || '🪔', name: store.get('dgn_name') || '', email: store.get('dgn_email') || '' };
+  const ui = { avatar: store.get('dgn_avatar') || '🦊', name: store.get('dgn_name') || '', email: store.get('dgn_email') || '' };
 
-  const av = (p) => `<span class="avatar" style="--c:${p.color || '#F2A33A'}">${esc(p.avatar || p.emoji || '🪔')}</span>`;
+  const av = (p) => `<span class="avatar" style="--c:${p.color || '#F2A33A'}">${esc(p.avatar || p.emoji || '🙂')}</span>`;
   const shape = (i) => `<span class="shape-ic">${App.shapes[i]}</span>`;
   const timer = (s, e) => `<div class="timer" data-start="${s}" data-end="${e}"><i></i></div>`;
   const center = (em, title, sub = '', extra = '') => `<div class="watch"><div class="watch-em">${em}</div><h2>${title}</h2>${sub ? `<p>${sub}</p>` : ''}${extra}</div>`;
@@ -51,7 +51,7 @@
         <input id="pin" inputmode="numeric" maxlength="4" placeholder="Rejoin code" aria-label="Rejoin code" />
         <button class="btn diya-btn big block" type="submit">${App.diya(true, 28)} Rejoin</button></form><button class="linkish" data-go="start">Back</button>`;
     }
-    app.innerHTML = `<div class="login"><div class="shell-card"><div class="breakout">${App.mascot()}</div><p class="greet">Happy Diwali</p><h1>Diwali Party</h1></div>${body}</div>`;
+    app.innerHTML = `<div class="login"><div class="shell-card"><div class="breakout">${App.mascot()}</div><p class="greet">Games night, sorted</p><h1>Party Pack</h1></div>${body}</div>`;
     app.querySelectorAll('[data-go]').forEach((b) => b.onclick = () => home(b.dataset.go));
     app.querySelectorAll('[data-av]').forEach((b) => b.onclick = () => { ui.avatar = b.dataset.av; app.querySelectorAll('[data-av]').forEach((x) => x.classList.toggle('on', x === b)); });
     const f = app.querySelector('#f');
@@ -100,7 +100,7 @@
     App.room = room;
     store.set('dgn_room', room); store.set('dgn_token', token); store.set('dgn_token_room', room);
     history.replaceState(null, '', '/play?room=' + room);
-    app.innerHTML = `<header class="ctl-head" id="hdr"></header><main class="moment-wrap"><div id="moment"><p class="greet">Lighting the diyas…</p></div></main>`;
+    app.innerHTML = `<header class="ctl-head" id="hdr"></header><main class="moment-wrap"><div id="moment"><p class="greet">Getting the party ready…</p></div></main>`;
     if (sock) sock.disconnect();
     sock = App.connect('player', token, (s) => { const first = !S; S = s; render(first); }, (msg) => {
       store.del('dgn_token'); store.del('dgn_token_room'); S = null;
@@ -145,7 +145,7 @@
     if (f.stage === 'standings') return standings();
     if (f.stage === 'awards' || f.stage === 'podium') return finale();
     const L = S.live;
-    if (!L) return ['wait', center('🪔', 'Next game coming up…'), 'watch'];
+    if (!L) return ['wait', center('🎉', 'Next game coming up…'), 'watch'];
     return ({ quiz: quizM, kbc: kbcM, jeopardy: jeoM, hookstep: hookM }[L.type] || (() => ['?', center('🎲', L.title), 'watch']))(L);
   }
 
@@ -221,7 +221,7 @@
     if (L.phase === 'question') {
       if (waiting) return [`q-get-${L.qIndex}`, head + qCard(q) + `<div class="countdown-big" data-count="${L.opensAt}"></div>`, 'none'];
       const hintPu = me().powerups.find((p) => p.type === 'hint' && !p.used);
-      const hintBtn = hintPu && m.choice == null && !m.hint ? `<button class="hint-pill" data-pu="${hintPu.id}">✨ Phuljhari Hint — remove 2</button>` : '';
+      const hintBtn = hintPu && m.choice == null && !m.hint ? `<button class="hint-pill" data-pu="${hintPu.id}">✂️ 50/50 — remove 2</button>` : '';
       return [`q-${L.qIndex}`, head + qCard(q) + pads(q.options, m.choice, m.hint) + (m.choice != null ? '<p class="center muted">Locked in! 🔒</p>' : hintBtn), 'none'];
     }
     const r = L.result || {};
@@ -236,7 +236,7 @@
 
   // =================== KBC ===================
   function kbcM(L) {
-    if (L.phase === 'idle') return ['k-intro', center('💰', 'Kaun Banega Crorepati', 'Everyone answers. Fastest right answer gets the full prize.'), 'watch'];
+    if (L.phase === 'idle') return ['k-intro', center('💰', 'Money Ladder', 'Everyone answers. Fastest right answer gets the full prize.'), 'watch'];
     if (L.phase === 'done') return ['k-done', center('🎆', 'That’s the last question!', 'Standings coming up…'), 'watch'];
     const q = L.question;
     if (!q) return ['k-wait', center('⏳', 'Next question…'), 'watch'];
@@ -280,7 +280,7 @@
   function hookM(L) {
     const p = L.perf;
     const m = L.mine || {};
-    if (L.phase === 'idle') return ['h-intro', center('💃', 'Hook Step Challenge', 'Each team gets a song. Dance the hook step! Everyone else rates you 1–5 diyas.'), 'watch'];
+    if (L.phase === 'idle') return ['h-intro', center('💃', 'Dance-Off', 'Each team gets a song. Bust out the signature move! Everyone else rates you 1–5 stars.'), 'watch'];
     if (L.phase === 'done') return ['h-done', center('🎆', 'What a dance floor!', 'Standings coming up…'), 'watch'];
     if (!p) return ['h-wait', center('🎵', 'Next song…'), 'watch'];
     const team = p.team ? `${esc(p.team.emoji)} ${esc(p.team.name)}` : '';
@@ -293,11 +293,11 @@
     if (L.phase === 'judge') {
       const song = p.song ? `<p class="center">🎵 ${esc(p.song.title)}</p>` : '';
       if (m.onStage) return [`h-judge-${L.results.length}`, center('🙏', 'The room is rating you…', `${p.votes} vote${p.votes === 1 ? '' : 's'} in`, song), 'watch'];
-      const stars = [1, 2, 3, 4, 5].map((n) => `<button class="star ${m.vote >= n ? 'on' : ''}" data-vote="${n}" ${m.vote ? 'disabled' : ''} aria-label="${n} diyas">🪔</button>`).join('');
+      const stars = [1, 2, 3, 4, 5].map((n) => `<button class="star ${m.vote >= n ? 'on' : ''}" data-vote="${n}" ${m.vote ? 'disabled' : ''} aria-label="${n} stars">⭐</button>`).join('');
       return [`h-judge-${L.results.length}-${m.vote || 0}`, `<div class="q-head"><span>Rate ${team}</span><b data-count="${L.until}"></b></div>${song}<div class="stars-row">${stars}</div>${m.vote ? '<p class="center muted">Thanks! Vote locked.</p>' : ''}`, 'watch'];
     }
     const last = L.last || {};
-    return [`h-scored-${L.results.length}`, center('🏆', `${team}: ${'🪔'.repeat(last.stars || 0)}`, `+${last.teamPoints || 0} each${last.dancers && last.dancers.length ? ` · ${last.dancers.length} brave dancer${last.dancers.length > 1 ? 's' : ''} +${last.bonus}` : ''}`), 'watch'];
+    return [`h-scored-${L.results.length}`, center('🏆', `${team}: ${'⭐'.repeat(last.stars || 0)}`, `+${last.teamPoints || 0} each${last.dancers && last.dancers.length ? ` · ${last.dancers.length} brave dancer${last.dancers.length > 1 ? 's' : ''} +${last.bonus}` : ''}`), 'watch'];
   }
 
   // =================== BETWEEN GAMES / FINALE ===================
@@ -411,7 +411,7 @@
     if (el('[data-tv]')) { tvLink(); return; }
     if (el('[data-share]')) {
       const url = `${location.origin}/play?room=${S.code}`;
-      if (navigator.share) navigator.share({ title: 'Diwali Party', text: `Join my Diwali Party! Room ${S.code}`, url }).catch(() => {});
+      if (navigator.share) navigator.share({ title: 'Party Pack', text: `Join my Party Pack game! Room ${S.code}`, url }).catch(() => {});
       else navigator.clipboard.writeText(url).then(() => App.toast('Link copied'));
       return;
     }

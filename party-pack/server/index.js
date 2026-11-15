@@ -21,5 +21,5 @@ app.all('/api/*', async (req, res) => {
 
 const PORT = Number(process.env.PORT) || 3000;
 app.listen(PORT, () => {
-  console.log(`\n🪔  Diwali Party on http://localhost:${PORT}  (phones /play · TV /tv)\n`);
+  console.log(`\n🎉  Party Pack on http://localhost:${PORT}  (phones /play · TV /tv)\n`);
 });

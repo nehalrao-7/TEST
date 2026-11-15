@@ -137,25 +137,29 @@
       return data;
     },
 
-    // Drifting embers + the marigold toran across the top.
+    // Party popper with confetti: the Party Pack mark.
     mascot() {
       return `<svg class="mascot-svg" viewBox="0 0 200 160" aria-hidden="true">
         <defs>
-          <radialGradient id="mascotGlow" cx="50%" cy="42%" r="52%"><stop offset="0" stop-color="#FFD36E" stop-opacity=".85"/><stop offset="1" stop-color="#F2A33A" stop-opacity="0"/></radialGradient>
-          <linearGradient id="mascotBowl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFD36E"/><stop offset=".5" stop-color="#F2A33A"/><stop offset="1" stop-color="#D98A24"/></linearGradient>
+          <radialGradient id="mascotGlow" cx="50%" cy="45%" r="55%"><stop offset="0" stop-color="#FFB020" stop-opacity=".55"/><stop offset="1" stop-color="#FF5A8A" stop-opacity="0"/></radialGradient>
+          <linearGradient id="popCone" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFD166"/><stop offset="1" stop-color="#FF8A3D"/></linearGradient>
         </defs>
-        <ellipse cx="100" cy="86" rx="74" ry="42" fill="url(#mascotGlow)"/>
-        <circle cx="42" cy="34" r="3" fill="#FFD36E"/><circle cx="158" cy="26" r="2.4" fill="#FFF3C4"/><circle cx="172" cy="64" r="2" fill="#F2A33A"/><circle cx="30" cy="72" r="2" fill="#E35D4F"/>
-        <path d="M36 112 Q100 158 164 112 Q140 126 100 126 Q60 126 36 112Z" fill="url(#mascotBowl)"/>
-        <path d="M36 112 Q100 98 164 112 Q140 126 100 126 Q60 126 36 112Z" fill="#D98A24"/>
-        <path d="M150 110 Q174 98 178 84 Q164 100 146 106Z" fill="#F2A33A"/>
-        <g class="flame"><path d="M100 22 C120 56 118 86 100 96 C82 86 80 56 100 22Z" fill="#F2A33A"/><path d="M100 46 C112 66 110 82 100 88 C90 82 88 66 100 46Z" fill="#FFF3C4"/></g>
+        <ellipse cx="100" cy="82" rx="80" ry="58" fill="url(#mascotGlow)"/>
+        <path d="M58 140 L84 62 L136 114 Z" fill="url(#popCone)"/>
+        <path d="M71 101 L104 134 M77 82 L118 123" stroke="#FF5A8A" stroke-width="7" stroke-linecap="round"/>
+        <g class="flame">
+          <rect x="112" y="30" width="10" height="18" rx="3" fill="#4CC9F0" transform="rotate(25 117 39)"/>
+          <rect x="140" y="52" width="10" height="18" rx="3" fill="#FF5A8A" transform="rotate(-35 145 61)"/>
+          <circle cx="96" cy="34" r="6" fill="#FFD166"/><circle cx="152" cy="86" r="6" fill="#7BE07B"/>
+          <path d="M128 18 l4 8 9 1 -7 6 2 9 -8-5 -8 5 2-9 -7-6 9-1z" fill="#FFD166"/>
+          <circle cx="164" cy="40" r="4" fill="#B388FF"/><circle cx="80" cy="44" r="3.5" fill="#4CC9F0"/>
+        </g>
       </svg>`;
     },
 
     sparkles(n = 40) {
       if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-      if (!document.querySelector('.toran') && !document.body.classList.contains('no-toran')) {
+      if (false) {
         const t = document.createElement('div');
         t.className = 'toran';
         document.body.prepend(t);
@@ -174,25 +178,21 @@
       document.body.prepend(box);
     },
 
-    // Option shapes: diya · lotus · star · moon (colour-blind friendly, matches TV & phone)
+    // Option shapes: triangle · diamond · circle · square (colour-blind friendly, matches TV & phone)
     shapes: [
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12.5h19c-1 4.8-4.8 7.5-9.5 7.5s-8.5-2.7-9.5-7.5z"/><path d="M12 2.2c2.8 3.3 3.1 6.4 0 8.6-3.1-2.2-2.8-5.3 0-8.6z"/></svg>',
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5c2.2 2.6 2.8 6 0 10.5-2.8-4.5-2.2-7.9 0-10.5z"/><path d="M3.5 8.5c3.3.4 5.9 2.6 7.6 6.6-3.9.6-6.9-1.4-7.6-6.6zM20.5 8.5c-.7 5.2-3.7 7.2-7.6 6.6 1.7-4 4.3-6.2 7.6-6.6z"/><path d="M2.5 16.5h19c-1.9 2.8-5.6 4.2-9.5 4.2s-7.6-1.4-9.5-4.2z"/></svg>',
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 1.5l2.6 4.3 4.9-1.1-1.1 4.9 4.3 2.6-4.3 2.6 1.1 4.9-4.9-1.1L12 22.5l-2.6-4.4-4.9 1.1 1.1-4.9L1.3 12l4.3-2.6-1.1-4.9 4.9 1.1z"/></svg>',
-      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.2 2.5a9.6 9.6 0 1 0 6.3 16.6A8 8 0 0 1 15.2 2.5z"/></svg>',
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 22 20H2z"/></svg>',
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 22 12 12 22 2 12z"/></svg>',
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.5"/></svg>',
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="2"/></svg>',
     ],
-    shapeNames: ['Diya', 'Lotus', 'Star', 'Moon'],
+    shapeNames: ['Triangle', 'Diamond', 'Circle', 'Square'],
 
-    // A brass diya with a living flame. lit=false shows an unlit lamp.
+    // A glowing star. lit=false shows it dimmed. (Kept under its old name so every screen picks it up.)
     diya(lit = true, size = 48) {
       return `<svg class="diya-svg ${lit ? '' : 'unlit'}" width="${size}" height="${size}" ${size !== 48 ? `style="width:${size}px;height:${size}px"` : ''} viewBox="0 0 64 64" aria-hidden="true">
-        <ellipse class="glow" cx="32" cy="24" rx="20" ry="20" fill="url(#dg)"/>
-        <defs><radialGradient id="dg"><stop offset="0" stop-color="#ffc93c" stop-opacity=".9"/><stop offset="1" stop-color="#f7931e" stop-opacity="0"/></radialGradient>
-        <linearGradient id="db" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2d38a"/><stop offset=".55" stop-color="#c9973f"/><stop offset="1" stop-color="#8a6324"/></linearGradient></defs>
-        <path d="M6 36 Q32 62 58 36 Q46 42 32 42 Q18 42 6 36Z" fill="url(#db)"/>
-        <path d="M6 36 Q32 30 58 36 Q46 42 32 42 Q18 42 6 36Z" fill="#8a6324"/>
-        <path d="M50 35 Q60 30 61 25 Q56 31 48 33Z" fill="url(#db)"/>
-        <g class="flame"><path d="M32 8 C40 20 39 30 32 33 C25 30 24 20 32 8Z" fill="#f7931e"/><path d="M32 16 C36 23 36 29 32 31 C28 29 28 23 32 16Z" fill="#ffe9a8"/></g>
+        <defs><radialGradient id="dg"><stop offset="0" stop-color="#FFD166" stop-opacity=".9"/><stop offset="1" stop-color="#FF8A3D" stop-opacity="0"/></radialGradient></defs>
+        <circle class="glow" cx="32" cy="32" r="24" fill="url(#dg)"/>
+        <g class="flame"><path d="M32 8 l6.6 14.2 15.4 1.8 -11.4 10.6 3.1 15.3 -13.7-7.7 -13.7 7.7 3.1-15.3 -11.4-10.6 15.4-1.8z" fill="#FFD166" stroke="#FF8A3D" stroke-width="2" stroke-linejoin="round"/></g>
       </svg>`;
     },
 
@@ -203,7 +203,7 @@
       const step = (t) => {
         const f = Math.min(1, (t - t0) / ms);
         const e = 1 - Math.pow(1 - f, 3);
-        el.textContent = Math.round(from + (to - from) * e).toLocaleString('en-IN');
+        el.textContent = Math.round(from + (to - from) * e).toLocaleString('en-US');
         if (f < 1) requestAnimationFrame(step);
       };
       requestAnimationFrame(step);
@@ -358,7 +358,7 @@
       setTimeout(() => el.remove(), 3800);
     },
 
-    // Diwali colour for the game on screen, in run order. Lobby and standings keep the house maroon.
+    // A colour for the game on screen, in run order. Lobby and standings keep the house colour.
     themeFor(S) {
       const THEMES = ['marigold', 'rani', 'peacock', 'mehendi', 'indigo'];
       if (!S || !S.live || !Array.isArray(S.games)) return '';
@@ -370,7 +370,7 @@
       const t = App.themeFor(S);
       if (document.body.dataset.theme !== t) document.body.dataset.theme = t;
     },
-    fmt(n) { return Number(n || 0).toLocaleString('en-IN'); },
+    fmt(n) { return Number(n || 0).toLocaleString('en-US'); },
     letters: ['A', 'B', 'C', 'D', 'E', 'F'],
   };
   document.addEventListener('pointerdown', () => { App.pointerDown = true; }, true);

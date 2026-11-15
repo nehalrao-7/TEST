@@ -282,7 +282,7 @@
     return `<div class="lobby">
       <div class="lobby-hero">
         <div class="tv-mascot">${App.mascot()}</div>
-        <div class="title-big">${esc(S.eventName.replace(/^\d{4}\s+/, '') || 'Diwali Party')}</div>
+        <div class="title-big">${esc(S.eventName.replace(/^\d{4}\s+/, '') || 'Party Pack')}</div>
         <div class="title-hand">${esc((S.eventName.match(/^\d{4}/) || [''])[0])} ✨</div>
         <div class="sub">Scan to join, or enter the code on your phone.</div>
         <div class="join-box paper">
@@ -292,7 +292,7 @@
         ${S.questionnaire && S.questionnaire.open && ps.length ? `<div class="q-note">📝 <b>${S.questionnaire.done}</b> of ${ps.length} answered the quick questions</div>` : ''}
       </div>
       <div>
-        <div class="guest-head"><h2>The Guest List</h2><span class="hand-note">${ps.length} ${ps.length === 1 ? 'diya' : 'diyas'} lit</span></div>
+        <div class="guest-head"><h2>The Guest List</h2><span class="hand-note">${ps.length} ${ps.length === 1 ? 'player' : 'players'} in</span></div>
         <div class="lobby-players">${ps.map((p) => `<div class="pl ${p.online ? '' : 'off'} ${newIds.has(p.id) ? 'new' : ''}">${av(p)}<span class="nm">${esc(p.name)}</span>${App.diya(p.online)}</div>`).join('') || '<div class="empty">The diyas are waiting… be the first to light one! 🪔</div>'}</div>
       </div>
     </div>`;
@@ -370,18 +370,18 @@
     return `<div class="gframe"><div class="intro" style="height:auto"><h1 style="font-size:3.8vw;margin:0">Tonight's Teams</h1></div><div class="teams-grid">${S.teams.map((t, i) => `<div class="team-card paper" style="--tc:${t.color};animation-delay:${i * 0.15}s"><div class="th"><span>${esc(t.emoji)} ${esc(t.name)}</span><span>${fmt(t.total)}</span></div><div class="tb">${t.members.map((id) => { const p = player(id); return p ? `<div class="lrow">${av(p)} ${esc(p.name)}</div>` : ''; }).join('')}</div></div>`).join('')}</div></div>`;
   }
 
-  // ---------------- Diwali Awards ----------------
+  // ---------------- Awards ----------------
   function awardsView() {
     const list = S.awards || [];
     const i = S.tv.awardIndex || 0;
     const dots = `<div class="award-dots">${Array.from({ length: list.length + 2 }, (_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div>`;
     if (i === 0) {
       return [`<div class="awards"><div class="award-card paper"><div class="kicker">and now, the moment you've all been waiting for…</div><div class="medal">🏆</div>
-        <h1>The Diwali Awards</h1><div class="desc">${list.length} awards · one champion · zero chill</div>${dots}</div></div>`, 'award-intro'];
+        <h1>The Awards</h1><div class="desc">${list.length} awards · one champion · zero chill</div>${dots}</div></div>`, 'award-intro'];
     }
     if (i > list.length) {
       const champ = S.players[0];
-      return [`<div class="awards"><div class="award-card paper"><div class="kicker">the brightest diya of the night</div><div class="medal">🪔</div>
+      return [`<div class="awards"><div class="award-card paper"><div class="kicker">the star of the night</div><div class="medal">🌟</div>
         <h1>Light of the Party</h1><div class="drumline">drumroll please… 🥁</div>
         ${champ ? `<div class="winners"><div class="winner">${av(champ)}<b>${esc(champ.name)}</b></div></div><div class="value">${fmt(champ.score)} points · Shubh Deepavali! 🎆</div>` : ''}${dots}</div></div>`, 'award-champ'];
     }
@@ -411,7 +411,7 @@
     if (L.phase === 'intro') return [intro(L, 'Answer on your phone — match the colour and the shape!', [`${L.total} questions`, L.mode === 'team' ? '👥 teams score their average' : '⚡ faster = more points', '🔥 3 in a row = streak bonus']), 'q-intro'];
     if (L.phase === 'final') return [intro({ ...L, emoji: '🎆' }, 'Round complete! The standings are coming up…'), 'q-final'];
     const q = L.question;
-    const head = `<div class="ghead"><span class="pill gold">Q ${L.qIndex + 1} / ${L.total}</span>${L.doubleDiya ? '<span class="pill personal">✨ Double Diya · ×2 points</span>' : ''}${q && q.personal ? '<span class="pill personal">✨ About our guests</span>' : ''}
+    const head = `<div class="ghead"><span class="pill gold">Q ${L.qIndex + 1} / ${L.total}</span>${L.doubleDiya ? '<span class="pill personal">✨ Double points · ×2</span>' : ''}${q && q.personal ? '<span class="pill personal">✨ About our guests</span>' : ''}
       ${L.phase === 'reveal' ? '<span class="show-call">Sahi jawab hai…</span>' : ''}${L.phase === 'question' && App.now() >= L.opensAt ? medalCount(L.deadline, L.opensAt) : ''}</div>`;
     const qcard = `<div class="qcard paper">${q.clue ? `<div class="clue">${esc(q.clue)}</div>` : ''}${q.image ? `<img class="qimg" src="${esc(q.image)}" alt=""/>` : ''}${q.clue && /^guess the movie!?$/i.test(String(q.q).trim()) ? '' : `<div class="q">${esc(q.q)}</div>`}</div>`;
 
@@ -419,7 +419,7 @@
       const waiting = App.now() < L.opensAt;
       if (waiting) setTimeout(render, L.opensAt - App.now() + 30);
       const opts = waiting
-        ? `${L.doubleDiya ? '<div class="dd-banner">✨ Double Diya — the final question is worth double! ✨</div>' : ''}<div class="countdown-big" data-count="${L.opensAt}"></div>`
+        ? `${L.doubleDiya ? '<div class="dd-banner">✨ Final question — worth double! ✨</div>' : ''}<div class="countdown-big" data-count="${L.opensAt}"></div>`
         : `<div class="opts">${q.options.map((o, i) => `<div class="opt o${i}">${shapeK(i)}${esc(o)}</div>`).join('')}</div>`;
       return [`<div class="gframe">${head}${waiting ? '' : timerBar(L.opensAt, L.deadline)}${qcard}${opts}${lockins(L.answeredIds)}</div>`, `q-${L.qIndex}${waiting ? '-w' : ''}`];
     }
@@ -441,7 +441,7 @@
       const ts = S.teams.map((t) => ({ t, pts: r.perTeam[t.id] || 0 })).sort((a, b) => b.pts - a.pts);
       side = `<div class="list-card later" style="--d:2.5s"><h3>Team points</h3>${ts.map(({ t, pts }) => `<div class="lrow"><span class="avatar" style="--c:${t.color}">${esc(t.emoji)}</span>${esc(t.name)}<span class="pts">+${pts}</span></div>`).join('')}<h3 style="margin-top:1vw">⚡ Fastest</h3>${fastHtml}${fireHtml}</div>`;
     } else {
-      side = `<div class="list-card later" style="--d:2.5s"><h3>⚡ Bijli fingers</h3>${fastHtml}${fireHtml}</div>`;
+      side = `<div class="list-card later" style="--d:2.5s"><h3>⚡ Lightning fingers</h3>${fastHtml}${fireHtml}</div>`;
     }
     return [`<div class="gframe">${head}${qcard}<div class="reveal-side">${opts}${side}</div></div>`, `q-${L.qIndex}-reveal`];
   }
@@ -475,7 +475,7 @@
   function kbcScene(L) {
     const head = '';
     if (L.phase === 'idle' || L.phase === 'done') {
-      return [`<div class="gframe">${head}<div class="kbc"><div class="intro"><div><div class="em">💰</div><h1>Kaun Banega Crorepati</h1><p>${L.phase === 'done' ? 'That is the round.' : 'Every question is open to everyone. Fastest correct answer wins the full points. Each place after gets less.'}</p></div></div></div></div>`, 'kbc-' + L.phase];
+      return [`<div class="gframe">${head}<div class="kbc"><div class="intro"><div><div class="em">💰</div><h1>Money Ladder</h1><p>${L.phase === 'done' ? 'That is the round.' : 'Every question is open to everyone. Fastest correct answer wins the full points. Each place after gets less.'}</p></div></div></div></div>`, 'kbc-' + L.phase];
     }
     const q = L.question;
     const waiting = L.phase === 'question' && App.now() < L.opensAt;
@@ -515,17 +515,17 @@
       const measuring = perf.measure && !perf.applause && perf.applause !== 0;
       if (perf.measure && prev.measureId !== perf.measure.id) { prev.measureId = perf.measure.id; measureApplause(perf.measure.id); }
       return [`<div class="gframe">${head}<div class="hook hook-judge"><div class="perf"><h1 style="font-size:4vw">The original</h1>
-        <div class="stars-tv judge">${[1, 2, 3, 4, 5].map((n) => `<span class="${n <= stars ? 'on' : ''}" style="transition-delay:${n * 0.08}s">🪔</span>`).join('')}</div>
+        <div class="stars-tv judge">${[1, 2, 3, 4, 5].map((n) => `<span class="${n <= stars ? 'on' : ''}" style="transition-delay:${n * 0.08}s">⭐</span>`).join('')}</div>
         <div class="applause"><span>👏 Crowd</span><div class="meter"><i id="meterFill" style="width:${perf.applause || 0}%"></i></div><b id="meterVal">${measuring ? 'CHEER NOW!' : perf.applause != null ? perf.applause : '—'}</b></div>
         ${dancers(perf.dancers)}</div></div></div>`, 'hook-judge'];
     }
     const last = L.last;
     return [`<div class="gframe">${head}<div class="hook hook-scored-fit"><div class="perf">
       <div class="call big">${last.team ? `${esc(last.team.emoji)} ${esc(last.team.name)}` : 'Open floor'}</div>
-      <div class="stars-tv">${'🪔'.repeat(last.stars)}<span style="opacity:.2">${'🪔'.repeat(5 - last.stars)}</span></div>
+      <div class="stars-tv">${'⭐'.repeat(last.stars)}<span style="opacity:.2">${'⭐'.repeat(5 - last.stars)}</span></div>
       <h1 class="pop team-pts">+${last.teamPoints} <small>${last.team ? 'team points' : 'points each'}</small></h1>
       ${last.crowd ? `<div class="song">👏 Crowd bonus +${last.crowd}</div>` : ''}
-      ${last.dancers.length ? `<div class="hand-note">Himmat bonus for every dancer 🙌</div>${dancers(last.dancers)}` : ''}</div></div></div>`, 'hook-scored-' + L.results.length];
+      ${last.dancers.length ? `<div class="hand-note">Brave dancer bonus for everyone who danced 🙌</div>${dancers(last.dancers)}` : ''}</div></div></div>`, 'hook-scored-' + L.results.length];
   }
 
   // Applause-o-meter: the TV's microphone listens to the crowd for 5 seconds.

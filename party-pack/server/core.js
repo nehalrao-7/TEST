@@ -20,7 +20,7 @@ const { mailEnabled, sendRejoinCode } = require('./mail');
 const st = () => S.state;
 let ONLINE = new Set();
 let ROOM = '';
-const REACT_EMOJI = new Set(['🔥', '😂', '👏', '😱', '💃', '🪔']);
+const REACT_EMOJI = new Set(['🔥', '😂', '👏', '😱', '💃', '🎉']);
 const token = () => crypto.randomBytes(24).toString('base64url');
 const findPlayerByToken = (t) => t && Object.values(st().players).find((p) => p.tokens.includes(t));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -106,7 +106,7 @@ function freshRoom(code) {
   const room = S.freshState();
   room.code = code;
   room.createdAt = room.activeAt = Date.now();
-  room.settings.eventName = 'Diwali Party';
+  room.settings.eventName = 'Party Pack';
   room.settings.difficulty = 3;
   room.settings.questionnaireOpen = true;
   room.questionnaireGate = 1;
@@ -209,12 +209,12 @@ function computeAwards() {
   };
   const pct = (p) => (stat(p.id).answered >= 5 ? Math.round((100 * stat(p.id).correct) / stat(p.id).answered) : null);
   const list = [
-    { id: 'bijli', emoji: '⚡', title: 'Bijli Fingers', desc: 'Fastest correct answer, again and again', r: top((p) => stat(p.id).fastest), fmt: (v) => `${v}× first to the answer` },
-    { id: 'sharp', emoji: '🎯', title: 'Teer-Andaaz', desc: 'The sharpest accuracy', r: top(pct, 50), fmt: (v) => `${v}% correct` },
-    { id: 'fire', emoji: '🔥', title: 'Anaar on Fire', desc: 'Longest answer streak', r: top((p) => stat(p.id).bestStreak, 3), fmt: (v) => `${v} right in a row` },
-    { id: 'buzz', emoji: '🔔', title: 'Clue Champ', desc: 'First right answer on the most Jeopardy clues', r: top((p) => stat(p.id).buzzWins, 2), fmt: (v) => `${v} clues won` },
-    { id: 'dance', emoji: '💃', title: 'Hook Step Hero', desc: 'Highest-rated performance', r: top((p) => stat(p.id).hookBest), fmt: (v) => `${v} points on the dance floor` },
-    { id: 'crore', emoji: '💰', title: 'Crorepati', desc: 'Biggest single KBC score', r: top((p) => stat(p.id).kbcBest), fmt: (v) => `${v.toLocaleString('en-IN')} points on one question` },
+    { id: 'bijli', emoji: '⚡', title: 'Lightning Fingers', desc: 'Fastest correct answer, again and again', r: top((p) => stat(p.id).fastest), fmt: (v) => `${v}× first to the answer` },
+    { id: 'sharp', emoji: '🎯', title: 'Sharpshooter', desc: 'The sharpest accuracy', r: top(pct, 50), fmt: (v) => `${v}% correct` },
+    { id: 'fire', emoji: '🔥', title: 'On Fire', desc: 'Longest answer streak', r: top((p) => stat(p.id).bestStreak, 3), fmt: (v) => `${v} right in a row` },
+    { id: 'buzz', emoji: '🔔', title: 'Clue Champ', desc: 'First right answer on the most Category Clash clues', r: top((p) => stat(p.id).buzzWins, 2), fmt: (v) => `${v} clues won` },
+    { id: 'dance', emoji: '💃', title: 'Dance-Off Hero', desc: 'Highest-rated performance', r: top((p) => stat(p.id).hookBest), fmt: (v) => `${v} points on the dance floor` },
+    { id: 'crore', emoji: '💰', title: 'High Roller', desc: 'Biggest single Money Ladder score', r: top((p) => stat(p.id).kbcBest), fmt: (v) => `${v.toLocaleString('en-US')} points on one question` },
   ];
   return list.filter((a) => a.r).map((a) => ({
     id: a.id, emoji: a.emoji, title: a.title, desc: a.desc, value: a.fmt(a.r.value),
@@ -287,7 +287,7 @@ function botDrive(state) {
 }
 
 function addBots(count) {
-  const names = ['Aarav', 'Diya', 'Kabir', 'Meera', 'Rohan', 'Tara', 'Vihaan', 'Zoya', 'Neel', 'Kiara', 'Ishaan', 'Anaya'];
+  const names = ['Alex', 'Sam', 'Maya', 'Leo', 'Priya', 'Noah', 'Zoe', 'Kai', 'Ava', 'Omar', 'Lucy', 'Max'];
   const s = st();
   const taken = new Set(Object.values(s.players).map((p) => p.name));
   let added = 0;
@@ -537,7 +537,7 @@ async function handle(store, method, path, body = {}, query = {}) {
       return { svg: await QRCode.toString(text, { type: 'svg', margin: 1, color: { dark: '#2a0845', light: '#ffffff' } }) };
     }
     if (path === 'meta') {
-      return { json: { eventName: 'Diwali Party', avatars: S.AVATARS, mail: mailEnabled, realtime: store.realtime || null } };
+      return { json: { eventName: 'Party Pack', avatars: S.AVATARS, mail: mailEnabled, realtime: store.realtime || null } };
     }
     if (method !== 'POST') return { status: 405, json: { error: 'Method not allowed' } };
     const origin = String(body.origin || '').replace(/[^a-zA-Z0-9:/._-]/g, '').slice(0, 100);

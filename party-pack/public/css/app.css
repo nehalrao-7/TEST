@@ -1,22 +1,22 @@
 /* ==========================================================================
-   2026 Diwali Party — design system
-   Kohl night sky, marigold & haldi, sindoor & rani, peacock & mango leaf,
-   brass instead of flat gold, cream invitation-card paper.
+   Party Pack — design system (Classic theme)
+   Deep night-blue base, amber for the action, gold for wins.
+   Older token names (marigold, rani…) are kept as aliases so every screen picks up the theme.
    ========================================================================== */
 :root {
-  /* One theme. Red-tinted neutrals, marigold for the action, gold for wins. */
-  --bg: #2B0F15;
-  --shell: #3A141C;
-  --surface: #5A2029;
-  --surface-raised: #6B2A32;
-  --accent: #F2A33A;
-  --accent-pressed: #D98A24;
-  --coral: #E35D4F;
-  --gold: #FFD36E;
-  --cream: #FFF3C4;
+  /* Classic theme. Blue-tinted neutrals, amber for the action, gold for wins. */
+  --bg: #12142B;
+  --shell: #1B1E3D;
+  --surface: #2A2E5C;
+  --surface-raised: #353A70;
+  --accent: #FFB020;
+  --accent-pressed: #E0961A;
+  --coral: #FF5A5F;
+  --gold: #FFD166;
+  --cream: #F4F1FF;
   --text: #FFFFFF;
-  --text-muted: #E7C9C4;
-  --on-accent: #2B0F15;
+  --text-muted: #B9BCE0;
+  --on-accent: #12142B;
   --radius-shell: 32px;
   --radius-card: 20px;
 
@@ -30,49 +30,49 @@
   --haldi: var(--accent);
   --sindoor: var(--coral);
   --sindoor-dk: #B84338;
-  --rani: #C4486A;
-  --rani-dk: #8E3048;
-  --peacock: #8E3D4E;
-  --peacock-dk: #6B2A32;
-  --leaf: #C46A3A;
-  --leaf-dk: #8E4A28;
-  --brass: #C9844A;
+  --rani: #E5487F;
+  --rani-dk: #B12F5F;
+  --peacock: #2BA8B8;
+  --peacock-dk: #1C7C88;
+  --leaf: #6C5CE7;
+  --leaf-dk: #4B3FB5;
+  --brass: #C9A44A;
   --brass-hi: var(--cream);
   --brass-dk: #8E4A28;
-  --cream-2: #F2D7A2;
+  --cream-2: #DCD6FF;
   --ink: var(--on-accent);
   --ink-2: var(--text-muted);
-  /* answer options: diya · lotus · star · moon */
+  /* answer options: triangle · diamond · circle · square */
   --optA: var(--marigold); --optA-dk: var(--marigold-dk);
   --optB: var(--rani); --optB-dk: var(--rani-dk);
   --optC: var(--peacock); --optC-dk: var(--peacock-dk);
   --optD: var(--leaf); --optD-dk: var(--leaf-dk);
   /* legacy aliases used across screens */
   --night: var(--kohl); --plum: var(--rani); --saffron: var(--marigold);
-  --magenta: var(--rani); --pink: #C4486A; --teal: var(--peacock); --green: #C46A3A; --red: var(--sindoor);
+  --magenta: var(--rani); --pink: #E5487F; --teal: var(--peacock); --green: #3BB273; --red: var(--sindoor);
   --muted: var(--text-muted); --line: rgba(231, 201, 196, 0.28); --card: var(--surface);
   --radius: var(--radius-card);
-  --shadow: 0 18px 40px rgba(43, 15, 21, 0.45);
+  --shadow: 0 18px 40px rgba(8, 9, 24, 0.5);
   --glow: 0 0 36px rgba(242, 163, 58, 0.45);
   --font-display: 'Poppins', system-ui, sans-serif;
   --font: 'Poppins', system-ui, sans-serif;
   --font-hand: 'Poppins', system-ui, sans-serif;
   /* textures */
-  --rangoli: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cg fill='none' stroke='%23F2D38A' stroke-opacity='.10' stroke-width='1.2'%3E%3Ccircle cx='48' cy='48' r='10'/%3E%3Cpath d='M48 30c5 6 5 12 0 18-5-6-5-12 0-18zM48 66c5-6 5-12 0-18-5 6-5 12 0 18zM30 48c6-5 12-5 18 0-6 5-12 5-18 0zM66 48c-6-5-12-5-18 0 6 5 12 5 18 0z'/%3E%3C/g%3E%3Cg fill='%23F2D38A' fill-opacity='.13'%3E%3Ccircle cx='0' cy='0' r='2'/%3E%3Ccircle cx='96' cy='0' r='2'/%3E%3Ccircle cx='0' cy='96' r='2'/%3E%3Ccircle cx='96' cy='96' r='2'/%3E%3Ccircle cx='48' cy='48' r='2.2'/%3E%3Ccircle cx='24' cy='24' r='1.2'/%3E%3Ccircle cx='72' cy='24' r='1.2'/%3E%3Ccircle cx='24' cy='72' r='1.2'/%3E%3Ccircle cx='72' cy='72' r='1.2'/%3E%3C/g%3E%3C/svg%3E");
+  --rangoli: none;
   --toran: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='58' viewBox='0 0 120 58'%3E%3Cpath d='M0 7 Q30 15 60 7 T120 7' fill='none' stroke='%23C9973F' stroke-width='2.4'/%3E%3Cpath d='M60 9c-8 10-7 23 0 33 7-10 8-23 0-33z' fill='%233F7D3A'/%3E%3Cpath d='M60 12v28' stroke='%2373A85A' stroke-width='1'/%3E%3Cpath d='M0 9c-8 10-7 23 0 33 7-10 8-23 0-33zM120 9c-8 10-7 23 0 33 7-10 8-23 0-33z' fill='%233F7D3A'/%3E%3Cg%3E%3Cpath d='M30 13v32' stroke='%23C9973F' stroke-width='1'/%3E%3Ccircle cx='30' cy='15' r='9.5' fill='%23E8590C'/%3E%3Ccircle cx='30' cy='15' r='6.5' fill='%23F7931E'/%3E%3Ccircle cx='30' cy='15' r='3' fill='%23FFC93C'/%3E%3Ccircle cx='30' cy='32' r='5.5' fill='%23FFC93C'/%3E%3Ccircle cx='30' cy='32' r='2.4' fill='%23F7931E'/%3E%3Ccircle cx='30' cy='45' r='4' fill='%23E8590C'/%3E%3C/g%3E%3Cg%3E%3Cpath d='M90 13v32' stroke='%23C9973F' stroke-width='1'/%3E%3Ccircle cx='90' cy='15' r='9.5' fill='%23FFB000'/%3E%3Ccircle cx='90' cy='15' r='6.5' fill='%23FFC93C'/%3E%3Ccircle cx='90' cy='15' r='3' fill='%23F7931E'/%3E%3Ccircle cx='90' cy='32' r='5.5' fill='%23F7931E'/%3E%3Ccircle cx='90' cy='32' r='2.4' fill='%23FFC93C'/%3E%3Ccircle cx='90' cy='45' r='4' fill='%23FFB000'/%3E%3C/g%3E%3C/svg%3E");
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; min-height: 100%; overflow-x: hidden; }
-/* Each game gets its own Diwali colour. The tones are registered so the whole room
+/* Each game gets its own colour. The tones are registered so the whole room
    crossfades smoothly from one game to the next instead of snapping. */
-@property --bg { syntax: '<color>'; inherits: true; initial-value: #2B0F15; }
-@property --shell { syntax: '<color>'; inherits: true; initial-value: #3A141C; }
-@property --surface { syntax: '<color>'; inherits: true; initial-value: #5A2029; }
-@property --surface-raised { syntax: '<color>'; inherits: true; initial-value: #6B2A32; }
-@property --glow-a { syntax: '<color>'; inherits: true; initial-value: rgba(242, 163, 58, 0.22); }
-@property --glow-b { syntax: '<color>'; inherits: true; initial-value: rgba(227, 93, 79, 0.16); }
-body { --glow-a: rgba(242, 163, 58, 0.22); --glow-b: rgba(227, 93, 79, 0.16);
+@property --bg { syntax: '<color>'; inherits: true; initial-value: #12142B; }
+@property --shell { syntax: '<color>'; inherits: true; initial-value: #1B1E3D; }
+@property --surface { syntax: '<color>'; inherits: true; initial-value: #2A2E5C; }
+@property --surface-raised { syntax: '<color>'; inherits: true; initial-value: #353A70; }
+@property --glow-a { syntax: '<color>'; inherits: true; initial-value: rgba(255, 176, 32, 0.20); }
+@property --glow-b { syntax: '<color>'; inherits: true; initial-value: rgba(229, 72, 127, 0.16); }
+body { --glow-a: rgba(255, 176, 32, 0.20); --glow-b: rgba(229, 72, 127, 0.16);
   transition: --bg 1.4s ease, --shell 1.4s ease, --surface 1.4s ease, --surface-raised 1.4s ease, --glow-a 1.4s ease, --glow-b 1.4s ease; }
 body[data-theme="marigold"] { --bg: #2E1607; --shell: #40200C; --surface: #603214; --surface-raised: #723E1A; --glow-a: rgba(255, 176, 40, 0.34); --glow-b: rgba(255, 96, 40, 0.18); }
 body[data-theme="rani"]     { --bg: #2C0A22; --shell: #3E1131; --surface: #5E1C4A; --surface-raised: #702457; --glow-a: rgba(255, 84, 170, 0.30); --glow-b: rgba(255, 170, 60, 0.16); }
@@ -143,7 +143,7 @@ a { color: var(--cream); }
   color: var(--text);
   border-radius: var(--radius-card);
   padding: 18px;
-  box-shadow: 0 16px 36px rgba(43, 15, 21, 0.35);
+  box-shadow: 0 16px 36px rgba(18, 20, 43, 0.35);
 }
 .card h3 { font-size: 22px; margin-bottom: 10px; color: var(--cream); }
 .muted { color: var(--text-muted); }
@@ -174,7 +174,7 @@ label.field { display: block; font-weight: 500; font-size: 14px; color: var(--te
 /* Avatar in a brass ring */
 .avatar { width: 40px; height: 40px; border-radius: 50%; display: inline-grid; place-items: center; font-size: 22px; background: radial-gradient(circle at 35% 30%, #fffaf0, var(--cream-2)); box-shadow: 0 0 0 3px var(--c, var(--marigold)), 0 0 0 5px rgba(201, 151, 63, 0.6); flex-shrink: 0; }
 
-/* ---------- Answer tiles with shapes (diya · lotus · star · moon) ---------- */
+/* ---------- Answer tiles with shapes (triangle · diamond · circle · square) ---------- */
 .opts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .opt {
   --o: var(--optA); --od: var(--optA-dk);
@@ -249,7 +249,7 @@ label.field { display: block; font-weight: 500; font-size: 14px; color: var(--te
 
 /* Shared festive pieces. One hero, one action, quiet chrome. */
 .pwrap { width: min(420px, calc(100% - 32px)); margin: 0 auto; }
-.shell-card { position: relative; margin-top: 72px; background: var(--shell); border-radius: var(--radius-shell); padding: 88px 22px 22px; text-align: center; box-shadow: 0 24px 50px rgba(43, 15, 21, 0.45), 0 0 48px rgba(242, 163, 58, 0.16); }
+.shell-card { position: relative; margin-top: 72px; background: var(--shell); border-radius: var(--radius-shell); padding: 88px 22px 22px; text-align: center; box-shadow: 0 24px 50px rgba(8, 9, 24, 0.5), 0 0 48px rgba(242, 163, 58, 0.16); }
 .shell-card h1 { font-size: 32px; margin: 0 0 8px; }
 .shell-card .btn { margin-top: 16px; }
 .breakout { position: absolute; left: 50%; top: 0; transform: translate(-50%, -46%); width: 180px; height: 140px; pointer-events: none; }
@@ -275,3 +275,6 @@ label.field { display: block; font-weight: 500; font-size: 14px; color: var(--te
 .loading-card { text-align: center; padding-top: 28px; margin-top: 24px; }
 .live-count { display: inline-flex; align-items: center; gap: 8px; color: var(--cream); font-weight: 500; }
 .live-count i { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); display: inline-block; }
+
+/* Party Pack: no festive garland. */
+.toran { display: none !important; }

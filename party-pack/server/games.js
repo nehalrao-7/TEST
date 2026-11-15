@@ -58,7 +58,7 @@ const quiz = {
   reveal(live, game) {
     if (live.phase !== 'question') return;
     const q = game.content.questions[live.qIndex];
-    // Double Diya: the last question of every round is worth double (Mario Party's last-turns twist).
+    // Double points: the last question of every round is worth double (Mario Party's last-turns twist).
     const mult = live.qIndex === game.content.questions.length - 1 ? 2 : 1;
     const perPlayer = {};
     for (const [pid, a] of Object.entries(live.answers)) {
@@ -67,7 +67,7 @@ const quiz = {
     const perTeam = {};
     const paid = {};
     const doubled = {};
-    const reason = `${game.title} Q${live.qIndex + 1}${mult > 1 ? ' ✨ Double Diya' : ''}`;
+    const reason = `${game.title} Q${live.qIndex + 1}${mult > 1 ? ' ✨ Double points' : ''}`;
     const give = (pid, amt, why) => {
       if (!(amt > 0)) return;
       const got = S.award(pid, amt, why, game.id) || 0;
@@ -385,7 +385,7 @@ const kbc = {
 
 // ======================= HOOK STEP (self-running) =======================
 // A team is called up and a song plays (name hidden). Dancers tap "I'm dancing" for a bravery
-// bonus. When the clock ends the blur lifts and everyone else rates the dance 1–5 diyas.
+// bonus. When the clock ends the blur lifts and everyone else rates the dance 1–5 stars.
 // The rounded average × 100 goes to every member of that team.
 const READY_MS = 6000 / SPEED, PERFORM_MS = 25000 / SPEED, VOTE_MS = 15000 / SPEED, SCORED_MS = 6000 / SPEED;
 const hookstep = {
@@ -447,7 +447,7 @@ const hookstep = {
     const label = `${game.title}: ${song ? song.title.split(' — ')[0] : 'dance'}`;
     hookstep.members(perf.team).forEach((m) => S.award(m.id, teamPoints, label, game.id));
     perf.dancers.forEach((pid) => {
-      S.award(pid, bonus, '💃 Himmat bonus', game.id);
+      S.award(pid, bonus, '💃 Brave dancer bonus', game.id);
       S.stat(pid).hookBest = Math.max(S.stat(pid).hookBest, teamPoints + bonus);
     });
     const result = { team: perf.team, songIndex: perf.songIndex, stars: perf.stars, votes: votes.length, applause: 0, crowd: 0, teamPoints, dancers: [...perf.dancers], bonus };

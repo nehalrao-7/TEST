@@ -19,10 +19,10 @@ const AWARD_MS = 7000 / SPEED;
 // Which bank each catalog game draws from.
 const CATALOG = [
   { id: 'g1', type: 'quiz', bank: 'movie', title: 'Guess the Movie', emoji: '🎬', mode: 'team' },
-  { id: 'g4', type: 'quiz', bank: 'quiz', title: 'Desi Kahoot', emoji: '⚡', mode: 'individual' },
-  { id: 'g3', type: 'jeopardy', bank: 'jeopardy', title: 'Desi Jeopardy', emoji: '🧠', mode: 'team' },
-  { id: 'g5', type: 'kbc', bank: 'kbc', title: 'Kaun Banega Crorepati', emoji: '💰', mode: 'individual' },
-  { id: 'g2', type: 'hookstep', bank: null, title: 'Hook Step Challenge', emoji: '💃', mode: 'team' },
+  { id: 'g4', type: 'quiz', bank: 'quiz', title: 'Quick Quiz', emoji: '⚡', mode: 'individual' },
+  { id: 'g3', type: 'jeopardy', bank: 'jeopardy', title: 'Category Clash', emoji: '🧠', mode: 'team' },
+  { id: 'g5', type: 'kbc', bank: 'kbc', title: 'Money Ladder', emoji: '💰', mode: 'individual' },
+  { id: 'g2', type: 'hookstep', bank: null, title: 'Dance-Off', emoji: '💃', mode: 'team' },
 ];
 
 function flow(state) {
