@@ -35,7 +35,12 @@ const PIN_LOCK_MS = 10 * 60 * 1000;
 const MAX_PLAYERS = 40;
 
 // Fun "about me" prompts asked in the profile; their answers become a few personal questions.
-const PROFILE_PROMPTS = ['karaoke', 'everyday', 'dreamJob', 'voteMic'];
+const PROFILE_PROMPTS = ['karaoke', 'everyday', 'dreamJob', 'voteMic']; // on by default
+const MAX_PROMPTS = 8;
+const LEVELS = Object.keys(B.DIFFICULTIES);
+const promptOn = (q) => (q.on == null ? PROFILE_PROMPTS.includes(q.id) : Boolean(q.on));
+const enabledPacks = (s) => (Array.isArray(s.settings.packs) ? s.settings.packs.filter((id) => B.BY_ID[id]) : B.ALL_IDS);
+const levelFor = (s, gid) => ((s.settings.levels || {})[gid] in B.DIFFICULTIES ? s.settings.levels[gid] : 'ramp');
 const GENRES = ['Comedy', 'Romance', 'Action', 'Drama', 'Family', 'Thriller & horror', 'Animation', 'Music & dance'];
 
 // ---------------- small helpers ----------------
@@ -108,6 +113,10 @@ function freshRoom(code) {
   room.createdAt = room.activeAt = Date.now();
   room.settings.eventName = 'Party Pack';
   room.settings.difficulty = 3;
+  room.settings.packs = [...B.ALL_IDS];
+  room.settings.levels = {};
+  room.qHist = {};
+  room.qHistLoaded = {};
   room.settings.questionnaireOpen = true;
   room.questionnaireGate = 1;
   room.games = D.CATALOG.map((g) => ({ ...g, status: 'pending', content: null }));
@@ -169,7 +178,14 @@ function startGame(gid) {
   const players = Object.values(s.players);
   let content;
   if (game.type === 'hookstep') content = { ...templates.hookstep, performSeconds: 25, rounds: hasTeams ? Object.keys(s.teams).length : Math.min(4, players.length) };
-  else content = B.buildContent(game.bank, players);
+  else {
+    content = B.buildContent(game.bank, players, { enabled: enabledPacks(s), difficulty: levelFor(s, gid), hist: s.qHist || {} });
+    const ids = B.questionIds(content);
+    const hashes = players.filter((p) => !p.bot && p.emailHash).map((p) => p.emailHash);
+    s.qHist = s.qHist || {};
+    for (const id of ids) s.qHist[id] = [((s.qHist[id] || [0])[0] || 0) + hashes.length, Date.now()];
+    if (ids.length && hashes.length) (s.qHistPending = s.qHistPending || []).push({ hashes, ids });
+  }
   let count = 0;
   if (game.type !== 'hookstep') {
     const humansWithAnswers = players.filter((p) => !p.bot && p.answers && Object.keys(p.answers).length);
@@ -250,8 +266,8 @@ function botDrive(state) {
   if (f.stage === 'profile') {
     bots.forEach((b) => {
       if (b.profile) return;
-      b.profile = { age: B.AGE_BANDS[Math.floor(rnd(1, 6))], interests: S.shuffle(B.TOPICS.map((x) => x.id)).slice(0, 3), genres: S.shuffle(GENRES).slice(0, 2) };
-      b.answers = { karaoke: S.shuffle(['Kal Ho Naa Ho', 'Tum Hi Ho', 'Chaiyya Chaiyya', 'Zingaat'])[0], everyday: S.shuffle(['Dal dhokli', 'Pav bhaji', 'Thepla', 'Pani puri'])[0] };
+      b.profile = { age: B.AGE_BANDS[Math.floor(rnd(1, 6))], interests: S.shuffle(enabledPacks(state)).slice(0, 4), genres: S.shuffle(GENRES).slice(0, 2) };
+      b.answers = { karaoke: S.shuffle(['Mr. Brightside', 'Tum Hi Ho', 'Bohemian Rhapsody', 'Wannabe'])[0], everyday: S.shuffle(['Pizza', 'Pav bhaji', 'Poutine', 'Sushi'])[0] };
     });
   }
   const live = state.live;
@@ -314,17 +330,17 @@ function playerAction(p, a) {
     case 'profile': {
       const age = B.AGE_BANDS.includes(a.age) ? a.age : null;
       if (!age) throw new HttpError(400, 'Pick your age range.');
-      const topicIds = B.TOPICS.map((x) => x.id);
+      const topicIds = enabledPacks(s);
       p.profile = {
         age,
-        interests: (Array.isArray(a.interests) ? a.interests : []).filter((x) => topicIds.includes(x)).slice(0, 7),
+        interests: [...new Set((Array.isArray(a.interests) ? a.interests : []).filter((x) => topicIds.includes(x)))].slice(0, 20),
         genres: (Array.isArray(a.genres) ? a.genres : []).filter((x) => GENRES.includes(x)).slice(0, 8),
       };
       const byId = Object.fromEntries(s.questionnaire.map((q) => [q.id, q]));
       p.answers = p.answers || {};
       for (const [k, v] of Object.entries(a.answers || {})) {
         const q = byId[k];
-        if (!q || !PROFILE_PROMPTS.includes(k)) continue;
+        if (!q || !promptOn(q)) continue;
         if (q.type === 'pick' || q.type === 'vote') p.answers[k] = s.players[v] && v !== p.id ? v : '';
         else p.answers[k] = P.cleanAnswer(v);
       }
@@ -357,6 +373,58 @@ function playerAction(p, a) {
       if (!ids.length) throw new Error('Pick at least one game.');
       f.order = [...new Set(ids)];
       return;
+    }
+    case 'setPacks': {
+      hostOnly();
+      if (f.stage !== 'lobby') throw new Error('Packs are locked once you start.');
+      const ids = [...new Set((Array.isArray(a.ids) ? a.ids : []).filter((id) => B.BY_ID[id]))];
+      if (!ids.length) throw new Error('Turn on at least one pack.');
+      s.settings.packs = ids;
+      for (const pl of Object.values(s.players)) if (pl.profile) pl.profile.interests = (pl.profile.interests || []).filter((id) => ids.includes(id));
+      return;
+    }
+    case 'setLevel': {
+      hostOnly();
+      if (f.stage !== 'lobby') throw new Error('Difficulty is locked once you start.');
+      if (!D.CATALOG.some((g) => g.id === a.gameId) || !LEVELS.includes(a.level)) throw new Error('Pick a difficulty.');
+      s.settings.levels = { ...(s.settings.levels || {}), [a.gameId]: a.level };
+      return;
+    }
+    case 'prompt': {
+      hostOnly();
+      if (!['lobby', 'profile'].includes(f.stage)) throw new Error('Questions are locked once the games begin.');
+      const text = String(a.text || '').replace(/\s+/g, ' ').trim().slice(0, 90);
+      if (a.op === 'add') {
+        if (!text) throw new Error('Type a question first.');
+        if (s.questionnaire.filter(promptOn).length >= MAX_PROMPTS) throw new Error(`Up to ${MAX_PROMPTS} questions.`);
+        const type = a.kind === 'vote' ? 'vote' : 'text';
+        s.questionnaire.push({ id: 'c' + crypto.randomBytes(4).toString('hex'), section: type === 'vote' ? 'vote' : 'you', type, tag: 'group', text, on: true, custom: true });
+        return;
+      }
+      const q = s.questionnaire.find((x) => x.id === a.id);
+      if (!q) throw new Error('That question is gone.');
+      if (a.op === 'remove') {
+        if (q.custom) s.questionnaire = s.questionnaire.filter((x) => x !== q); else q.on = false;
+        for (const pl of Object.values(s.players)) if (pl.answers) delete pl.answers[q.id];
+        return;
+      }
+      if (a.op === 'toggle') {
+        if (!promptOn(q) && s.questionnaire.filter(promptOn).length >= MAX_PROMPTS) throw new Error(`Up to ${MAX_PROMPTS} questions.`);
+        q.on = !promptOn(q);
+        if (!q.on) for (const pl of Object.values(s.players)) if (pl.answers) delete pl.answers[q.id];
+        return;
+      }
+      if (a.op === 'edit') {
+        if (!text) throw new Error('Type a question first.');
+        if (text !== q.text) {
+          q.text = text;
+          // Custom wording: use the generic templates so every generated question matches what was asked.
+          delete q.who; delete q.what; delete q.clue; delete q.ph;
+          for (const pl of Object.values(s.players)) if (pl.answers) delete pl.answers[q.id];
+        }
+        return;
+      }
+      throw new Error('Unknown change.');
     }
     case 'start': {
       hostOnly();
@@ -413,6 +481,8 @@ function flowView() {
     profiled: Object.values(s.players).filter((p) => p.profile).map((p) => p.id),
     hostId: s.hostId,
     catalog: D.CATALOG.map(({ id, title, emoji, type }) => ({ id, title, emoji, type })),
+    packs: enabledPacks(s),
+    levels: Object.fromEntries(D.CATALOG.map((g) => [g.id, levelFor(s, g.id)])),
   };
 }
 
@@ -430,7 +500,13 @@ function viewFor(role, tok, tvSecret) {
     const r = S.ranking();
     const me = r.find((x) => x.id === p.id);
     const sc = S.scores();
-    const prompts = s.questionnaire.filter((q) => PROFILE_PROMPTS.includes(q.id)).map(({ id, text, ph, type, options }) => ({ id, text, ph, type: type || 'text', options }));
+    const prompts = s.questionnaire.filter(promptOn).map(({ id, text, ph, type, options }) => ({ id, text, ph, type: type || 'text', options }));
+    const hostSetup = isHost(p) ? {
+      allPacks: B.PACK_LIST, groups: B.GROUPS, levels: Object.entries(B.DIFFICULTIES).map(([id, d]) => ({ id, label: d.label })),
+      prompts: s.questionnaire.filter((q) => ['text', 'vote'].includes(q.type || 'text')).map((q) => ({ id: q.id, text: q.text, type: q.type || 'text', on: promptOn(q), custom: Boolean(q.custom) })),
+      maxPrompts: MAX_PROMPTS,
+    } : undefined;
+    const on = new Set(enabledPacks(s));
     return {
       ...baseFor(), role: 'player',
       me: {
@@ -440,7 +516,8 @@ function viewFor(role, tok, tvSecret) {
         history: s.ledger.filter((e) => e.playerId === p.id).slice(-10).reverse(),
         stats: S.stat(p.id),
       },
-      profile: { ageBands: B.AGE_BANDS, topics: B.TOPICS, genres: GENRES, prompts },
+      profile: { ageBands: B.AGE_BANDS, groups: B.GROUPS, topics: B.PACK_LIST.filter((x) => on.has(x.id)).map(({ id, name, emoji, group }) => ({ id, label: name, emoji, group })), genres: GENRES, prompts },
+      hostSetup,
       tvSecret: s.tvSecret,
       awards: ['awards', 'podium'].includes(D.flow(s).stage) ? computeAwards() : undefined,
       live: liveView({ player: p }),
@@ -450,6 +527,29 @@ function viewFor(role, tok, tvSecret) {
   const reactions = (Array.isArray(s.reacts) ? s.reacts : []).filter((r) => Date.now() - r.at < 8000).map(({ at, id, emoji, name }) => ({ at, id, emoji, name }));
   const tvExtra = ['awards', 'podium'].includes(s.tv.view) ? { awards: computeAwards(), awardPoints: 0 } : {};
   return { ...baseFor(), role: 'tv', live: liveView({ tv: true }), ...tvExtra, reactions: reactions.length ? reactions : undefined };
+}
+
+// ---------------- question history (no repeats across parties) ----------------
+// Each human's seen questions are loaded once into the room as counts: qHist[qid] = [players who saw it, last seen].
+async function syncHistory(store) {
+  const s = st();
+  if (!store.qHistory) return;
+  s.qHist = s.qHist || {};
+  s.qHistLoaded = s.qHistLoaded || {};
+  const fresh = [...new Set(Object.values(s.players).filter((p) => !p.bot && p.emailHash && !s.qHistLoaded[p.emailHash]).map((p) => p.emailHash))];
+  if (!fresh.length) return;
+  const rows = await store.qHistory(fresh).catch(() => []);
+  for (const r of rows) {
+    const h = s.qHist[r.qid] || [0, 0];
+    s.qHist[r.qid] = [h[0] + 1, Math.max(h[1], Number(r.seenAt) || 0)];
+  }
+  for (const h of fresh) s.qHistLoaded[h] = 1;
+}
+async function flushHistory(store) {
+  const s = st();
+  if (!s.qHistPending || !s.qHistPending.length) return;
+  if (store.qMark) for (const batch of s.qHistPending) await store.qMark(batch.hashes, batch.ids).catch(() => {});
+  delete s.qHistPending;
 }
 
 // ---------------- request pipeline ----------------
@@ -471,6 +571,7 @@ function run(store, roomCode, mutate, opts = {}) {
       S.setState(loaded.room);
       ONLINE = new Set([...(loaded.online || []), ...Object.values(st().players).filter((p) => p.bot).map((p) => p.id)]);
       if (opts.gate) opts.gate();
+      await syncHistory(store);
       const before = JSON.stringify(st());
       if (!opts.skipTick) {
         if (st().tv.announce && st().tv.announce.until < Date.now() - 1000) st().tv.announce = null;
@@ -482,6 +583,7 @@ function run(store, roomCode, mutate, opts = {}) {
       try { result = await mutate(); } catch (e) { error = e; S.setState(JSON.parse(afterTick)); }
       st().code = code;
       if (opts.touch) st().activeAt = Date.now();
+      await flushHistory(store);
       const after = JSON.stringify(st());
       let version = loaded.version;
       if (after !== before) {

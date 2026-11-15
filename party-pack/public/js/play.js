@@ -112,6 +112,7 @@
   // =================== RENDER ===================
   function render() {
     if (!S || !S.me) return;
+    if (drag) return; // a game is being dragged — redraw when it lands
     App.applyTheme(S);
     const [key, html, dockMode] = moment();
     header(key);
@@ -160,15 +161,28 @@
     const link = `${location.origin}/play?room=${S.code}`;
     let hostPanel = '';
     if (isHost()) {
+      const H = S.hostSetup || { allPacks: [], groups: [], levels: [], prompts: [], maxPrompts: 8 };
       const chosen = f.order;
-      const rows = f.catalog.map((g) => {
-        const i = chosen.indexOf(g.id);
-        return `<div class="game-row ${i >= 0 ? 'on' : ''}"><button class="tick" data-toggle="${g.id}" aria-label="Include ${esc(g.title)}">${i >= 0 ? i + 1 : ''}</button><span>${g.emoji} ${esc(g.title)}</span>
-          ${i >= 0 ? `<button class="mv" data-up="${g.id}" ${i === 0 ? 'disabled' : ''} aria-label="Move up">↑</button>` : ''}</div>`;
+      const byId = Object.fromEntries(f.catalog.map((g) => [g.id, g]));
+      const levelSel = (g) => g.type === 'hookstep' ? '' : `<select class="lvl" data-level="${g.id}" aria-label="Difficulty for ${esc(g.title)}">${H.levels.map((l) => `<option value="${l.id}" ${f.levels[g.id] === l.id ? 'selected' : ''}>${esc(l.label)}</option>`).join('')}</select>`;
+      const row = (g, i) => `<div class="game-row ${i >= 0 ? 'on' : ''}" data-gid="${g.id}">${i >= 0 ? '<span class="grip" aria-hidden="true">⋮⋮</span>' : ''}<button class="tick" data-toggle="${g.id}" aria-label="${i >= 0 ? 'Remove' : 'Include'} ${esc(g.title)}">${i >= 0 ? i + 1 : '+'}</button><span class="gt">${g.emoji} ${esc(g.title)}</span>${i >= 0 ? levelSel(g) : ''}</div>`;
+      const rows = chosen.map((id, i) => row(byId[id], i)).join('') + f.catalog.filter((g) => !chosen.includes(g.id)).map((g) => row(g, -1)).join('');
+      const on = new Set(f.packs);
+      const packs = H.groups.map((gr) => {
+        const list = H.allPacks.filter((p) => p.group === gr.id);
+        const n = list.filter((p) => on.has(p.id)).length;
+        return `<div class="pack-group"><div class="pg-head"><b>${esc(gr.label)}</b><span class="muted small">${n}/${list.length}</span><button class="linkish small" data-packgroup="${gr.id}" data-on="${n === list.length ? 'off' : 'on'}">${n === list.length ? 'None' : 'All'}</button></div>
+          <div class="picks">${list.map((p) => `<button type="button" class="pick ${on.has(p.id) ? 'on' : ''}" data-pack="${p.id}">${p.emoji} ${esc(p.name)}</button>`).join('')}</div></div>`;
       }).join('');
-      const bots = S.players.filter((p) => !p.online && false).length;
-      hostPanel = `<div class="card stack"><h3>🎮 Games</h3><p class="muted small" style="margin:0">Tap to include. Numbers show the order.</p>${rows}
-        <div class="row" style="gap:8px"><button class="btn small ghost" data-host="addBots">🤖 Add practice bots</button><button class="btn small ghost" data-host="removeBots">Remove bots</button></div>
+      const live = H.prompts.filter((q) => q.on).length;
+      const prompts = H.prompts.map((q) => `<div class="prompt-row ${q.on ? 'on' : ''}"><button class="tick" data-ptoggle="${q.id}" aria-label="${q.on ? 'Turn off' : 'Turn on'}">${q.on ? '✓' : ''}</button>
+        <input data-pedit="${q.id}" value="${esc(q.text)}" maxlength="90" aria-label="Question text" />${q.type === 'vote' ? '<span class="chip">vote</span>' : ''}${q.custom ? `<button class="x" data-premove="${q.id}" aria-label="Delete">✕</button>` : ''}</div>`).join('');
+      const panel = (id, title, body) => `<details class="card host-sec" data-panel="${id}" ${openPanels[id] ? 'open' : ''}><summary><h3>${title}</h3></summary>${body}</details>`;
+      hostPanel = `<div class="card stack"><h3>🎮 Games</h3><p class="muted small" style="margin:0">Hold and drag to reorder. Tap a number to drop a game.</p><div class="game-list">${rows}</div></div>
+        ${panel('packs', `📚 Question packs <span class="muted small">${on.size} on</span>`, `<p class="muted small" style="margin:0">Questions only come from packs that are on. Players pick their favourites, and the most-picked packs come up most.</p>${packs}`)}
+        ${panel('prompts', `🙋 Personal questions <span class="muted small">${live} on</span>`, `<p class="muted small" style="margin:0">Players answer these, and the answers turn into questions about each other. Edit the wording, switch them on or off (up to ${H.maxPrompts}), or write your own.</p>
+          ${prompts}<div class="prompt-add"><input id="newPrompt" maxlength="90" placeholder="e.g. Your most-used emoji" /><div class="row" style="gap:8px"><button class="btn small" data-padd="text">+ Question</button><button class="btn small ghost" data-padd="vote">+ Group vote</button></div></div>`)}
+        <div class="card stack"><div class="row" style="gap:8px"><button class="btn small ghost" data-host="addBots">🤖 Add practice bots</button><button class="btn small ghost" data-host="removeBots">Remove bots</button></div>
         <button class="btn diya-btn big block" data-host="start" ${waiting.length || S.players.length < 2 ? 'disabled' : ''}>${App.diya(true, 28)} Start the party</button>
         <p class="muted small center" style="margin:0">${S.players.length < 2 ? 'Waiting for at least one more player.' : waiting.length ? `Waiting on ${waiting.map((p) => esc(p.name)).join(', ')}` : 'Everyone’s ready!'}</p></div>`;
     }
@@ -195,7 +209,7 @@
       : `<label class="field" for="q_${q.id}">${esc(q.text)}</label><input id="q_${q.id}" data-text="${q.id}" maxlength="60" placeholder="${esc(q.ph || '')}" value="${esc(draft.answers[q.id] || '')}" />`).join('');
     const html = `<div class="stack profile"><div><h2>Quick profile</h2><p class="muted" style="margin:4px 0 0">So the game picks questions you’ll love. 30 seconds.</p></div>
       <div class="card stack"><label class="field">Your age</label><div class="picks">${chips(P.ageBands, [draft.age], 'age')}</div>
-      <label class="field">What are you into? (pick any)</label><div class="picks">${chips(P.topics, draft.interests, 'topic')}</div>
+      <label class="field">What are you into? Pick as many as you like.</label>${(P.groups || []).map((g) => { const list = P.topics.filter((t) => t.group === g.id); return list.length ? `<div class="topic-group"><div class="muted small">${esc(g.label)}</div><div class="picks">${chips(list, draft.interests, 'topic')}</div></div>` : ''; }).join('')}
       <label class="field">Favourite movie genres</label><div class="picks">${chips(P.genres, draft.genres, 'genre')}</div></div>
       <div class="card stack"><h3>About you</h3><p class="muted small" style="margin:0">A few answers become questions about you. Skip any.</p>${fun}</div>
       <button class="btn diya-btn big block" data-profile-done>${App.diya(true, 28)} Done</button></div>`;
@@ -365,6 +379,55 @@
   }
 
   // =================== EVENTS ===================
+  const openPanels = {};
+  document.addEventListener('change', (e) => {
+    const t = e.target;
+    if (t.matches && t.matches('[data-level]')) send({ type: 'setLevel', gameId: t.dataset.level, level: t.value });
+    if (t.matches && t.matches('[data-pedit]') && t.value.trim()) send({ type: 'prompt', op: 'edit', id: t.dataset.pedit, text: t.value.trim() });
+  });
+
+  // Hold-and-drag to reorder games. A short hold lifts the row; moving before the hold fires scrolls as normal.
+  let drag = null;
+  document.addEventListener('pointerdown', (e) => {
+    const row = e.target.closest && e.target.closest('.game-row.on');
+    if (!row || !isHost() || e.target.closest('button, select, input')) return;
+    const start = { x: e.clientX, y: e.clientY, id: e.pointerId };
+    const cancel = () => { clearTimeout(timer); document.removeEventListener('pointermove', early); document.removeEventListener('pointerup', cancel); document.removeEventListener('pointercancel', cancel); };
+    const early = (m) => { if (Math.hypot(m.clientX - start.x, m.clientY - start.y) > 8) cancel(); };
+    const timer = setTimeout(() => {
+      cancel();
+      drag = { row, list: row.parentElement, y: start.y, offset: 0 };
+      row.classList.add('lifted'); document.body.classList.add('dragging'); App.vibrate(15);
+      try { row.setPointerCapture(start.id); } catch (_) {}
+    }, 220);
+    document.addEventListener('pointermove', early);
+    document.addEventListener('pointerup', cancel);
+    document.addEventListener('pointercancel', cancel);
+  });
+  document.addEventListener('touchmove', (e) => { if (drag) e.preventDefault(); }, { passive: false });
+  document.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const { row, list } = drag;
+    let dy = e.clientY - drag.y;
+    const rows = [...list.querySelectorAll('.game-row.on')];
+    const i = rows.indexOf(row);
+    const h = row.offsetHeight + 8;
+    if (dy > h / 2 && rows[i + 1]) { list.insertBefore(rows[i + 1], row); drag.y += h; dy -= h; App.vibrate(8); }
+    else if (dy < -h / 2 && i > 0) { list.insertBefore(row, rows[i - 1]); drag.y -= h; dy += h; App.vibrate(8); }
+    row.style.transform = `translateY(${dy}px)`;
+  });
+  const drop = () => {
+    if (!drag) return;
+    const { row, list } = drag;
+    row.style.transform = ''; row.classList.remove('lifted'); document.body.classList.remove('dragging');
+    const order = [...list.querySelectorAll('.game-row.on')].map((r) => r.dataset.gid);
+    drag = null;
+    if (order.join() !== S.flow.order.join()) { S.flow.order = order; send({ type: 'setGames', order }); }
+    render();
+  };
+  document.addEventListener('pointerup', drop);
+  document.addEventListener('pointercancel', drop);
+
   document.addEventListener('click', (e) => {
     const el = (sel) => e.target.closest(sel);
     let b;
@@ -386,11 +449,27 @@
       if (!order.length) { App.toast('Keep at least one game.', true); return; }
       send({ type: 'setGames', order }); return;
     }
-    if ((b = el('[data-up]'))) {
-      const order = [...S.flow.order]; const i = order.indexOf(b.dataset.up);
-      if (i > 0) { [order[i - 1], order[i]] = [order[i], order[i - 1]]; send({ type: 'setGames', order }); }
-      return;
+    if ((b = el('[data-pack]'))) {
+      const id = b.dataset.pack; const on = new Set(S.flow.packs);
+      if (on.has(id)) on.delete(id); else on.add(id);
+      if (!on.size) { App.toast('Keep at least one pack on.', true); return; }
+      b.classList.toggle('on'); send({ type: 'setPacks', ids: [...on] }); return;
     }
+    if ((b = el('[data-packgroup]'))) {
+      const ids = S.hostSetup.allPacks.filter((p) => p.group === b.dataset.packgroup).map((p) => p.id);
+      let on = new Set(S.flow.packs);
+      if (b.dataset.on === 'on') ids.forEach((id) => on.add(id)); else ids.forEach((id) => on.delete(id));
+      if (!on.size) { App.toast('Keep at least one pack on.', true); return; }
+      send({ type: 'setPacks', ids: [...on] }); return;
+    }
+    if ((b = el('[data-ptoggle]'))) { send({ type: 'prompt', op: 'toggle', id: b.dataset.ptoggle }); return; }
+    if ((b = el('[data-premove]'))) { send({ type: 'prompt', op: 'remove', id: b.dataset.premove }); return; }
+    if ((b = el('[data-padd]'))) {
+      const inp = document.getElementById('newPrompt'); const text = inp ? inp.value.trim() : '';
+      if (!text) { App.toast('Type a question first.', true); return; }
+      send({ type: 'prompt', op: 'add', kind: b.dataset.padd, text }, () => { if (inp) inp.value = ''; }); return;
+    }
+    if ((b = el('details[data-panel] > summary'))) { const d = b.parentElement; openPanels[d.dataset.panel] = !d.open; return; }
     if ((b = el('[data-kick]'))) { if (confirm('Remove this player?')) send({ type: 'kick', pid: b.dataset.kick }); return; }
     if ((b = el('[data-age]'))) { draft.age = b.dataset.age; render(); return; }
     if ((b = el('[data-topic]'))) { const v = b.dataset.topic; draft.interests = draft.interests.includes(v) ? draft.interests.filter((x) => x !== v) : [...draft.interests, v]; render(); return; }

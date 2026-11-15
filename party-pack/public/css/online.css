@@ -103,3 +103,34 @@ input:not([type])::placeholder, input[type=email]::placeholder { color: var(--te
    Short screens stay vertically centred. */
 body.play #moment { overflow-y: auto; justify-content: safe center; padding-bottom: 110px; -webkit-overflow-scrolling: touch; }
 body.play .moment-wrap { overflow: visible; min-height: 0; }
+
+/* ---------- Host setup: games, packs, personal questions ---------- */
+.game-list { display: flex; flex-direction: column; gap: 8px; }
+.game-row { position: relative; touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; transition: box-shadow .15s ease, transform .05s linear; }
+.game-row .gt { flex: 1; min-width: 0; }
+.game-row .grip { color: var(--text-muted); letter-spacing: -2px; font-weight: 800; padding: 0 4px 0 2px; cursor: grab; }
+.game-row.lifted { z-index: 5; box-shadow: 0 14px 30px rgba(0, 0, 0, .45); background: var(--surface-raised); transition: box-shadow .15s ease; cursor: grabbing; }
+body.dragging, body.dragging * { user-select: none !important; -webkit-user-select: none !important; }
+.game-row .lvl { flex: none; max-width: 8.5em; font-size: 12px; padding: 6px 8px; border-radius: 10px; background: var(--shell); color: var(--text); border: 1px solid var(--line); }
+.host-sec > summary { list-style: none; cursor: pointer; display: flex; align-items: center; justify-content: space-between; }
+.host-sec > summary::-webkit-details-marker { display: none; }
+.host-sec > summary::after { content: '▾'; color: var(--text-muted); transition: transform .2s ease; }
+.host-sec[open] > summary::after { transform: rotate(180deg); }
+.host-sec[open] > summary { margin-bottom: 10px; }
+.host-sec h3 { margin: 0; display: flex; gap: 8px; align-items: baseline; }
+.host-sec > *:not(summary) + * { margin-top: 12px; }
+.pack-group .pg-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+.pack-group .pg-head b { flex: 1; }
+.pack-group .picks .pick, .topic-group .picks .pick { font-size: 13px; padding: 7px 11px; }
+.topic-group { margin-top: 6px; }
+.topic-group > .small { margin: 4px 0 6px; text-transform: uppercase; letter-spacing: .06em; font-size: 11px; }
+.prompt-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); opacity: .6; }
+.prompt-row.on { opacity: 1; }
+.prompt-row input { flex: 1; min-width: 0; font-size: 14px; padding: 8px 10px; }
+.prompt-row .x { background: none; border: 0; color: var(--text-muted); font-size: 16px; padding: 4px; cursor: pointer; }
+.prompt-add { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.linkish.small { font-size: 13px; padding: 0; }
+.game-row .grip { flex: none; }
+.game-row:not(.on) .tick, .prompt-row:not(.on) .tick { color: var(--gold); }
+.prompt-row .tick { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--gold); background: none; color: var(--on-accent); font-weight: 700; cursor: pointer; }
+.prompt-row.on .tick { background: var(--gold); }

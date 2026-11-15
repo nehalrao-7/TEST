@@ -47,6 +47,7 @@ function fileStore() {
   const roomsDir = path.join(dir, 'rooms');
   const indexFile = path.join(roomsDir, 'index.json');
   const bookFile = path.join(dir, 'book.json');
+  const histFile = path.join(dir, 'qseen.json');
   const seenAt = new Map();
   fs.mkdirSync(roomsDir, { recursive: true });
 
@@ -132,6 +133,17 @@ function fileStore() {
       return next;
     },
     async seen(id) { seenAt.set(id, Date.now()); },
+    // Question history per email hash: { [hash]: { [qid]: seenAt } }
+    async qHistory(hashes) {
+      const all = readJson(histFile) || {};
+      return hashes.flatMap((h) => Object.entries(all[h] || {}).map(([qid, seenAt]) => ({ qid, seenAt })));
+    },
+    async qMark(hashes, ids) {
+      const all = readJson(histFile) || {};
+      const now = Date.now();
+      for (const h of hashes) { all[h] = all[h] || {}; for (const id of ids) all[h][id] = now; }
+      writeJson(histFile, all);
+    },
   };
 }
 
@@ -284,6 +296,19 @@ function postgresStore() {
         [version, body]
       );
       return upd.rowCount === 1 ? upd.rows[0].version : null;
+    },
+    // Question history per email hash (table created by migration; missing table = no history, never an error).
+    async qHistory(hashes) {
+      const r = await q(`SELECT qid, seen_at FROM ${PFX}_qseen WHERE email_hash = ANY($1::text[])`, [hashes]);
+      return r.rows.map((x) => ({ qid: x.qid, seenAt: Number(x.seen_at) }));
+    },
+    async qMark(hashes, ids) {
+      await q(
+        `INSERT INTO ${PFX}_qseen (email_hash, qid, seen_at)
+         SELECT h, i, $3 FROM unnest($1::text[]) AS h CROSS JOIN unnest($2::text[]) AS i
+         ON CONFLICT (email_hash, qid) DO UPDATE SET seen_at = EXCLUDED.seen_at`,
+        [hashes, ids, Date.now()]
+      );
     },
     async seen(id) {
       await q(
