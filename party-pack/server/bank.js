@@ -10,12 +10,14 @@ const S = require('./state');
 
 const GROUPS = [
   { id: 'everyone', label: 'For everyone' },
+  { id: 'bolly', label: 'Bollywood' },
+  { id: 'styles', label: 'Fun formats' },
   { id: 'indian', label: 'Indian' },
   { id: 'regional', label: 'Indian regions' },
   { id: 'canada', label: 'Canadian' },
   { id: 'newcomer', label: 'New to Canada' },
 ];
-const FILES = ['general', 'indian', 'regional', 'canada', 'newcomer'];
+const FILES = ['general', 'fandom', 'bollywood', 'styles', 'indian', 'regional', 'canada', 'newcomer'];
 const PACKS = FILES.flatMap((f) => require(`./packs/${f}`));
 const BY_ID = Object.fromEntries(PACKS.map((p) => [p.id, p]));
 const PACK_LIST = PACKS.map((p) => ({ id: p.id, name: p.name, emoji: p.emoji, group: p.group, count: p.questions.length + p.movies.length }));

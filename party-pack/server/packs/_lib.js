@@ -2,7 +2,8 @@
 // Movie lines (Guess the Movie): "difficulty | emoji clue | right title | wrong | wrong | wrong".
 // Difficulty: 1 very easy · 2 easy · 3 medium · 4 hard · 5 very hard.
 const crypto = require('crypto');
-const qid = (packId, text) => packId + ':' + crypto.createHash('sha1').update(text).digest('hex').slice(0, 8);
+// The id hashes the question and its answer, so formats that reuse a prompt (“Which came out first?”) stay unique.
+const qid = (packId, text, right) => packId + ':' + crypto.createHash('sha1').update(text + '|' + right).digest('hex').slice(0, 8);
 
 function parse(packId, block, kind) {
   return String(block || '').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#')).map((l) => {
@@ -12,8 +13,8 @@ function parse(packId, block, kind) {
     const [, text, right, ...wrong] = parts;
     if (new Set([right, ...wrong].map((x) => x.toLowerCase())).size !== 4) throw new Error(`Duplicate option in pack ${packId}: ${l}`);
     return kind === 'movie'
-      ? { id: qid(packId, 'movie:' + text), pack: packId, kind, d, q: 'Guess the movie!', clue: text, right, wrong }
-      : { id: qid(packId, text), pack: packId, kind, d, q: text, right, wrong };
+      ? { id: qid(packId, 'movie:' + text, right), pack: packId, kind, d, q: 'Guess the movie!', clue: text, right, wrong }
+      : { id: qid(packId, text, right), pack: packId, kind, d, q: text, right, wrong };
   });
 }
 
