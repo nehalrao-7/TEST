@@ -1,0 +1,2 @@
+-- Fresh databases start with one row per party. See 002_rooms.sql.
+-- The old single-document table is not created.

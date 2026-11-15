@@ -1,0 +1,266 @@
+// Personalised questions: guests answer a short questionnaire on their phones, and when a
+// game starts roughly N% (default 20%) of its questions are swapped for questions built
+// from those answers ("Whose dream holiday is Bali?", "What is Priya's favourite movie?").
+// The standard content is never modified; the mixed set is stored on the live game.
+
+const crypto = require('crypto');
+const S = require('./state');
+
+// type: text (free answer) · pick (choose another guest) · vote (group superlative, choose a guest)
+// · choice (fixed options). section groups them on the phone.
+const DEFAULT_PROMPTS = [
+  // ---- About you ----
+  { id: 'karaoke', section: 'you', type: 'text', tag: 'music', text: 'Your go-to karaoke song', ph: 'e.g. Kal Ho Naa Ho',
+    who: 'Whose go-to karaoke song is “{a}”?', what: "What is {n}'s go-to karaoke song?", clue: 'Their go-to karaoke song is “{a}”' },
+  { id: 'everyday', section: 'you', type: 'text', tag: 'food', text: 'A dish you could eat every single day', ph: 'e.g. Pav bhaji',
+    who: 'Who could eat {a} every single day?', what: 'Which dish could {n} eat every single day?', clue: 'They could eat {a} every single day' },
+  { id: 'dreamJob', section: 'you', type: 'text', tag: 'fun', text: 'Your childhood dream job', ph: 'e.g. Pilot',
+    who: 'Whose childhood dream job was {a}?', what: "What was {n}'s childhood dream job?", clue: 'Their childhood dream job: {a}' },
+  { id: 'binge', section: 'you', type: 'text', tag: 'movie', text: 'A show or movie you binged recently', ph: 'e.g. Panchayat',
+    who: 'Who recently binged “{a}”?', what: 'What did {n} binge recently?', clue: 'They recently binged “{a}”' },
+
+  // ---- About the group (pick another guest) ----
+  { id: 'roommate', section: 'group', type: 'pick', tag: 'group', text: 'Who here would you pick as a roommate?',
+    who: 'Who did {n} pick as their ideal roommate?', clue: '{n} picked this guest as their ideal roommate' },
+  { id: 'roadTrip', section: 'group', type: 'pick', tag: 'group', text: 'Who here would you take on a road trip?',
+    who: 'Who would {n} take on a road trip?', clue: '{n} would take this guest on a road trip' },
+
+  // ---- Garba time ----
+  { id: 'garbaSnack', section: 'garba', type: 'text', tag: 'garba', text: 'Your must-have snack after garba', ph: 'e.g. Fafda-jalebi',
+    who: 'Whose must-have snack after garba is {a}?', what: "What is {n}'s must-have snack after garba?", clue: 'Their must-have snack after garba: {a}' },
+
+  // ---- Group votes ----
+  { id: 'voteMic', section: 'vote', type: 'vote', tag: 'music', text: 'First to grab the mic at a party 🎤',
+    who: 'The group has voted! Who is first to grab the mic at a party?', clue: 'Voted first to grab the mic at a party' },
+  { id: 'voteEkLast', section: 'vote', type: 'vote', tag: 'garba', text: 'Always asking for “ek last gaana”',
+    who: 'The group has voted! Who is always asking for “ek last gaana”?', clue: 'Voted always asking for “ek last gaana”' },
+  { id: 'voteFunny', section: 'vote', type: 'vote', tag: 'group', text: 'Funniest person in the group 😂',
+    who: 'The group has voted! Who is the funniest person in the group?', clue: 'Voted the funniest person in the group' },
+  { id: 'votePlanner', section: 'vote', type: 'vote', tag: 'group', text: 'The group’s unofficial event planner',
+    who: 'The group has voted! Who is the group’s unofficial event planner?', clue: 'Voted the group’s unofficial event planner' },
+  { id: 'voteSharma', section: 'vote', type: 'vote', tag: 'group', text: 'The group’s “Sharma ji ka beta / beti”',
+    who: 'The group has voted! Who is the group’s “Sharma ji ka beta / beti”?', clue: 'Voted the group’s “Sharma ji ka beta / beti”' },
+  { id: 'voteSecret', section: 'vote', type: 'vote', tag: 'group', text: 'Worst at keeping a secret 🤫',
+    who: 'The group has voted! Who is the worst at keeping a secret?', clue: 'Voted the worst at keeping a secret' },
+  { id: 'voteLost', section: 'vote', type: 'vote', tag: 'group', text: 'Most likely to get lost even with Google Maps',
+    who: 'The group has voted! Who is most likely to get lost even with Google Maps?', clue: 'Voted most likely to get lost even with Google Maps' },
+  { id: 'voteFirstOut', section: 'vote', type: 'vote', tag: 'group', text: 'First to say “chalo, we should leave” (and then stay 2 more hours)',
+    who: 'The group has voted! Who always says “chalo, we should leave” and then stays 2 more hours?', clue: 'Voted first to say “chalo, we should leave”… and then stay 2 more hours' },
+];
+// Prompt ids from the first version, used to upgrade an unedited saved questionnaire.
+const V1_IDS = ['movie', 'rewatch', 'star', 'holiday', 'trip', 'sweet', 'comfort', 'dance', 'talent', 'fact'];
+// Dropped in v4: garba prompts and the filler questions. Votes 16–25 stay.
+const DROPPED_IDS = ['holiday', 'talent', 'fact', 'garbaSong', 'garbaEvent', 'garbaMove', 'garbaOrDandiya', 'dandiyaPartner', 'callFirst'];
+// Questionnaire version each default question was introduced in (for upgrading saved games).
+const ADDED_IN = Object.fromEntries([
+  ...['garbaSong', 'garbaEvent', 'garbaMove', 'garbaOrDandiya', 'partner', 'bestie', 'dandiyaPartner', 'callFirst', 'voteDancer', 'voteLast', 'voteLate', 'voteOutfit'].map((id) => [id, 2]),
+  ...['voteDressed', 'voteNakhre', 'voteReady', 'voteFoodie', 'voteChat', 'voteSelfie'].map((id) => [id, 3]),
+]);
+
+const TAG_CLUE = { movie: '🎬 ✨ 🕵️', holiday: '🏝️ ✨ 🕵️', food: '🍬 ✨ 🕵️', music: '💃 ✨ 🕵️', fun: '🤫 ✨ 🕵️', garba: '🪔 💃 ✨', group: '👯 ✨ 🕵️' };
+
+const shuffle = (a) => S.shuffle(a);
+const norm = (s) => String(s).toLowerCase().replace(/[^a-z0-9ऀ-ॿ]+/g, ' ').trim();
+// Two typed answers count as the same when they plainly mean the same thing: spacing, an
+// abbreviation (DDLJ), one containing the other (Katli / Kaju Katli) or a small typo.
+// Questions are only built from answers nobody else gave, so this keeps every question to one right answer.
+function lev(a, b) {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++) for (let j = 1; j <= b.length; j++) d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+function sameAnswer(x, y) {
+  const a = norm(x), b = norm(y);
+  if (!a || !b) return false;
+  const ca = a.replace(/ /g, ''), cb = b.replace(/ /g, '');
+  if (ca === cb) return true;
+  const initials = (s) => s.split(' ').map((w) => w[0]).join('');
+  if ((initials(a) === cb && cb.length >= 3) || (initials(b) === ca && ca.length >= 3)) return true;
+  if ((ca.length >= 4 && cb.includes(ca)) || (cb.length >= 4 && ca.includes(cb))) return true;
+  return Math.min(ca.length, cb.length) >= 6 && lev(ca, cb) <= 2;
+}
+const fill = (t, v) => t.replace(/\{a\}/g, v.a || '').replace(/\{n\}/g, v.n || '').replace(/\{text\}/g, v.text || '');
+
+function cleanAnswer(a) {
+  a = String(a || '').replace(/\s+/g, ' ').trim().slice(0, 70);
+  return a ? a[0].toUpperCase() + a.slice(1) : '';
+}
+
+function promptTemplates(p) {
+  if (p.type === 'pick') return { who: p.who || 'Who did {n} pick for “{text}”?', clue: p.clue || '{n} picked this guest for “{text}”' };
+  if (p.type === 'vote') return { who: p.who || 'The group has voted! {text}?', clue: p.clue || 'The group’s pick for “{text}”' };
+  if (p.type === 'choice') return { what: p.what || '“{text}” What did {n} answer?' };
+  return {
+    who: p.who || 'Who answered “{a}” to “{text}”?',
+    what: p.what || 'What did {n} answer to “{text}”?',
+    clue: p.clue || 'This guest answered “{a}” to “{text}”',
+  };
+}
+
+// Every possible personal question from the current answers.
+function buildPool(state) {
+  const players = Object.values(state.players);
+  const byId = Object.fromEntries(players.map((p) => [p.id, p]));
+  const names = (exclude, n = 3, prefer = []) => {
+    const ex = new Set(exclude);
+    const pref = prefer.filter((id) => !ex.has(id) && byId[id]);
+    const rest = shuffle(players.filter((p) => !ex.has(p.id) && !pref.includes(p.id)).map((p) => p.id));
+    return [...pref, ...rest].slice(0, n).map((id) => byId[id].name);
+  };
+  const items = [];
+  for (const prompt of state.questionnaire || []) {
+    const t = promptTemplates(prompt);
+    const type = prompt.type || 'text';
+    const raw = players.map((p) => ({ p, v: (p.answers || {})[prompt.id] })).filter((x) => x.v);
+
+    if (type === 'pick') {
+      // "Who is Priya's other half?" — answer is the guest they picked.
+      const seenPairs = new Set();
+      for (const x of raw) {
+        const y = byId[x.v];
+        if (!y || y.id === x.p.id || players.length < 3) continue;
+        const pair = [x.p.id, y.id].sort().join('|');
+        if (prompt.id === 'partner' && seenPairs.has(pair)) continue; // couples answer for each other
+        seenPairs.add(pair);
+        const opts = shuffle([y.name, ...names([x.p.id, y.id])]);
+        items.push({ kind: 'who', personal: true, promptId: prompt.id, tag: prompt.tag || 'group', about: x.p.id, aboutName: x.p.name, answerName: y.name, involves: [x.p.id, y.id],
+          q: fill(t.who, { n: x.p.name, text: prompt.text }), options: opts, answer: opts.indexOf(y.name), clueText: fill(t.clue, { n: x.p.name, text: prompt.text }) });
+      }
+      continue;
+    }
+    if (type === 'vote') {
+      // Group superlative — needs 3+ votes and a clear winner.
+      const tally = {};
+      raw.forEach((x) => { if (byId[x.v]) tally[x.v] = (tally[x.v] || 0) + 1; });
+      const ranked = Object.entries(tally).sort((a, b) => b[1] - a[1]);
+      const votes = ranked.reduce((n, [, c]) => n + c, 0);
+      if (votes < 3 || !ranked.length || (ranked[1] && ranked[1][1] === ranked[0][1])) continue;
+      const winner = byId[ranked[0][0]];
+      const opts = shuffle([winner.name, ...names([winner.id], 3, ranked.slice(1).map(([id]) => id))]);
+      items.push({ kind: 'who', personal: true, vote: true, promptId: prompt.id, tag: prompt.tag || 'group', about: winner.id, aboutName: winner.name, involves: [winner.id],
+        q: fill(t.who, { text: prompt.text }), options: opts, answer: opts.indexOf(winner.name), clueText: fill(t.clue, { text: prompt.text }), votes: ranked[0][1] });
+      continue;
+    }
+    if (type === 'choice') {
+      const opts = prompt.options || [];
+      for (const x of raw) {
+        const ai = opts.indexOf(x.v);
+        if (ai < 0 || opts.length < 2) continue;
+        items.push({ kind: 'what', personal: true, promptId: prompt.id, tag: prompt.tag || 'fun', about: x.p.id, aboutName: x.p.name, involves: [x.p.id],
+          q: fill(t.what, { n: x.p.name, text: prompt.text }), options: [...opts], answer: ai });
+      }
+      continue;
+    }
+
+    const answers = raw.map((x) => ({ p: x.p, a: cleanAnswer(x.v) })).filter((x) => x.a);
+    if (!answers.length) continue;
+    for (const x of answers) {
+      const base = { about: x.p.id, aboutName: x.p.name, involves: [x.p.id], promptId: prompt.id, tag: prompt.tag || 'fun', answerText: x.a, personal: true };
+      // "Whose favourite movie is X?" — needs a unique answer and at least one other guest.
+      if (answers.filter((y) => sameAnswer(y.a, x.a)).length === 1 && players.length >= 2) {
+        const opts = shuffle([x.p.name, ...names([x.p.id])]);
+        items.push({ ...base, kind: 'who', q: fill(t.who, { a: x.a, text: prompt.text }), options: opts, answer: opts.indexOf(x.p.name), clueText: fill(t.clue, { a: x.a, text: prompt.text }) });
+      }
+      // "What is Priya's favourite movie?" — needs two other distinct answers to the same prompt.
+      // Wrong options must differ from the right answer and from each other.
+      const others = [];
+      for (const y of answers) if (!sameAnswer(y.a, x.a) && !others.some((o) => sameAnswer(o, y.a))) others.push(y.a);
+      if (others.length >= 2 && answers.filter((y) => sameAnswer(y.a, x.a)).length === 1) {
+        const opts = shuffle([x.a, ...shuffle(others).slice(0, 3)]);
+        items.push({ ...base, kind: 'what', q: fill(t.what, { n: x.p.name, text: prompt.text }), options: opts, answer: opts.indexOf(x.a) });
+      }
+    }
+  }
+  return items;
+}
+
+// Choose k items, preferring a tag, spreading across guests and avoiding repeats tonight.
+function pick(pool, k, { preferTags = [], kinds = ['who', 'what'], used = new Set() } = {}) {
+  let cands = shuffle(pool.filter((i) => kinds.includes(i.kind) && !used.has(`${i.promptId}:${i.about}`)));
+  if (cands.length < k) cands = cands.concat(shuffle(pool.filter((i) => kinds.includes(i.kind) && !cands.includes(i))));
+  cands.sort((a, b) => (preferTags.includes(b.tag) ? 1 : 0) - (preferTags.includes(a.tag) ? 1 : 0));
+  const chosen = [];
+  const perGuest = {};
+  const seen = new Set();
+  // Round-robin: first pass allows 1 per guest, then 2, ... so everyone gets featured.
+  for (let cap = 1; chosen.length < k && cap <= 10; cap++) {
+    for (const it of cands) {
+      if (chosen.length >= k) break;
+      const key = `${it.promptId}:${it.about}`;
+      if (seen.has(key) || (perGuest[it.about] || 0) >= cap) continue;
+      chosen.push(it);
+      seen.add(key);
+      perGuest[it.about] = (perGuest[it.about] || 0) + 1;
+    }
+  }
+  return chosen;
+}
+
+const toMCQ = (it, extra = {}) => ({ q: it.q, options: it.options, answer: it.answer, personal: true, about: it.about, involves: it.involves, ...extra });
+const spread = (n, k) => [...new Set(Array.from({ length: k }, (_, j) => Math.min(n - 1, Math.floor(((j + 1) * n) / (k + 1)))))];
+const countFor = (n, pct) => (n <= 0 || pct <= 0 ? 0 : Math.max(1, Math.round(n * pct)));
+
+// Returns { content, count } for a game about to start.
+function personalize(game, state) {
+  const pct = Math.max(0, Math.min(100, Number(state.settings.personalPct ?? 20))) / 100;
+  const content = JSON.parse(JSON.stringify(game.content));
+  if (game.personalize === false || !pct) return { content, count: 0 };
+  const pool = buildPool(state);
+  if (!pool.length) return { content, count: 0 };
+  const used = new Set(state.personalUsed || []);
+  const mark = (items) => items.forEach((i) => used.add(`${i.promptId}:${i.about}`));
+  const preferTags = /movie|film|bollywood/i.test(game.title) ? ['movie'] : /song|music|dance|hook|garba/i.test(game.title) ? ['music', 'garba'] : [];
+  let count = 0;
+
+  if (game.type === 'quiz') {
+    const qs = content.questions || [];
+    const items = pick(pool, countFor(qs.length, pct), { preferTags, used });
+    spread(qs.length, items.length).forEach((pos, j) => {
+      const it = items[j];
+      qs[pos] = toMCQ(it, { time: qs[pos].time || 20, clue: qs[pos].clue ? TAG_CLUE[it.tag] || '✨ 🕵️' : undefined });
+    });
+    mark(items);
+    count = items.length;
+  } else if (game.type === 'jeopardy') {
+    const cats = content.categories || [];
+    const k = countFor(cats.length, pct);
+    for (let c = cats.length - k; c < cats.length; c++) {
+      const values = cats[c].clues.map((cl) => cl.value);
+      const items = pick(pool, values.length, { kinds: ['who'], used });
+      if (!items.length) continue;
+      cats[c] = { name: cats[c].group ? '✨ ' + cats[c].name : '✨ Know Your Guests', personal: true, clues: items.map((it, i) => ({ value: values[i], q: it.q, options: it.options, answer: it.answer, a: it.options[it.answer], personal: true, about: it.about, involves: it.involves })) };
+      mark(items);
+      count += items.length;
+    }
+  } else if (game.type === 'kbc') {
+    const ladder = content.ladder || [];
+    const levels = spread(ladder.length, countFor(ladder.length, pct)).filter((l) => l > 0);
+    for (const l of levels) {
+      // Several per level so the room gets a mix, and nobody is the only subject.
+      const items = pick(pool, 3, { used });
+      if (!items.length) continue;
+      ladder[l].questions = [...items.map((it) => toMCQ(it)), ...ladder[l].questions];
+      ladder[l].personal = true;
+      mark(items);
+      count += 1;
+    }
+  } else if (game.type === 'hookstep') {
+    const songs = content.songs || [];
+    const dance = shuffle(pool.filter((i) => ['dance', 'garbaSong'].includes(i.promptId) && i.kind !== 'what'));
+    const uniq = [...new Map(dance.map((i) => [norm(i.answerText), i])).values()];
+    const k = Math.min(uniq.length, countFor(songs.length, pct));
+    const slots = songs.map((s, i) => ({ s, i })).sort((a, b) => (a.s.youtube ? 1 : 0) - (b.s.youtube ? 1 : 0)).slice(0, k).map((x) => x.i);
+    slots.forEach((pos, j) => { songs[pos] = { title: `${uniq[j].answerText} (${uniq[j].aboutName}'s pick)`, step: 'Guest’s choice — freestyle your best hook step!', personal: true }; });
+    count = k;
+  }
+  state.personalUsed = [...used];
+  return { content, count };
+}
+
+function preview(state, n = 8) {
+  const pool = buildPool(state);
+  return { total: pool.length, sample: pick(pool, n).map((i) => ({ q: i.q, options: i.options, answer: i.answer, about: i.involves && i.involves.length > 1 ? i.involves.map((id) => (state.players[id] || {}).name).join(' & ') : i.aboutName })) };
+}
+
+module.exports = { DEFAULT_PROMPTS, V1_IDS, ADDED_IN, DROPPED_IDS, personalize, preview, cleanAnswer, buildPool };
