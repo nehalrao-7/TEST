@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <title>2026 Diwali Party — TV</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪔</text></svg>" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/css/app.css" />
+  <link rel="stylesheet" href="/css/tv.css" />
+</head>
+<body class="tv">
+  <div class="wrap tv-wrap">
+    <header class="tv-top">
+      <div class="logo"><span class="diya">🪔</span><b id="eventName">2026 <span>Diwali Party</span></b></div>
+      <div id="nowPlaying" class="now-playing"></div>
+      <div id="miniTop" class="mini-top"></div>
+    </header>
+    <main id="stage" class="stage"></main>
+    <footer class="tv-foot">
+      <div class="diya-row" id="diyaRow"></div>
+      <div class="ticker"><div id="ticker" class="ticker-inner"></div></div>
+    </footer>
+  </div>
+  <div id="arrival" class="arrival hidden"></div>
+  <div id="announce" class="announce hidden"></div>
+  <div id="mediaBox" class="media-box audio"><div id="ytPlayer"></div><div id="mediaLabel" class="media-label"></div></div>
+  <div id="musicChip" class="music-chip hidden"><span class="eq"><i></i><i></i><i></i><i></i></span><span id="musicText">Now playing</span></div>
+  <button id="soundBtn" class="btn gold sound-btn">🔊 Tap to enable sound &amp; music</button>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="/js/common.js"></script>
+  <script src="/js/tv.js"></script>
+  <script src="https://www.youtube.com/iframe_api"></script>
+</body>
+</html>
