@@ -105,7 +105,7 @@ body.tv-gate .tv-top, body.tv-gate .tv-foot, body.tv-gate .sound-btn, body.tv-ga
 .opts.reveal .opt { animation: none; }
 .opts.reveal .opt.out { animation: opt-out .6s var(--ease) .25s both; }
 .opts.reveal .opt.win { animation: opt-win .8s var(--spring) .7s both; z-index: 1; }
-@keyframes opt-out { to { opacity: .32; filter: saturate(.4); transform: scale(.97); box-shadow: none; } }
+@keyframes opt-out { to { opacity: .5; filter: saturate(.55); transform: scale(.97); box-shadow: none; } }
 @keyframes opt-win { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1.02); box-shadow: 0 0 0 .3rem var(--bg), 0 0 0 .6rem var(--oc), 0 0 3rem color-mix(in srgb, var(--oc) 60%, transparent); } }
 .opts.two .opt, .opts.emoji .opt { flex-direction: column; justify-content: center; text-align: center; }
 .opts.two .opt { font-size: 2.8rem; }
@@ -115,7 +115,7 @@ body.tv-gate .tv-top, body.tv-gate .tv-foot, body.tv-gate .sound-btn, body.tv-ga
 .opts.emoji .opt .k { position: absolute; top: 1rem; left: 1rem; }
 .opts.two .opt .n { font-size: 3rem; }
 
-.lockins { display: flex; justify-content: center; gap: .9rem; flex-wrap: wrap; min-height: 4.6rem; }
+.lockins { display: flex; justify-content: center; gap: .9rem; flex-wrap: wrap; min-height: 4.6rem; padding-top: .6rem; }
 .lk { display: flex; flex-direction: column; align-items: center; gap: .2rem; opacity: .35; filter: grayscale(.8); transition: opacity .35s, filter .35s, transform .45s var(--spring); width: 4.4rem; }
 .lk .avatar { width: 2.8rem; height: 2.8rem; font-size: 1.5rem; }
 .lk small { font-size: .85rem; color: var(--text-2); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

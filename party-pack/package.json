@@ -1,7 +1,7 @@
 {
   "name": "2026-diwali-party",
   "version": "1.0.0",
-  "description": "Live multiplayer Diwali party games: players on phones, host console, TV display.",
+  "description": "Party Pack: self-running party games on everyone's phone, with an optional TV screen and seasonal theme packs.",
   "main": "server/index.js",
   "scripts": {
     "start": "node server/index.js",

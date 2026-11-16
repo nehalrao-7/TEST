@@ -325,7 +325,7 @@
     const head = `<div class="q-head"><span>Round ${L.round + 1} <small>of ${L.total}</small>${L.round === L.total - 1 ? ' <em class="chip accent">×2</em>' : ''}</span></div>`;
     if (L.phase === 'arm') {
       if (reflex.round !== L.round) Object.assign(reflex, { round: L.round, shownAt: 0, sent: false, ms: null, foul: false });
-      const go = App.now() >= L.goAt;
+      const go = !S.flow.paused && App.now() >= L.goAt;
       at(L.goAt);
       if (go && !reflex.shownAt) reflex.shownAt = performance.now();
       const done = reflex.sent || m.tapped;
@@ -416,13 +416,13 @@
     const f = S.flow;
     const next = f.catalog.find((g) => g.id === f.order[f.idx + 1]);
     const teams = S.teams.length ? `<div class="teams-mini">${S.teams.map((t) => `<span style="--tc:${t.color}">${esc(t.emoji)} ${esc(t.name)} · ${fmt(t.total)} avg</span>`).join('')}</div>` : '';
-    return [`stand-${f.idx}`, `<div class="stack"><h2 class="center">🏆 Standings</h2>${teams}${board(S.players.slice(0, 8))}
-      <div class="card center">${next ? `Up next: <b>${next.emoji} ${esc(next.title)}</b>` : 'Awards coming up! 🏅'} <span class="muted" data-count="${f.until}"></span></div></div>`, 'break'];
+    return [`stand-${f.idx}`, `<div class="stack"><h2 class="center">Standings</h2>${teams}${board(S.players.slice(0, 8))}
+      <div class="card center next-card"><span class="eyebrow">${next ? 'Up next' : 'Coming up'}</span><b>${next ? `${next.emoji} ${esc(next.title)}` : '🏅 The awards'}</b><span class="muted small">in <span data-count="${f.until}"></span>s</span></div></div>`, 'break'];
   }
   function finale() {
     const awards = (S.awards || []).filter((a) => a.winners.some((w) => w.id === me().id));
     const top3 = S.players.slice(0, 3);
-    return [`final-${S.flow.stage}`, `<div class="stack"><h2 class="center">🎆 Final standings</h2>
+    return [`final-${S.flow.stage}`, `<div class="stack"><h2 class="center">Final standings</h2>
       <div class="podium-mini">${top3.map((p, i) => `<div class="pod p${i + 1}"><i>${['🥇', '🥈', '🥉'][i]}</i>${av(p)}<b>${esc(p.name)}</b><span>${fmt(p.score)}</span></div>`).join('')}</div>
       <div class="card center">You finished <b>#${me().rank}</b> of ${S.players.length} with <b>${fmt(me().score)}</b> points</div>
       ${awards.length ? `<div class="card"><h3>Your awards</h3>${awards.map((a) => `<div class="kv"><span>${a.emoji} ${esc(a.title)}</span><span class="muted small">${esc(a.value)}</span></div>`).join('')}</div>` : ''}
@@ -555,7 +555,7 @@
       if (!order.length) { App.toast('Keep at least one game.', true); return; }
       send({ type: 'setGames', order }); return;
     }
-    if ((b = el('[data-pack]'))) {
+    if ((b = el('button[data-pack]'))) {
       const id = b.dataset.pack; const on = new Set(S.flow.packs);
       if (on.has(id)) on.delete(id); else on.add(id);
       if (!on.size) { App.toast('Keep at least one pack on.', true); return; }

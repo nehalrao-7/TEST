@@ -62,7 +62,7 @@ function flash(difficulty) {
       const i = int(0, n - 2);
       q = `Which came right after ${shown[i]}?`;
       right = shown[i + 1];
-      wrong = S.shuffle(shown.filter((_, k) => k !== i && k !== i + 1)).slice(0, 3);
+      wrong = [...S.shuffle(shown.filter((_, k) => k !== i && k !== i + 1)), ...hidden].slice(0, 3);
     } else {
       const i = int(0, n - 1);
       q = `Which one was ${i === n - 1 ? 'last' : ORDINAL[i]}?`;

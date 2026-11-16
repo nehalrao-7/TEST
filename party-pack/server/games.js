@@ -554,7 +554,7 @@ const reflex = {
     else {
       const elapsed = t - live.goAt;
       const claimed = Number(a.ms) > 0 ? Number(a.ms) : elapsed;
-      live.taps[p.id] = { ms: Math.round(Math.max(60, elapsed - 2000, Math.min(claimed, elapsed + 150))), at: t };
+      live.taps[p.id] = { ms: Math.round(Math.max(100, elapsed - 2000, Math.min(claimed, elapsed + 150))), at: t };
     }
     if (onlineAnsweredAll(live.taps, ctx.online)) reflex.close(live, game);
   },

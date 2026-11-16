@@ -210,6 +210,7 @@
     if (key !== prev.sceneKey) {
       stage.innerHTML = `<div class="scene enter"></div>`;
       prev.sceneKey = key;
+      stage.dataset.key = key;
       App.patch(stage.firstElementChild, html, true);
       onSceneChange(key);
     } else App.patch(stage.firstElementChild, html);
@@ -450,7 +451,7 @@
     if (L.phase === 'final') return [intro({ ...L, emoji: '🎆' }, 'Lightning reflexes! The standings are coming up…'), 'r-final'];
     const head = `<div class="ghead"><span class="pill">Round ${L.round + 1} <small>of ${L.total}</small></span>${L.round === L.total - 1 ? '<span class="pill accent">Double points ×2</span>' : ''}</div>`;
     if (L.phase === 'arm') {
-      const go = App.now() >= L.goAt;
+      const go = !(S.flow && S.flow.paused) && App.now() >= L.goAt;
       at(L.goAt);
       return [`<div class="gframe">${head}<div class="mid"><div class="light ${go ? 'go' : 'wait'}"><b>${go ? 'GO!' : 'Wait…'}</b></div></div>${lockins(L.tappedIds)}</div>`, `r-${L.round}${go ? '-go' : ''}`];
     }
