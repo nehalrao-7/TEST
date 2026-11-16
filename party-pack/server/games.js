@@ -31,7 +31,8 @@ function showOpen(countdownMs = 2800) {
   const blocking = ann && ann.style !== 'lower' && ann.until > now();
   return (blocking ? ann.until + 400 : now()) + countdownMs;
 }
-const publicQ = (q) => ({ q: q.q, options: q.options, clue: q.clue || null, image: q.image || null, time: q.time || 20, personal: Boolean(q.personal) });
+const publicQ = (q) => ({ q: q.q, options: q.options, clue: q.clue || null, image: q.image || null, time: q.time || 20, personal: Boolean(q.personal), kind: q.kind || null, cols: q.cols || null });
+const POLL_POINTS = 150;
 
 // ======================= QUIZ (Kahoot / Guess the Movie) =======================
 const quiz = {
@@ -46,7 +47,9 @@ const quiz = {
     live.answers = {};
     live.hints = {};
     live.result = null;
-    live.opensAt = showOpen(2800 / SPEED);
+    // Memory Flash: the row is shown from flashAt until the question opens.
+    live.flashAt = q.flash ? showOpen(2200 / SPEED) : null;
+    live.opensAt = q.flash ? live.flashAt + q.flashMs / SPEED : showOpen(2800 / SPEED);
     live.deadline = live.opensAt + ((q.time || 20) * 1000) / SPEED;
     quiz.resume(live, game, ctx);
   },
@@ -60,9 +63,16 @@ const quiz = {
     const q = game.content.questions[live.qIndex];
     // Double points: the last question of every round is worth double (Mario Party's last-turns twist).
     const mult = live.qIndex === game.content.questions.length - 1 ? 2 : 1;
+    // Hive Mind has no right answer: whichever option most people picked wins (ties all win).
+    const poll = q.kind === 'poll';
+    const counts = countBy(live.answers, q.options.length);
+    const most = Math.max(...counts);
+    const majority = poll ? counts.map((c, i) => (c === most && most > 0 ? i : -1)).filter((i) => i >= 0) : [q.answer];
+    const answer = poll ? (majority.length === 1 ? majority[0] : -1) : q.answer;
+    const isRight = (choice) => majority.includes(choice);
     const perPlayer = {};
     for (const [pid, a] of Object.entries(live.answers)) {
-      perPlayer[pid] = a.choice === q.answer ? speedPoints(a.at, live.opensAt, live.deadline) * mult : 0;
+      perPlayer[pid] = isRight(a.choice) ? (poll ? POLL_POINTS : speedPoints(a.at, live.opensAt, live.deadline)) * mult : 0;
     }
     const perTeam = {};
     const paid = {};
@@ -85,8 +95,8 @@ const quiz = {
     } else {
       for (const [pid, pts] of Object.entries(perPlayer)) give(pid, pts, reason);
     }
-    const fastest = Object.entries(live.answers)
-      .filter(([, a]) => a.choice === q.answer)
+    const fastest = poll ? [] : Object.entries(live.answers)
+      .filter(([, a]) => isRight(a.choice))
       .sort((a, b) => a[1].at - b[1].at)
       .slice(0, 5)
       .map(([pid, a]) => ({ id: pid, ms: a.at - live.opensAt, points: perPlayer[pid] }));
@@ -95,9 +105,11 @@ const quiz = {
     const streakBonus = {};
     for (const p of Object.values(S.state.players)) {
       const a = live.answers[p.id];
+      if (poll) { if (a && isRight(a.choice)) S.stat(p.id).hive = (S.stat(p.id).hive || 0) + 1; continue; }
       if (!a) { live.streaks[p.id] = 0; continue; }
       const st = S.stat(p.id);
       st.answered++;
+      if (q.kind === 'spot' && a.choice === q.answer) st.spots = (st.spots || 0) + 1;
       if (a.choice === q.answer) {
         st.correct++;
         live.streaks[p.id] = (live.streaks[p.id] || 0) + 1;
@@ -107,7 +119,7 @@ const quiz = {
     }
     if (fastest[0]) S.stat(fastest[0].id).fastest++;
     const order = Object.entries(live.answers).sort((a, b) => a[1].at - b[1].at).map(([pid]) => pid);
-    live.result = { answer: q.answer, double: mult > 1, counts: countBy(live.answers, q.options.length), perPlayer, perTeam, paid, doubled, fastest, streaks: { ...live.streaks }, streakBonus,
+    live.result = { answer, majority, double: mult > 1, counts, perPlayer, perTeam, paid, doubled, fastest, streaks: { ...live.streaks }, streakBonus,
       byChoice: q.options.map((_, i) => order.filter((pid) => live.answers[pid].choice === i)) };
     live.phase = 'reveal';
   },
@@ -132,7 +144,7 @@ const quiz = {
   },
 
   hint: {
-    can: (live, p) => live.phase === 'question' && !live.answers[p.id] && !live.hints[p.id],
+    can: (live, p, game) => live.phase === 'question' && !live.answers[p.id] && !live.hints[p.id] && !(game && game.content.questions[live.qIndex].kind),
     apply: (live, game, p) => { live.hints[p.id] = pickWrong(game.content.questions[live.qIndex], 2); },
   },
 
@@ -142,20 +154,24 @@ const quiz = {
     const v = {
       phase: live.phase, qIndex: live.qIndex, total: qs.length, doubleDiya: live.qIndex === qs.length - 1,
       question: q && live.phase !== 'intro' ? publicQ(q) : null,
-      opensAt: live.opensAt, deadline: live.deadline,
+      opensAt: live.opensAt, deadline: live.deadline, flashAt: live.flashAt || null,
       answered: Object.keys(live.answers).length,
       answeredIds: Object.keys(live.answers),
       result: live.phase === 'reveal' ? live.result : null,
+      gen: game.gen || null,
     };
+    // The row to memorise is only sent while it is on screen, and again with the answer.
+    if (v.question && q.flash && (live.phase === 'reveal' || now() < live.opensAt)) v.question.flash = q.flash;
     if (viewer.player) {
       const a = live.answers[viewer.player.id];
       const order = a ? Object.values(live.answers).filter((x) => x.at < a.at).length + 1 : null;
       v.mine = { answered: Boolean(a), choice: a ? a.choice : null, hint: live.hints[viewer.player.id] || null, order,
         points: live.result ? live.result.perPlayer[viewer.player.id] || 0 : null,
+        right: Boolean(live.result && a && live.result.majority.includes(a.choice)),
         streak: (live.streaks || {})[viewer.player.id] || 0,
         bonus: live.result && live.result.streakBonus ? live.result.streakBonus[viewer.player.id] || 0 : 0 };
     }
-    if (viewer.host && q) v.answerKey = q.answer;
+    if (viewer.host && q && q.answer != null) v.answerKey = q.answer;
     if (viewer.host) v.answersBy = Object.fromEntries(Object.entries(live.answers).map(([k, x]) => [k, x.choice]));
     return v;
   },
@@ -499,6 +515,65 @@ const hookstep = {
   },
 };
 
+// ======================= GREEN LIGHT (reaction) =======================
+// The light is red, then turns green after a random wait. Tap as fast as you can; tap early
+// and you are out for that round. Each phone times its own reaction, so a slow connection
+// doesn't cost anyone; the server only checks the time is believable.
+const reflex = {
+  init: () => ({ phase: 'intro', round: -1, taps: {}, result: null }),
+  rounds: (game) => Number(game.content.rounds) || 5,
+  next(live, game) {
+    if (live.round + 1 >= reflex.rounds(game)) { live.phase = 'final'; return; }
+    live.round++;
+    live.taps = {};
+    live.result = null;
+    live.phase = 'arm';
+    live.goAt = showOpen(0) + (2600 + crypto.randomInt(3400)) / Math.min(SPEED, 2);
+    live.deadline = live.goAt + 3000;
+  },
+  close(live, game) {
+    if (live.phase !== 'arm') return;
+    const last = live.round === reflex.rounds(game) - 1;
+    const ok = Object.entries(live.taps).filter(([, t]) => !t.foul).sort((a, b) => a[1].ms - b[1].ms);
+    const ranking = ok.map(([pid, t], rank) => {
+      const points = S.award(pid, Math.max(60, 200 - 25 * rank) * (last ? 2 : 1), `${game.title} round ${live.round + 1}`, game.id) || 0;
+      const st = S.stat(pid);
+      st.reflexBest = st.reflexBest ? Math.min(st.reflexBest, t.ms) : t.ms;
+      return { id: pid, ms: t.ms, points, rank: rank + 1 };
+    });
+    live.result = { ranking, fouls: Object.keys(live.taps).filter((pid) => live.taps[pid].foul), double: last };
+    live.phase = 'reveal';
+  },
+  host() {},
+  player(live, game, p, a, ctx) {
+    if (a.type !== 'tap') return;
+    if (live.phase !== 'arm') throw new Error('Wait for the light!');
+    if (live.taps[p.id]) return;
+    const t = now();
+    if (a.early || t < live.goAt - 80) live.taps[p.id] = { foul: true, at: t };
+    else {
+      const elapsed = t - live.goAt;
+      const claimed = Number(a.ms) > 0 ? Number(a.ms) : elapsed;
+      live.taps[p.id] = { ms: Math.round(Math.max(100, elapsed - 2000, Math.min(claimed, elapsed + 150))), at: t };
+    }
+    if (onlineAnsweredAll(live.taps, ctx.online)) reflex.close(live, game);
+  },
+  view(live, game, viewer) {
+    const v = {
+      phase: live.phase, round: live.round, total: reflex.rounds(game),
+      goAt: live.phase === 'arm' ? live.goAt : null, deadline: live.deadline || null,
+      tappedIds: Object.keys(live.taps || {}),
+      result: live.phase === 'reveal' ? live.result : null,
+    };
+    if (viewer.player) {
+      const t = (live.taps || {})[viewer.player.id];
+      const row = live.result && live.result.ranking.find((r) => r.id === viewer.player.id);
+      v.mine = { tapped: Boolean(t), foul: Boolean(t && t.foul), ms: t && !t.foul ? t.ms : null, rank: row ? row.rank : null, points: row ? row.points : 0 };
+    }
+    return v;
+  },
+};
+
 const custom = {
   init: () => ({ phase: 'live' }),
   host() {},
@@ -506,7 +581,7 @@ const custom = {
   view: (live, game) => ({ phase: 'live', description: game.content.description || '' }),
 };
 
-const engines = { quiz, jeopardy, kbc, hookstep, custom };
+const engines = { quiz, jeopardy, kbc, hookstep, reflex, custom };
 
 // Apply any deadlines that have passed. Runs before every request.
 function tick(state) {

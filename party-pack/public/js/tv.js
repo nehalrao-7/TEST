@@ -2,9 +2,8 @@
 (function () {
   const { esc, fmt } = App;
   const $ = (id) => document.getElementById(id);
-  App.sparkles(16);
-  $('diyaRow').innerHTML = Array.from({ length: 13 }, () => App.diya(true)).join('');
 
+  $('logoMark').innerHTML = App.mark(30);
   let S = null;
   const prev = { sceneKey: null, buzzKey: null, players: null };
   const shownAnnounce = new Set();
@@ -100,7 +99,7 @@
 
   let hookFit = false;
   let playerFitted = false;
-  // Hook Step fills the screen. A blur sits on top until the dance clock hits zero, then lifts. The clip keeps playing.
+  // Dance-Off fills the screen. A blur sits on top until the dance clock hits zero, then lifts. The clip keeps playing.
   function syncHookVeil() {
     const box = $('mediaBox');
     const L = S && S.live;
@@ -149,7 +148,7 @@
   }
   function showGate(msg) {
     document.body.classList.add('tv-gate');
-    $('stage').innerHTML = `<div class="gate"><div class="em">${App.diya(true)}</div><h1>Open the TV</h1><p>Tap “Open on TV” on any player’s phone and open that link here.</p>
+    $('stage').innerHTML = `<div class="gate">${App.mark(110)}<h1>Open the TV</h1><p>Tap “Open on TV” on any player’s phone and open that link here.</p>
       <p class="fine">Dance videos play from YouTube. Fonts load from Google. Live updates may use Supabase.</p>
       ${msg ? `<p class="gate-err">${esc(msg)}</p>` : ''}</div>`;
   }
@@ -162,16 +161,15 @@
   bootTv();
 
   const player = (id) => S.players.find((p) => p.id === id);
-  const team = (id) => S.teams.find((t) => t.id === id);
-  const av = (p, cls = '') => `<span class="avatar ${cls}" style="--c:${p ? p.color : '#f7931e'}">${p ? esc(p.avatar) : '❔'}</span>`;
+  const av = (p, cls = '') => `<span class="avatar ${cls}" style="--c:${p ? p.color : 'var(--accent)'}">${p ? esc(p.avatar) : '❔'}</span>`;
   const entAv = (e) => `<span class="avatar" style="--c:${e.color}">${esc(e.emoji)}</span>`;
   const timerBar = (start, end) => `<div class="timer" data-start="${start}" data-end="${end}"><i></i></div>`;
-  const shapeK = (i) => `<span class="k"><span class="shape">${App.shapes[i] || ''}</span><span class="tick">✓</span></span>`;
+  const shapeK = (i) => `<span class="k">${App.shapes[i] || ''}</span>`;
   const joinUrl = () => location.origin + '/play?room=' + encodeURIComponent(App.room || (S && S.code) || '');
-  const flame = (n) => (n >= 2 ? ` <span class="flame-chip">🔥${n}</span>` : '');
-  const medalCount = (deadline, start) => `<span class="medal burn" data-burn="${deadline}" data-burn-start="${start}"><span data-count="${deadline}" data-tick="1"></span></span>`;
+  const ring = (deadline, start) => `<span class="ring" data-burn="${deadline}" data-burn-start="${start}"><b data-count="${deadline}" data-tick="1"></b></span>`;
+  const at = (ms) => { if (ms > App.now()) setTimeout(render, ms - App.now() + 20); };
 
-  // Burning countdown rings
+  // Countdown rings
   (function burn() {
     document.querySelectorAll('[data-burn]').forEach((el) => {
       const e = Number(el.dataset.burn), s = Number(el.dataset.burnStart), t = App.now();
@@ -186,17 +184,15 @@
   function render() {
     App.applyTheme(S);
     document.title = `${S.eventName} — TV`;
-    App.patch($('eventName'), S.eventName.split(' ').length > 2 ? esc(S.eventName).replace(/(\S+\s+\S+)$/, '<span>$1</span>') : esc(S.eventName));
-    // One name per screen: the game title lives here during a game, the room code in the footer.
+    App.patch($('eventName'), esc(S.eventName));
     const inGame = S.live && S.tv.view === 'game';
-    App.patch($('nowPlaying'), inGame ? `<span class="plaque">${esc(S.live.emoji)} ${esc(S.live.title)}${S.live.practice ? ' · 🧪 Practice' : ''}</span>` : '');
+    App.patch($('nowPlaying'), inGame ? `<span class="plaque">${esc(S.live.emoji)} ${esc(S.live.title)}</span>` : '');
     const mini = S.live && S.live.mode === 'team' && S.teams.length
       ? [...S.teams].sort((a, b) => (b.gamePoints - a.gamePoints) || (b.total - a.total)).filter((t) => (t.gamePoints || t.total) > 0).slice(0, 3)
-        .map((t, i) => `<div class="m">${['🥇', '🥈', '🥉'][i]} <span class="avatar" style="--c:${t.color}">${esc(t.emoji)}</span> ${esc(String(t.name).replace(/^Team /, ''))} · ${fmt(t.gamePoints || t.total)}</div>`).join('')
-      : S.players.slice(0, 3).filter((p) => p.score > 0).map((p, i) => `<div class="m">${['🥇', '🥈', '🥉'][i]} ${av(p)} ${esc(p.name)} · ${fmt(p.score)}</div>`).join('');
-    App.patch($('miniTop'), mini);
-    // News already appears as announcements, so the footer only carries the room code for late arrivals.
-    App.patch($('ticker'), `<span class="chyron">Room <b>${esc(S.code || '')}</b></span>`);
+        .map((t, i) => `<div class="m"><i>${i + 1}</i><span class="avatar" style="--c:${t.color}">${esc(t.emoji)}</span>${esc(String(t.name).replace(/^Team /, ''))}<b>${fmt(t.gamePoints || t.total)}</b></div>`).join('')
+      : S.players.slice(0, 3).filter((p) => p.score > 0).map((p, i) => `<div class="m"><i>${i + 1}</i>${av(p)}${esc(p.name)}<b>${fmt(p.score)}</b></div>`).join('');
+    App.patch($('miniTop'), S.tv.view === 'game' ? mini : '');
+    App.patch($('ticker'), `<span class="join-hint">Join at <b>${esc(location.host)}</b> · Room <b>${esc(S.code || '')}</b></span>`);
     detectArrivals();
 
     let view = S.tv.view;
@@ -205,17 +201,16 @@
     if (view === 'lobby') [html, key] = [lobby(), 'lobby'];
     else if (view === 'leaderboard') [html, key] = leaderboard();
     else if (view === 'podium') [html, key] = [podium(), 'podium'];
-    else if (view === 'teams') [html, key] = [teamsView(), 'teams'];
     else if (view === 'awards') [html, key] = awardsView();
     else [html, key] = gameScene();
 
     document.body.classList.toggle('in-game', view === 'game');
-    ['lobby', 'leaderboard', 'podium', 'awards', 'teams'].forEach((v) => document.body.classList.toggle('view-' + v, view === v));
-    document.body.classList.toggle('show-diyas', view === 'lobby');
+    ['lobby', 'leaderboard', 'podium', 'awards'].forEach((v) => document.body.classList.toggle('view-' + v, view === v));
     const stage = $('stage');
     if (key !== prev.sceneKey) {
       stage.innerHTML = `<div class="scene enter"></div>`;
       prev.sceneKey = key;
+      stage.dataset.key = key;
       App.patch(stage.firstElementChild, html, true);
       onSceneChange(key);
     } else App.patch(stage.firstElementChild, html);
@@ -225,18 +220,17 @@
 
   function onSceneChange(key) {
     if (/^lb/.test(key)) { App.sfx('drumroll'); setTimeout(() => runLeaderboard(key), 900); }
-    else if (key === 'podium') { App.sfx('fanfare'); setTimeout(() => App.fireworks(1.1, 'sky'), 2200); }
+    else if (key === 'podium') { App.sfx('fanfare'); setTimeout(() => { App.fireworks(1.2); App.confetti(1.4); }, 1800); }
     else if (/^award-/.test(key)) {
-      if (/-champ$/.test(key)) { App.sfx('drumroll'); setTimeout(() => { App.sfx('fanfare'); App.fireworks(1.15, 'sky'); }, 2100); }
-      else if (/-intro$/.test(key)) App.sfx('fanfare');
-      else { App.sfx('drumroll'); setTimeout(() => { App.sfx('ding'); App.fireworks(0.55, 'sides'); }, 2100); }
-    } else if (/-reveal$/.test(key)) { App.sfx('drumroll'); setTimeout(() => { App.sfx('reveal'); App.fireworks(0.5, 'sides'); }, 2400); }
-    else if (/answer-correct|scored|ff-result|-won/.test(key)) { App.sfx('reveal'); App.fireworks(0.45, 'sides'); }
-    else if (/-wrong$/.test(key)) App.sfx('wrong');
-    else if (/^q-|clue|spin|ff-q/.test(key)) App.sfx('whoosh');
+      if (/-intro$/.test(key)) App.sfx('fanfare');
+      else { App.sfx('drumroll'); setTimeout(() => { App.sfx('ding'); App.confetti(0.9); }, 1500); }
+    } else if (/-reveal$/.test(key)) { setTimeout(() => { App.sfx('reveal'); App.confetti(0.6); }, 900); }
+    else if (/answer-correct|scored/.test(key)) { App.sfx('reveal'); App.confetti(0.6); }
+    else if (/-go$/.test(key)) App.sfx('ding');
+    else if (/^q-|clue|^r-/.test(key)) App.sfx('whoosh');
   }
 
-  // Grand entrance for every guest who joins (Jackbox-style).
+  // A welcome for every guest who joins.
   function detectArrivals() {
     const ids = S.players.map((p) => p.id);
     if (prev.players) {
@@ -244,7 +238,7 @@
       fresh.slice(0, 3).forEach((p, i) => setTimeout(() => {
         const el = $('arrival');
         el.classList.remove('hidden');
-        el.innerHTML = `${av(p)} ${esc(p.name)} has arrived! 🎆`;
+        el.innerHTML = `${av(p)} <span><b>${esc(p.name)}</b> joined</span>`;
         el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';
         App.sfx('arrive');
         clearTimeout(el._h); el._h = setTimeout(() => el.classList.add('hidden'), 3200);
@@ -258,16 +252,12 @@
   function renderAnnounce() {
     const a = S.tv.announce;
     const el = $('announce');
-    const showing = a && a.until > App.now() && a.kind !== 'end' && a.style === 'lower';
-    document.body.classList.toggle('has-lower', Boolean(showing));
     if (a && a.until > App.now() && !shownAnnounce.has(a.id)) {
       shownAnnounce.add(a.id);
       if (a.kind === 'end') { el.classList.add('hidden'); return; }
       const style = a.style === 'lower' ? 'lower' : 'bumper';
       el.className = `announce ${style} ${a.kind || ''}`;
-      el.innerHTML = style === 'lower'
-        ? `<div class="box"><div class="em">${esc(a.emoji || '✨')}</div><div>${a.title ? `<h1>${esc(a.title)}</h1>` : ''}<p>${esc(a.text || '')}</p></div></div>`
-        : `<div class="box paper"><div class="em">${esc(a.emoji || '✨')}</div><h1>${esc(a.title)}</h1><p>${esc(a.text || '')}</p></div>`;
+      el.innerHTML = `<div class="box"><div class="em">${esc(a.emoji || '✨')}</div><div>${a.title ? `<h1>${esc(a.title)}</h1>` : ''}<p>${esc(a.text || '')}</p></div></div>`;
       App.sfx(a.kind === 'powerup' ? 'power' : 'fanfare');
       clearTimeout(el._h);
       el._h = setTimeout(() => el.classList.add('hidden'), Math.max(800, a.until - App.now()));
@@ -279,34 +269,35 @@
     const url = joinUrl();
     const ps = S.players;
     const newIds = prev.newIds || new Set();
+    const profiling = S.flow && S.flow.stage === 'profile';
+    const done = new Set((S.flow && S.flow.profiled) || []);
     return `<div class="lobby">
       <div class="lobby-hero">
-        <div class="tv-mascot">${App.mascot()}</div>
-        <div class="title-big">${esc(S.eventName.replace(/^\d{4}\s+/, '') || 'Party Pack')}</div>
-        <div class="title-hand">${esc((S.eventName.match(/^\d{4}/) || [''])[0])} ✨</div>
-        <div class="sub">Scan to join, or enter the code on your phone.</div>
-        <div class="join-box paper">
+        ${App.mark(120)}
+        <h1>${esc(S.eventName || 'Party Pack')}</h1>
+        <p class="sub">${profiling ? 'Everyone’s filling in a quick profile on their phone…' : 'Scan to join, or enter the code on your phone.'}</p>
+        <div class="join-box">
           <img src="/api/qr.svg?u=${encodeURIComponent(url)}" alt="QR code to join" />
-          <div><div class="room-code">${esc(S.code || '')}</div></div>
+          <div><div class="eyebrow">Room code</div><div class="room-code">${esc(S.code || '').split('').map((c, i) => `<span style="--i:${i}">${c}</span>`).join('')}</div><div class="where">${esc(location.host)}</div></div>
         </div>
-        ${S.questionnaire && S.questionnaire.open && ps.length ? `<div class="q-note">📝 <b>${S.questionnaire.done}</b> of ${ps.length} answered the quick questions</div>` : ''}
       </div>
-      <div>
-        <div class="guest-head"><h2>The Guest List</h2><span class="hand-note">${ps.length} ${ps.length === 1 ? 'player' : 'players'} in</span></div>
-        <div class="lobby-players">${ps.map((p) => `<div class="pl ${p.online ? '' : 'off'} ${newIds.has(p.id) ? 'new' : ''}">${av(p)}<span class="nm">${esc(p.name)}</span>${App.diya(p.online)}</div>`).join('') || '<div class="empty">The diyas are waiting… be the first to light one! 🪔</div>'}</div>
+      <div class="guests">
+        <div class="guest-head"><h2>Players</h2><span>${ps.length} in</span></div>
+        <div class="lobby-players">${ps.map((p) => `<div class="pl ${p.online ? '' : 'off'} ${newIds.has(p.id) ? 'new' : ''} ${profiling && done.has(p.id) ? 'done' : ''}">${av(p)}<span class="nm">${esc(p.name)}</span></div>`).join('') || '<div class="empty">Waiting for the first player…</div>'}</div>
       </div>
     </div>`;
   }
 
-  // ---------------- leaderboard (FLIP: rows slide from old places to new) ----------------
+  // ---------------- leaderboard (rows slide from their old places to the new ones) ----------------
   function lbLayout(n) {
     const cols = n > 8 ? 2 : 1;
     const perCol = Math.ceil(n / cols);
-    const h = Math.min(4.15, 32 / Math.max(perCol, 1));
+    const h = Math.min(4.6, 34 / Math.max(perCol, 1));
     return { cols, perCol, h };
   }
   function leaderboard() {
     const ps = S.players;
+    const team = (id) => S.teams.find((t) => t.id === id);
     const snap = S.snapshot && !S.snapshot.every((x) => x.score === 0) ? S.snapshot : null;
     const key = 'lb-' + (S.tv.compareGameId || 'x') + '-' + ps.length;
     const animate = snap && !lbAnimated.has(key);
@@ -315,7 +306,7 @@
       return (ra ? ra.rank : 999) - (rb ? rb.rank : 999) || ((ra && ra.score) || 0) - ((rb && rb.score) || 0);
     }) : ps;
     const { cols, perCol, h } = lbLayout(ps.length);
-    const pos = (idx) => ({ x: cols === 2 ? (idx < perCol ? '0%' : '51%') : '17%', w: cols === 2 ? '49%' : '66%', y: `${(idx % perCol) * (h + 0.6)}vw` });
+    const pos = (idx) => ({ x: cols === 2 ? (idx < perCol ? '0%' : '51%') : '18%', w: cols === 2 ? '49%' : '64%', y: `${(idx % perCol) * (h + 0.7)}rem` });
     let climber = null;
     ps.forEach((p) => {
       const b = snap && snap.find((x) => x.id === p.id);
@@ -326,25 +317,22 @@
       const t = p.teamId && team(p.teamId);
       const before = snap && snap.find((x) => x.id === p.id);
       const d = before ? before.rank - p.rank : 0;
-      const mv = !snap ? '' : !before ? '<span class="mv up">NEW</span>' : d > 0 ? `<span class="mv up">▲${d}</span>` : d < 0 ? `<span class="mv down">▼${-d}</span>` : '<span class="mv same">●</span>';
+      const mv = !snap || !before ? '' : d > 0 ? `<span class="mv up">▲ ${d}</span>` : d < 0 ? `<span class="mv down">▼ ${-d}</span>` : '';
       const start = animate ? pos(oldOrder.indexOf(p)) : pos(i);
       const end = pos(i);
       const scoreFrom = animate && before ? before.score : p.score;
-      return `<div class="lb-row r${p.rank} ${!animate && climber && climber.p.id === p.id ? 'climber' : ''}" data-pid="${p.id}" data-x="${end.x}" data-w="${end.w}" data-y="${end.y}" data-to="${p.score}" data-from="${scoreFrom}" style="--x:${start.x};--w:${start.w};--y:${start.y};--h:${h}vw">
-        <span class="rk">${p.rank}</span>${mv}${av(p)}<span class="nm">${esc(p.name)}</span>
-        ${t ? `<span class="team" style="background:${t.color}">${esc(t.emoji)} ${esc(t.name.replace('Team ', ''))}</span>` : ''}
+      return `<div class="lb-row r${p.rank}" data-pid="${p.id}" data-x="${end.x}" data-w="${end.w}" data-y="${end.y}" data-to="${p.score}" data-from="${scoreFrom}" style="--x:${start.x};--w:${start.w};--y:${start.y};--h:${h}rem">
+        <span class="rk">${p.rank}</span>${av(p)}<span class="nm">${esc(p.name)}</span>${mv}
+        ${t ? `<span class="team" style="--tc:${t.color}">${esc(t.emoji)} ${esc(t.name.replace('Team ', ''))}</span>` : ''}
         <span class="sc">${fmt(scoreFrom)}</span></div>`;
     }).join('');
-    const teams = S.teams.length ? `<div class="teams-strip">${[...S.teams].sort((a, b) => b.total - a.total).map((t) => `<span class="t" style="--tc:${t.color}">${esc(t.emoji)} ${esc(t.name)} · ${fmt(t.total)} avg</span>`).join('')}</div>` : '';
-    const fin = S.tv.announce && S.tv.announce.kind === 'end' && S.tv.announce.until > App.now()
-      ? `<div class="lb-kicker">${esc(S.tv.announce.title)} · ${esc(S.tv.announce.text || '')}</div>`
-      : S.powerupsEnabled ? '<div class="lb-kicker">🎁 Power-ups are open — tap 🎁 on your phone</div>' : '';
-    const banner = climber ? `<div class="climb-banner later" style="--d:${animate ? 2.6 : 0}s">📈 ${esc(climber.p.name)} climbs ${climber.d} places!</div>` : '';
-    prev.climber = climber && climber.p.id;
-    return [`<div class="lb"><div class="lb-title">${App.diya(true, 56)}<h1>The Standings</h1>${App.diya(true, 56)}</div>${fin}${teams}<div class="lb-board">${rows || '<p class="center">No players yet</p>'}</div>${banner}</div>`, key];
+    const f = S.flow || {};
+    const next = (f.catalog || []).find((g) => g.id === (f.order || [])[f.idx + 1]);
+    const kicker = `<div class="lb-kicker">${next ? `Up next · ${next.emoji} ${esc(next.title)}` : 'Awards coming up'}${climber ? ` · 📈 ${esc(climber.p.name)} climbs ${climber.d}` : ''}</div>`;
+    return [`<div class="lb"><h1>Standings</h1>${kicker}<div class="lb-board" style="height:${perCol * (h + 0.7)}rem">${rows || '<p class="center">No players yet</p>'}</div></div>`, key];
   }
   function runLeaderboard(key) {
-    if (lbAnimated.has(key) || !document.querySelector('.lb-row[data-from]')) { App.fireworks(0.45, 'sides'); return; }
+    if (lbAnimated.has(key) || !document.querySelector('.lb-row[data-from]')) return;
     // Mark done only after the slide finishes, so a re-render can't cut the animation short.
     setTimeout(() => lbAnimated.add(key), 1800);
     App.sfx('whoo');
@@ -353,227 +341,196 @@
       el.style.setProperty('--w', el.dataset.w);
       el.style.setProperty('--y', el.dataset.y);
       App.countUp(el.querySelector('.sc'), Number(el.dataset.to), 1300, Number(el.dataset.from));
-      if (el.dataset.pid === prev.climber) setTimeout(() => el.classList.add('climber'), 1400);
     });
-    setTimeout(() => { App.sfx('fanfare'); App.fireworks(0.45, 'sides'); }, 1450);
+    setTimeout(() => { App.sfx('fanfare'); App.confetti(0.7); }, 1450);
   }
 
   function podium() {
     const top = S.players.slice(0, 3);
     const order = [top[1], top[0], top[2]];
     const cls = ['p2', 'p1', 'p3'];
-    return `<div class="podium"><h1>Champions of the Night</h1><div class="pods">${order.map((p, i) => p ? `<div class="pod ${cls[i]}">${av(p)}<div class="nm">${esc(p.name)}</div><div class="sc">${fmt(p.score)} pts</div><div class="blk">${cls[i][1]}</div></div>` : '<div class="pod"></div>').join('')}</div></div>`;
-  }
-
-  function teamsView() {
-    if (!S.teams.length) return `<div class="intro"><div><div class="em">🎲</div><h1>Teams coming up…</h1></div></div>`;
-    return `<div class="gframe"><div class="intro" style="height:auto"><h1 style="font-size:3.8vw;margin:0">Tonight's Teams</h1></div><div class="teams-grid">${S.teams.map((t, i) => `<div class="team-card paper" style="--tc:${t.color};animation-delay:${i * 0.15}s"><div class="th"><span>${esc(t.emoji)} ${esc(t.name)}</span><span>${fmt(t.total)}</span></div><div class="tb">${t.members.map((id) => { const p = player(id); return p ? `<div class="lrow">${av(p)} ${esc(p.name)}</div>` : ''; }).join('')}</div></div>`).join('')}</div></div>`;
+    return `<div class="podium"><div class="eyebrow">Final results</div><h1>Champions of the night</h1><div class="pods">${order.map((p, i) => p ? `<div class="pod ${cls[i]}">${av(p)}<div class="nm">${esc(p.name)}</div><div class="sc">${fmt(p.score)} pts</div><div class="blk">${cls[i][1]}</div></div>` : '<div class="pod"></div>').join('')}</div></div>`;
   }
 
   // ---------------- Awards ----------------
   function awardsView() {
     const list = S.awards || [];
-    const i = S.tv.awardIndex || 0;
-    const dots = `<div class="award-dots">${Array.from({ length: list.length + 2 }, (_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div>`;
-    if (i === 0) {
-      return [`<div class="awards"><div class="award-card paper"><div class="kicker">and now, the moment you've all been waiting for…</div><div class="medal">🏆</div>
-        <h1>The Awards</h1><div class="desc">${list.length} awards · one champion · zero chill</div>${dots}</div></div>`, 'award-intro'];
-    }
-    if (i > list.length) {
-      const champ = S.players[0];
-      return [`<div class="awards"><div class="award-card paper"><div class="kicker">the star of the night</div><div class="medal">🌟</div>
-        <h1>Light of the Party</h1><div class="drumline">drumroll please… 🥁</div>
-        ${champ ? `<div class="winners"><div class="winner">${av(champ)}<b>${esc(champ.name)}</b></div></div><div class="value">${fmt(champ.score)} points · Shubh Deepavali! 🎆</div>` : ''}${dots}</div></div>`, 'award-champ'];
-    }
+    const i = S.tv.awardStep || 0;
+    const dots = `<div class="award-dots">${Array.from({ length: list.length + 1 }, (_, k) => `<i class="${k === i ? 'on' : ''}"></i>`).join('')}</div>`;
     const a = list[i - 1];
-    return [`<div class="awards"><div class="award-card paper"><div class="medal">${esc(a.emoji)}</div>
-      <h1>${esc(a.title)}</h1><div class="desc">${esc(a.desc)}</div><div class="drumline">and it goes to… 🥁</div>
+    if (!a) {
+      return [`<div class="awards"><div class="award-card"><div class="medal">🏆</div><div class="eyebrow">And now</div>
+        <h1>The Awards</h1><p class="desc">${list.length ? `${list.length} award${list.length === 1 ? '' : 's'}, then the champion` : 'The champion is coming up'}</p>${dots}</div></div>`, 'award-intro'];
+    }
+    return [`<div class="awards"><div class="award-card"><div class="medal">${esc(a.emoji)}</div>
+      <h1>${esc(a.title)}</h1><p class="desc">${esc(a.desc)}</p>
       <div class="winners">${a.winners.map((w) => `<div class="winner">${av(w)}<b>${esc(w.name)}</b></div>`).join('')}</div>
-      <div class="value">${esc(a.value)}${S.awardPoints ? ` · <b>+${S.awardPoints} points</b>` : ''}</div>${dots}</div></div>`, 'award-' + a.id];
+      <div class="value">${esc(a.value)}</div>${dots}</div></div>`, 'award-' + a.id];
   }
 
   // ---------------- games ----------------
   function gameScene() {
     const L = S.live;
-    const fn = { quiz: quizScene, jeopardy: jeopardyScene, kbc: kbcScene, hookstep: hookScene, custom: customScene }[L.type];
+    const fn = { quiz: quizScene, jeopardy: jeopardyScene, kbc: kbcScene, hookstep: hookScene, reflex: reflexScene }[L.type] || ((x) => [intro(x, ''), 'custom']);
     return fn(L);
   }
-  const intro = (L, sub, rules = []) => {
-    const all = rules;
-    return `<div class="intro"><div><div class="em">${esc(L.emoji)}</div><h1>${esc(L.title)}</h1><p>${sub}</p>${all.length ? `<div class="rules">${all.map((r) => `<span>${r}</span>`).join('')}</div>` : ''}</div></div>`;
-  };
+  const intro = (L, sub, rules = []) => `<div class="intro"><div class="em">${esc(L.emoji)}</div><h1>${esc(L.title)}</h1><p>${sub}</p>${rules.length ? `<div class="rules">${rules.map((r) => `<span>${r}</span>`).join('')}</div>` : ''}</div>`;
   const lockins = (ids) => {
     const on = new Set(ids || []);
-    return `<div class="lockins">${S.players.filter((p) => p.online || on.has(p.id)).map((p) => `<div class="lk ${on.has(p.id) ? 'on' : ''}">${av(p)}${App.diya(on.has(p.id))}<small>${esc(p.name)}</small></div>`).join('')}</div>`;
+    return `<div class="lockins">${S.players.filter((p) => p.online || on.has(p.id)).map((p) => `<div class="lk ${on.has(p.id) ? 'on' : ''}">${av(p)}<small>${esc(p.name)}</small></div>`).join('')}</div>`;
+  };
+  const QUIZ_INTRO = {
+    spot: ['One of these is not like the others. Tap it on your phone!', ['👀 Find the odd one out', '⚡ Faster = more points']],
+    poll: ['No right answers. Pick what you think most of the room will pick.', ['🐝 Match the majority', '🐺 Lone wolves score nothing']],
+    flash: ['A row of pictures appears for a few seconds. Then a question about it.', ['💡 Memorise the row', '⚡ Faster = more points']],
+    math: ['Quick sums against the clock. Answer on your phone!', ['🔢 No calculators', '⚡ Faster = more points']],
   };
 
   function quizScene(L) {
-    if (L.phase === 'intro') return [intro(L, 'Answer on your phone — match the colour and the shape!', [`${L.total} questions`, L.mode === 'team' ? '👥 teams score their average' : '⚡ faster = more points', '🔥 3 in a row = streak bonus']), 'q-intro'];
+    if (L.phase === 'intro') {
+      const [sub, rules] = QUIZ_INTRO[L.gen] || ['Answer on your phone — match the colour and the shape!', [`${L.total} questions`, L.mode === 'team' ? '👥 Teams score their average' : '⚡ Faster = more points', '🔥 3 in a row = streak bonus']];
+      return [intro(L, sub, rules), 'q-intro'];
+    }
     if (L.phase === 'final') return [intro({ ...L, emoji: '🎆' }, 'Round complete! The standings are coming up…'), 'q-final'];
     const q = L.question;
-    const head = `<div class="ghead"><span class="pill gold">Q ${L.qIndex + 1} / ${L.total}</span>${L.doubleDiya ? '<span class="pill personal">✨ Double points · ×2</span>' : ''}${q && q.personal ? '<span class="pill personal">✨ About our guests</span>' : ''}
-      ${L.phase === 'reveal' ? '<span class="show-call">Sahi jawab hai…</span>' : ''}${L.phase === 'question' && App.now() >= L.opensAt ? medalCount(L.deadline, L.opensAt) : ''}</div>`;
-    const qcard = `<div class="qcard paper">${q.clue ? `<div class="clue">${esc(q.clue)}</div>` : ''}${q.image ? `<img class="qimg" src="${esc(q.image)}" alt=""/>` : ''}${q.clue && /^guess the movie!?$/i.test(String(q.q).trim()) ? '' : `<div class="q">${esc(q.q)}</div>`}</div>`;
+    const now = App.now();
+    const waiting = L.phase === 'question' && now < L.opensAt;
+    at(L.opensAt);
+    const head = `<div class="ghead"><span class="pill">${L.qIndex + 1} <small>of ${L.total}</small></span>${L.doubleDiya ? '<span class="pill accent">Double points ×2</span>' : ''}${q && q.personal ? '<span class="pill accent">About our guests</span>' : ''}
+      <span class="grow"></span>${L.phase === 'question' && !waiting ? ring(L.deadline, L.opensAt) : ''}</div>`;
+    const showClue = q.clue && !(waiting && L.gen === 'math');
+    const qcard = q.kind === 'spot' ? '' : `<div class="qcard">${showClue ? `<div class="clue">${esc(q.clue)}</div>` : ''}${q.clue && /^guess the movie!?$/i.test(String(q.q).trim()) ? '' : `<div class="q">${esc(q.q)}</div>`}</div>`;
+    const spot = (answer) => `<div class="spot-wrap"><div class="spot-grid" style="--cols:${q.cols}">${q.options.map((o, i) => `<span class="${answer === i ? 'hit' : ''}" style="--i:${i}">${esc(o)}</span>`).join('')}</div></div>`;
+    const flashRow = (still) => { const per = (L.opensAt - L.flashAt - 500) / q.flash.length; return `<div class="flash-row ${still ? 'still' : ''}">${q.flash.map((e, i) => `<span style="animation-delay:${still ? 0 : Math.round(L.flashAt + i * per - App.now())}ms">${esc(e)}</span>`).join('')}</div>`; };
 
     if (L.phase === 'question') {
-      const waiting = App.now() < L.opensAt;
-      if (waiting) setTimeout(render, L.opensAt - App.now() + 30);
-      const opts = waiting
-        ? `${L.doubleDiya ? '<div class="dd-banner">✨ Final question — worth double! ✨</div>' : ''}<div class="countdown-big" data-count="${L.opensAt}"></div>`
-        : `<div class="opts">${q.options.map((o, i) => `<div class="opt o${i}">${shapeK(i)}${esc(o)}</div>`).join('')}</div>`;
-      return [`<div class="gframe">${head}${waiting ? '' : timerBar(L.opensAt, L.deadline)}${qcard}${opts}${lockins(L.answeredIds)}</div>`, `q-${L.qIndex}${waiting ? '-w' : ''}`];
+      if (waiting && q.kind === 'flash') {
+        at(L.flashAt);
+        if (now < L.flashAt || !q.flash) return [`<div class="gframe">${head}<div class="mid"><div class="get-ready">Memorise the row…</div></div>${lockins([])}</div>`, `q-${L.qIndex}-w`];
+        return [`<div class="gframe">${head}${timerBar(L.flashAt, L.opensAt)}<div class="mid">${flashRow()}</div></div>`, `q-${L.qIndex}-flash`];
+      }
+      if (waiting) return [`<div class="gframe">${head}${qcard}<div class="mid"><div class="countdown-big" data-count="${L.opensAt}"></div></div>${lockins([])}</div>`, `q-${L.qIndex}-w`];
+      const cls = q.kind === 'poll' ? 'two' : q.kind === 'flash' ? 'emoji' : '';
+      const opts = q.kind === 'spot' ? spot(null) : `<div class="opts ${cls}">${q.options.map((o, i) => `<div class="opt o${i}" style="--i:${i}">${shapeK(i)}<span>${esc(o)}</span></div>`).join('')}</div>`;
+      return [`<div class="gframe">${head}${timerBar(L.opensAt, L.deadline)}${q.kind === 'spot' ? `<div class="spot-lead">${esc(q.q)}</div>` : qcard}${opts}${lockins(L.answeredIds)}</div>`, `q-${L.qIndex}`];
     }
-    // reveal — staged: drumroll, wrong ones drop out one by one, the right one ignites
+    // reveal: the wrong options fade back, the right one lifts, then the names roll in
     const r = L.result;
     const total = r.counts.reduce((a, b) => a + b, 0) || 1;
-    const wrong = q.options.map((_, i) => i).filter((i) => i !== r.answer);
-    const opts = `<div class="opts reveal">${q.options.map((o, i) => {
-      const cls = i === r.answer ? 'win' : 'out';
-      const d = i === r.answer ? 1.8 : 0.5 + wrong.indexOf(i) * 0.4;
-      const faces = (r.byChoice && r.byChoice[i] || []).slice(0, 8).map((pid) => av(player(pid))).join('');
-      return `<div class="opt o${i} ${cls}" style="--d:${d}s">${shapeK(i)}<span>${esc(o)}</span><span class="faces later" style="--d:2.3s">${faces}</span><span class="n later" style="--d:2.3s">${r.counts[i]}</span><span class="bar" style="width:${(r.counts[i] / total) * 100}%;--d2:2.3s"></span></div>`;
-    }).join('')}</div>`;
-    const fires = Object.entries(r.streaks || {}).filter(([, n]) => n >= 3).sort((a, b) => b[1] - a[1]).slice(0, 3);
-    const fireHtml = fires.length ? `<h3 style="margin-top:1vw">🔥 On fire</h3>${fires.map(([pid, n]) => { const p = player(pid); return p ? `<div class="lrow">${av(p)}${esc(p.name)}<span class="pts">${n} in a row</span></div>` : ''; }).join('')}` : '';
-    const fastHtml = r.fastest.slice(0, 3).map((f) => { const p = player(f.id); return p ? `<div class="lrow">${av(p)}${esc(p.name)}${flame((r.streaks || {})[f.id])} <span class="small" style="opacity:.7">${(f.ms / 1000).toFixed(1)}s</span><span class="pts">${L.mode === 'team' ? (r.doubled && r.doubled[f.id] ? '×2' : '') : `+${f.points}${r.doubled && r.doubled[f.id] ? ' ×2' : ''}`}</span></div>` : ''; }).join('') || '<div class="lrow">Nobody got it</div>';
-    let side;
-    if (L.mode === 'team') {
-      const ts = S.teams.map((t) => ({ t, pts: r.perTeam[t.id] || 0 })).sort((a, b) => b.pts - a.pts);
-      side = `<div class="list-card later" style="--d:2.5s"><h3>Team points</h3>${ts.map(({ t, pts }) => `<div class="lrow"><span class="avatar" style="--c:${t.color}">${esc(t.emoji)}</span>${esc(t.name)}<span class="pts">+${pts}</span></div>`).join('')}<h3 style="margin-top:1vw">⚡ Fastest</h3>${fastHtml}${fireHtml}</div>`;
-    } else {
-      side = `<div class="list-card later" style="--d:2.5s"><h3>⚡ Lightning fingers</h3>${fastHtml}${fireHtml}</div>`;
+    const wins = new Set(r.majority || [r.answer]);
+    let opts;
+    if (q.kind === 'spot') opts = spot(r.answer);
+    else {
+      opts = `<div class="opts reveal ${q.kind === 'poll' ? 'two' : q.kind === 'flash' ? 'emoji' : ''}">${q.options.map((o, i) => {
+        const faces = (r.byChoice && r.byChoice[i] || []).slice(0, 8).map((pid) => av(player(pid))).join('');
+        const pct = Math.round((100 * r.counts[i]) / total);
+        return `<div class="opt o${i} ${wins.has(i) ? 'win' : 'out'}" style="--i:${i}">${shapeK(i)}<span>${esc(o)}</span><span class="faces">${faces}</span><b class="n">${q.kind === 'poll' ? pct + '%' : r.counts[i]}</b></div>`;
+      }).join('')}</div>`;
     }
-    return [`<div class="gframe">${head}${qcard}<div class="reveal-side">${opts}${side}</div></div>`, `q-${L.qIndex}-reveal`];
+    const lrow = (p, right) => `<div class="lrow">${av(p)}<span>${esc(p.name)}</span><b>${right}</b></div>`;
+    const fires = Object.entries(r.streaks || {}).filter(([, n]) => n >= 3).sort((a, b) => b[1] - a[1]).slice(0, 3);
+    const fireHtml = fires.length ? `<h3>🔥 On fire</h3>${fires.map(([pid, n]) => { const p = player(pid); return p ? lrow(p, `${n} in a row`) : ''; }).join('')}` : '';
+    const fastHtml = r.fastest.slice(0, 4).map((f) => { const p = player(f.id); return p ? lrow(p, `${(f.ms / 1000).toFixed(1)}s${L.mode === 'team' ? '' : ` · +${f.points}`}`) : ''; }).join('') || '<div class="lrow"><span>Nobody got it</span></div>';
+    let side;
+    if (q.kind === 'poll') {
+      const n = Object.values(r.perPlayer || {}).filter((x) => x > 0).length;
+      side = `<div class="list-card"><h3>🐝 The hive says</h3><div class="big-stat">${r.majority.length === 1 ? esc(q.options[r.majority[0]]) : 'It’s a tie!'}</div><div class="lrow"><span>${n} player${n === 1 ? '' : 's'} with the majority</span><b>+${Math.max(0, ...Object.values(r.perPlayer || { x: 0 }))}</b></div></div>`;
+    } else if (L.mode === 'team') {
+      const ts = S.teams.map((t) => ({ t, pts: r.perTeam[t.id] || 0 })).sort((a, b) => b.pts - a.pts);
+      side = `<div class="list-card"><h3>Team points</h3>${ts.map(({ t, pts }) => `<div class="lrow">${entAv(t)}<span>${esc(t.name)}</span><b>+${pts}</b></div>`).join('')}<h3>⚡ Fastest</h3>${fastHtml}${fireHtml}</div>`;
+    } else {
+      side = `<div class="list-card"><h3>⚡ Fastest</h3>${fastHtml}${fireHtml}</div>`;
+    }
+    const top = q.kind === 'flash' && q.flash ? flashRow(true) : '';
+    return [`<div class="gframe">${head}${top}${q.kind === 'spot' ? '' : qcard}<div class="reveal-side">${opts}${side}</div></div>`, `q-${L.qIndex}-reveal`];
+  }
+
+  // Green Light: the whole screen is the light.
+  function reflexScene(L) {
+    if (L.phase === 'intro') return [intro(L, 'Watch your phone. When it turns green, tap as fast as you can!', ['🚦 Wait for green', '🙈 Tap early and you sit the round out', `${L.total} rounds`]), 'r-intro'];
+    if (L.phase === 'final') return [intro({ ...L, emoji: '🎆' }, 'Lightning reflexes! The standings are coming up…'), 'r-final'];
+    const head = `<div class="ghead"><span class="pill">Round ${L.round + 1} <small>of ${L.total}</small></span>${L.round === L.total - 1 ? '<span class="pill accent">Double points ×2</span>' : ''}</div>`;
+    if (L.phase === 'arm') {
+      const go = !(S.flow && S.flow.paused) && App.now() >= L.goAt;
+      at(L.goAt);
+      return [`<div class="gframe">${head}<div class="mid"><div class="light ${go ? 'go' : 'wait'}"><b>${go ? 'GO!' : 'Wait…'}</b></div></div>${lockins(L.tappedIds)}</div>`, `r-${L.round}${go ? '-go' : ''}`];
+    }
+    const r = L.result || { ranking: [], fouls: [] };
+    const slowest = Math.max(1, ...r.ranking.map((x) => x.ms));
+    const rows = r.ranking.slice(0, 8).map((x, i) => { const p = player(x.id); return p ? `<div class="rx-row" style="--i:${i}">${av(p)}<span class="nm">${esc(p.name)}</span><span class="bar"><i style="--w:${Math.max(6, (100 * x.ms) / slowest)}%"></i></span><b>${x.ms} ms</b><em>+${x.points}</em></div>` : ''; }).join('');
+    const fouls = r.fouls.map((id) => player(id)).filter(Boolean);
+    return [`<div class="gframe">${head}<div class="rx-board">${rows || '<div class="get-ready">Nobody tapped in time!</div>'}</div>${fouls.length ? `<div class="rx-fouls">🙈 Too soon: ${fouls.map((p) => esc(p.name)).join(', ')}</div>` : ''}</div>`, `r-${L.round}-reveal`];
   }
 
   function jeopardyScene(L) {
     const who = L.turn;
-    const head = `<div class="ghead">${who ? `<span class="pill control" style="--tc:${who.color}">${esc(who.emoji)} ${esc(who.name)} ${L.phase === 'clue' ? 'answers' : 'is up'}</span>` : ''}</div>`;
-    if (L.phase === 'board') {
+    const head = `<div class="ghead">${who ? `<span class="pill who" style="--tc:${who.color}">${esc(who.emoji)} ${esc(who.name)} ${L.phase === 'board' ? 'is picking' : 'picked'}</span>` : ''}<span class="grow"></span>${L.phase === 'clue' && App.now() >= L.opensAt ? ring(L.deadline, L.opensAt) : ''}</div>`;
+    if (L.phase === 'board' || L.phase === 'done') {
       const cats = L.categories;
       const rows = Math.max(...cats.map((c) => c.clues.length));
-      let cells = cats.map((c, ci) => `<div class="jcat" style="animation-delay:${ci * 0.06}s">${esc(c.name)}</div>`).join('');
+      let cells = cats.map((c, ci) => `<div class="jcat" style="--i:${ci}">${esc(c.name)}</div>`).join('');
       for (let i = 0; i < rows; i++) {
         cells += cats.map((c, ci) => {
           const cl = c.clues[i];
           if (!cl) return '<div></div>';
           if (cl.used) { const e = cl.by && L.entities[cl.by]; return `<div class="jcell used">${e ? esc(e.emoji) : '—'}</div>`; }
-          return `<div class="jcell" style="animation-delay:${0.2 + (i * cats.length + ci) * 0.025}s">${cl.value}</div>`;
+          return `<div class="jcell" style="--i:${i * cats.length + ci}">${cl.value}</div>`;
         }).join('');
       }
-      return [`<div class="gframe">${head}<div class="jboard" style="grid-template-columns:repeat(${cats.length},1fr);grid-template-rows:auto repeat(${rows},1fr)">${cells}</div></div>`, 'j-board-' + (who ? who.key : '')];
+      return [`<div class="gframe">${head}<div class="jboard" style="grid-template-columns:repeat(${cats.length},1fr)">${cells}</div></div>`, 'j-board-' + (who ? who.key : '')];
     }
     const c = L.clue;
+    at(L.opensAt);
     const answer = L.phase === 'answer';
-    const correct = answer && L.last && L.last.correct;
-    const side = answer
-      ? `<div class="list-card"><h3>${correct ? '✓ Team scores' : '✗ No points'}</h3><div class="lrow">${L.last && L.last.info ? `${esc(L.last.info.emoji)} ${esc(L.last.info.name)}` : ''}<span class="pts">${correct ? `+${fmt(L.last.value)} each` : '—'}</span></div></div>`
-      : '';
-    return [`<div class="gframe">${head}<div class="jclue${side ? '' : ' solo'}"><div class="qcard paper"><div class="cat">${esc(c.category)} · ${fmt(c.value)}</div><div class="q">${esc(c.q)}</div>${answer ? `<div class="ans pop">✨ ${esc(c.a)}</div>` : ''}</div>${side}</div></div>`, `j-clue-${L.cur.c}-${L.cur.i}${answer ? (correct ? '-answer-correct' : '-answer') : ''}`];
+    const n = answer && L.last ? L.last.right.length : 0;
+    const opts = `<div class="opts ${answer ? 'reveal' : ''}">${c.options.map((o, i) => `<div class="opt o${i} ${answer ? (i === c.answer ? 'win' : 'out') : ''}" style="--i:${i}">${shapeK(i)}<span>${esc(o)}</span>${answer && L.last ? `<b class="n">${L.last.counts[i]}</b>` : ''}</div>`).join('')}</div>`;
+    return [`<div class="gframe">${head}${L.phase === 'clue' && App.now() >= L.opensAt ? timerBar(L.opensAt, L.deadline) : ''}<div class="qcard"><div class="cat">${esc(c.category)} · ${fmt(c.value)}</div><div class="q">${esc(c.q)}</div></div>${opts}
+      ${answer ? `<div class="get-ready small">${n ? `${n} player${n === 1 ? '' : 's'} earned +${fmt(c.value)}` : 'Nobody got that one'}</div>` : lockins(L.answeredIds)}</div>`, `j-clue-${L.cur.c}-${L.cur.i}${answer ? (n ? '-answer-correct' : '-answer') : ''}`];
   }
 
   function kbcScene(L) {
-    const head = '';
     if (L.phase === 'idle' || L.phase === 'done') {
-      return [`<div class="gframe">${head}<div class="kbc"><div class="intro"><div><div class="em">💰</div><h1>Money Ladder</h1><p>${L.phase === 'done' ? 'That is the round.' : 'Every question is open to everyone. Fastest correct answer wins the full points. Each place after gets less.'}</p></div></div></div></div>`, 'kbc-' + L.phase];
+      return [intro({ emoji: '💰', title: L.title }, L.phase === 'done' ? 'That’s the round! The standings are coming up…' : 'Every question is open to everyone. The fastest right answer wins the full prize; each place after gets a little less.', L.phase === 'done' ? [] : [`${L.total} questions`, '📈 Prizes climb every question']), 'kbc-' + L.phase];
     }
     const q = L.question;
     const waiting = L.phase === 'question' && App.now() < L.opensAt;
-    if (waiting) setTimeout(render, L.opensAt - App.now() + 30);
+    at(L.opensAt);
     const res = L.result;
-    const opts = waiting ? `<div class="countdown-big" data-count="${L.opensAt}"></div>` : `<div class="kbc-opts">${q.options.map((o, i) => `<div class="kbc-opt ${res ? (i === res.answer ? 'right' : '') : ''}"><span class="k">${App.letters[i]}:</span>${esc(o)}${res ? `<span class="pc">${res.counts[i]}</span>` : ''}</div>`).join('')}</div>`;
-    const side = res
-      ? `<div class="list-card"><h3>⚡ Places</h3>${res.ranking.slice(0, 8).map((r) => { const p = player(r.id); return p ? `<div class="lrow" ${r.rank === 1 ? 'style="color:var(--haldi)"' : ''}>${r.rank === 1 ? '👑' : r.rank + '.'} ${av(p)}${esc(p.name)}<span class="pts">+${fmt(r.points)}</span></div>` : ''; }).join('') || '<div class="lrow">Nobody got it right!</div>'}</div>`
-      : `<div class="list-card"><h3>Locked in</h3>${lockins(L.answeredIds)}</div>`;
-    return [`<div class="gframe">${head}${L.phase === 'question' && !waiting ? timerBar(L.opensAt, L.deadline) : ''}<div class="kbc"><div class="kbc-main"><div class="kbc-banner">Q${L.qIndex + 1} of ${L.total} · ${fmt(L.points)} for first ${L.phase === 'question' && !waiting ? `· <span data-count="${L.deadline}" data-tick="1"></span>` : ''}</div><div class="kbc-q">${esc(q.q)}</div>${opts}</div>${side}</div></div>`, `kbc-q-${L.qIndex}${res ? '-reveal' : ''}${waiting ? '-w' : ''}`];
+    const head = `<div class="ghead"><span class="pill">${L.qIndex + 1} <small>of ${L.total}</small></span><span class="pill accent">${fmt(L.points)} for first</span><span class="grow"></span>${L.phase === 'question' && !waiting ? ring(L.deadline, L.opensAt) : ''}</div>`;
+    const qcard = `<div class="qcard"><div class="q">${esc(q.q)}</div></div>`;
+    if (waiting) return [`<div class="gframe">${head}${qcard}<div class="mid"><div class="countdown-big" data-count="${L.opensAt}"></div></div>${lockins([])}</div>`, `kbc-q-${L.qIndex}-w`];
+    const opts = `<div class="opts ${res ? 'reveal' : ''}">${q.options.map((o, i) => `<div class="opt o${i} ${res ? (i === res.answer ? 'win' : 'out') : ''}" style="--i:${i}">${shapeK(i)}<span>${esc(o)}</span>${res ? `<b class="n">${res.counts[i]}</b>` : ''}</div>`).join('')}</div>`;
+    if (!res) return [`<div class="gframe">${head}${timerBar(L.opensAt, L.deadline)}${qcard}${opts}${lockins(L.answeredIds)}</div>`, `kbc-q-${L.qIndex}`];
+    const side = `<div class="list-card"><h3>💰 Prize winners</h3>${res.ranking.slice(0, 6).map((r) => { const p = player(r.id); return p ? `<div class="lrow">${av(p)}<span>${esc(p.name)}</span><b>+${fmt(r.points)}</b></div>` : ''; }).join('') || '<div class="lrow"><span>Nobody got it right!</span></div>'}</div>`;
+    return [`<div class="gframe">${head}${qcard}<div class="reveal-side">${opts}${side}</div></div>`, `kbc-q-${L.qIndex}-reveal`];
   }
 
   function hookScene(L) {
     const perf = L.perf;
     const team = perf && perf.team;
-    const showTeam = team && L.phase === 'judge';
-    const head = showTeam || L.phase === 'perform' ? `<div class="ghead">${showTeam ? `<span class="pill control" style="--tc:${team.color}">${esc(team.emoji)} ${esc(team.name)}</span>` : ''}${L.phase === 'perform' ? medalCount(L.until, L.startedAt) : ''}</div>` : '';
-    const dancers = (list) => `<div class="dancers">${(list || []).map((d, i) => `<div class="dancer" style="animation-delay:${i * 0.08}s">${av(d)}<b>${esc(d.name)}</b><small>+${L.bonus}</small></div>`).join('')}</div>`;
-    if (L.phase === 'idle' || !perf) {
-      const res = L.results.length ? `<div class="list-card hook-results"><h3>Dance-offs so far</h3>${[...L.results].sort((a, b) => b.teamPoints - a.teamPoints).map((r) => `<div class="lrow">${r.team ? `<span class="avatar" style="--c:${r.team.color}">${esc(r.team.emoji)}</span>${esc(r.team.name)}` : '💃 Open floor'} <span class="small" style="opacity:.7">${esc(r.song)} · ${'🪔'.repeat(r.stars)} · ${r.dancers.length} dancers</span><span class="pts">+${r.teamPoints}</span></div>`).join('')}</div>` : '';
-      return [`<div class="gframe">${head}<div class="hook"><div>${intro({ emoji: '💃', title: L.title }, 'Phones down. When your team is called, come dance — <b>every dancer earns a bonus</b>.')}${res}</div></div></div>`, 'hook-idle'];
+    const dancers = (list) => `<div class="dancers">${(list || []).map((d, i) => `<div class="dancer" style="--i:${i}">${av(d)}<b>${esc(d.name)}</b><small>+${L.bonus}</small></div>`).join('')}</div>`;
+    if (L.phase === 'idle' || L.phase === 'done' || !perf) {
+      return [intro({ emoji: L.phase === 'done' ? '🎆' : '💃', title: L.title }, L.phase === 'done' ? 'What a dance floor! The standings are coming up…' : 'When you’re called, come up and dance to a mystery song. Everyone else rates it.', L.phase === 'done' ? [] : ['⭐ Stars × 100 points', `💃 Every dancer earns +${L.bonus}`]), 'hook-' + L.phase];
     }
-    if (L.phase === 'spin') return [`<div class="gframe">${head}<div class="hook"><div class="perf">${team ? `<div class="call">${esc(team.emoji)} ${esc(team.name)}</div>` : ''}<div class="reel paper"><div class="reel-win" id="slot">🎵</div></div><div class="hand-note">Spinning the song…</div></div></div></div>`, 'spin'];
     const song = perf.song;
-    const stepHtml = L.showStep && song && song.step ? `<div class="step">${esc(song.step)}</div>` : '';
-    const songHtml = song ? `<div class="song">🎵 ${esc(song.title)}</div>${stepHtml}` : '';
+    const who = team ? `${esc(team.emoji)} ${esc(team.name)}` : 'Open floor';
     if (L.phase === 'ready') {
-      return [`<div class="gframe">${head}<div class="hook"><div class="perf"><div class="call big">${team ? `${esc(team.emoji)} ${esc(team.name)}` : 'Open floor!'}</div>
-        <h1 class="brave">Who's brave enough? Come up!</h1>${songHtml}${dancers(perf.dancers)}</div></div></div>`, 'hook-ready-' + (song ? song.title : '')];
+      return [`<div class="gframe"><div class="mid perf"><div class="eyebrow">Up next on the dance floor</div><h1 class="call">${who}</h1><p class="get-ready small">Come on up — the song starts in a moment.</p>${dancers(perf.dancers)}</div></div>`, 'hook-ready-' + L.results.length];
     }
     if (L.phase === 'perform') {
-      const title = song ? `<div class="song">${esc(song.title)}</div>` : '';
-      return [`<div class="gframe hook-film">${title}<div class="big-count" data-count="${L.until}"></div>${stepHtml}</div>`, 'hook-perform' + (L.showStep ? '-hint' : '') + (song ? '-named' : '')];
+      return [`<div class="gframe hook-film">${song ? `<div class="song">🎵 ${esc(song.title)}</div>` : ''}<div class="big-count" data-count="${L.until}"></div></div>`, 'hook-perform' + (song ? '-named' : '')];
     }
     if (L.phase === 'judge') {
-      const stars = perf.stars || 0;
-      const measuring = perf.measure && !perf.applause && perf.applause !== 0;
-      if (perf.measure && prev.measureId !== perf.measure.id) { prev.measureId = perf.measure.id; measureApplause(perf.measure.id); }
-      return [`<div class="gframe">${head}<div class="hook hook-judge"><div class="perf"><h1 style="font-size:4vw">The original</h1>
-        <div class="stars-tv judge">${[1, 2, 3, 4, 5].map((n) => `<span class="${n <= stars ? 'on' : ''}" style="transition-delay:${n * 0.08}s">⭐</span>`).join('')}</div>
-        <div class="applause"><span>👏 Crowd</span><div class="meter"><i id="meterFill" style="width:${perf.applause || 0}%"></i></div><b id="meterVal">${measuring ? 'CHEER NOW!' : perf.applause != null ? perf.applause : '—'}</b></div>
-        ${dancers(perf.dancers)}</div></div></div>`, 'hook-judge'];
+      return [`<div class="gframe"><div class="mid perf hook-judge"><div class="eyebrow">Rate the dance on your phone</div><h1 class="call">${who}</h1>${song ? `<div class="song">🎵 ${esc(song.title)}</div>` : ''}
+        <div class="get-ready small">${perf.votes} vote${perf.votes === 1 ? '' : 's'} in · <span data-count="${L.until}"></span>s</div>${dancers(perf.dancers)}</div></div>`, 'hook-judge'];
     }
-    const last = L.last;
-    return [`<div class="gframe">${head}<div class="hook hook-scored-fit"><div class="perf">
-      <div class="call big">${last.team ? `${esc(last.team.emoji)} ${esc(last.team.name)}` : 'Open floor'}</div>
-      <div class="stars-tv">${'⭐'.repeat(last.stars)}<span style="opacity:.2">${'⭐'.repeat(5 - last.stars)}</span></div>
-      <h1 class="pop team-pts">+${last.teamPoints} <small>${last.team ? 'team points' : 'points each'}</small></h1>
-      ${last.crowd ? `<div class="song">👏 Crowd bonus +${last.crowd}</div>` : ''}
-      ${last.dancers.length ? `<div class="hand-note">Brave dancer bonus for everyone who danced 🙌</div>${dancers(last.dancers)}` : ''}</div></div></div>`, 'hook-scored-' + L.results.length];
+    const last = L.last || { stars: 0, dancers: [] };
+    return [`<div class="gframe"><div class="mid perf">
+      <h1 class="call">${last.team ? `${esc(last.team.emoji)} ${esc(last.team.name)}` : 'Open floor'}</h1>
+      <div class="stars-tv">${[1, 2, 3, 4, 5].map((n) => `<span class="${n <= last.stars ? 'on' : ''}" style="--i:${n}">⭐</span>`).join('')}</div>
+      <div class="team-pts">+${last.teamPoints} <small>${last.team && last.team.kind === 'team' ? 'each' : 'points'}</small></div>
+      ${last.dancers.length ? dancers(last.dancers) : ''}</div></div>`, 'hook-scored-' + L.results.length];
   }
-
-  // Applause-o-meter: the TV's microphone listens to the crowd for 5 seconds.
-  async function measureApplause(id) {
-    let stream;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
-    } catch { App.toast('Allow the microphone on the TV to use the Applause-o-meter', true); return; }
-    const ac = App.audio || new (window.AudioContext || window.webkitAudioContext)();
-    App.audio = ac; ac.resume();
-    const an = ac.createAnalyser(); an.fftSize = 1024;
-    ac.createMediaStreamSource(stream).connect(an);
-    const buf = new Float32Array(an.fftSize);
-    const t0 = performance.now(); let peak = 0, sum = 0, n = 0;
-    App.sfx('drumroll');
-    await new Promise((resolve) => {
-      const step = () => {
-        an.getFloatTimeDomainData(buf);
-        let rms = 0; for (let i = 0; i < buf.length; i++) rms += buf[i] * buf[i];
-        rms = Math.sqrt(rms / buf.length);
-        const level = Math.max(0, Math.min(100, (20 * Math.log10(rms + 1e-6) + 55) * 2.2)); // ~-55 dB → 0, ~-10 dB → 100
-        peak = Math.max(peak, level); sum += level; n++;
-        const fill = document.getElementById('meterFill'), val = document.getElementById('meterVal');
-        if (fill) fill.style.width = level.toFixed(0) + '%';
-        if (val) val.textContent = level.toFixed(0);
-        if (performance.now() - t0 < 5000) requestAnimationFrame(step); else resolve();
-      };
-      step();
-    });
-    stream.getTracks().forEach((t) => t.stop());
-    const score = Math.round(0.6 * peak + 0.4 * (sum / Math.max(1, n)));
-    App.sfx('ding'); App.fireworks(score / 80);
-    fetch('/api/applause', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, level: score, room: App.room, tvSecret: App.tvSecret || '' }) }).catch(() => {});
-  }
-
-  function customScene(L) {
-    const ps = S.players.slice(0, 8);
-    return [`<div class="gframe">${intro(L, esc(L.description))}<div class="lockins">${ps.map((p) => `<div class="lk on">${av(p)}<small>${esc(p.name)} · ${fmt(p.score)}</small></div>`).join('')}</div></div>`, 'custom'];
-  }
-
-  // Slot-machine spin for the hook step
-  setInterval(() => {
-    const slot = document.getElementById('slot');
-    if (!slot || !S || !S.live || S.live.type !== 'hookstep') return;
-    const icons = ['🎵', '💃', '🥁', '🎶', '🪩', '🕺'];
-    slot.textContent = icons[(Math.random() * icons.length) | 0];
-    App.sfx('tick');
-  }, 120);
 
   setInterval(() => { if (S) render(); }, 1000);
 })();
