@@ -15,18 +15,30 @@ const FINAL_MS = 3500 / SPEED;     // "round complete" card
 const STANDINGS_MS = 10000 / SPEED;
 const PROFILE_MS = 120000;         // most people finish in under a minute
 const AWARD_MS = 7000 / SPEED;
+const REFLEX_REVEAL_MS = 4500 / SPEED;
 
 // Which bank each catalog game draws from.
+// Games with a `bank` draw questions from the packs; games with a `gen` are mini games made
+// fresh each time (server/minis.js) and work in any language. `mins` is a rough length.
 const CATALOG = [
-  { id: 'g1', type: 'quiz', bank: 'movie', title: 'Guess the Movie', emoji: '🎬', mode: 'team' },
-  { id: 'g4', type: 'quiz', bank: 'quiz', title: 'Quick Quiz', emoji: '⚡', mode: 'individual' },
-  { id: 'g3', type: 'jeopardy', bank: 'jeopardy', title: 'Category Clash', emoji: '🧠', mode: 'team' },
-  { id: 'g5', type: 'kbc', bank: 'kbc', title: 'Money Ladder', emoji: '💰', mode: 'individual' },
-  { id: 'g2', type: 'hookstep', bank: null, title: 'Dance-Off', emoji: '💃', mode: 'team' },
+  { id: 'g1', type: 'quiz', bank: 'movie', title: 'Guess the Movie', emoji: '🎬', mode: 'team', mins: 3, blurb: 'Name the film from emoji clues' },
+  { id: 'g4', type: 'quiz', bank: 'quiz', title: 'Quick Quiz', emoji: '⚡', mode: 'individual', mins: 4, blurb: 'Ten questions, faster answers score more' },
+  { id: 'g3', type: 'jeopardy', bank: 'jeopardy', title: 'Category Clash', emoji: '🧠', mode: 'team', mins: 6, blurb: 'Take turns picking clues from the board' },
+  { id: 'g5', type: 'kbc', bank: 'kbc', title: 'Money Ladder', emoji: '💰', mode: 'individual', mins: 5, blurb: 'Prizes climb with every question' },
+  { id: 'g2', type: 'hookstep', bank: null, title: 'Dance-Off', emoji: '💃', mode: 'team', mins: 4, blurb: 'Dance to a mystery song, the room rates it' },
+  { id: 'm1', type: 'quiz', gen: 'spot', title: 'Spot It', emoji: '👀', mode: 'individual', mini: true, mins: 2, blurb: 'Find the odd one out before anyone else' },
+  { id: 'm2', type: 'quiz', gen: 'poll', title: 'Hive Mind', emoji: '🐝', mode: 'individual', mini: true, mins: 2, blurb: 'No right answers — pick what most people will' },
+  { id: 'm3', type: 'reflex', title: 'Green Light', emoji: '🚦', mode: 'individual', mini: true, mins: 1, blurb: 'Tap the instant it turns green' },
+  { id: 'm4', type: 'quiz', gen: 'flash', title: 'Memory Flash', emoji: '💡', mode: 'individual', mini: true, mins: 3, blurb: 'Memorise the row, then answer from memory' },
+  { id: 'm5', type: 'quiz', gen: 'math', title: 'Number Crunch', emoji: '🔢', mode: 'individual', mini: true, mins: 2, blurb: 'Speedy sums against the clock' },
 ];
+// New rooms start with the original five; the host adds mini games in the lobby.
+const DEFAULT_ORDER = CATALOG.filter((g) => !g.mini).map((g) => g.id);
+// Which games have a difficulty the host can set.
+const hasLevels = (g) => Boolean(g.bank) || ['spot', 'flash', 'math'].includes(g.gen);
 
 function flow(state) {
-  if (!state.flow) state.flow = { stage: 'lobby', order: CATALOG.map((g) => g.id), idx: -1, until: null, paused: null, ready: {} };
+  if (!state.flow) state.flow = { stage: 'lobby', order: [...DEFAULT_ORDER], idx: -1, until: null, paused: null, ready: {} };
   return state.flow;
 }
 
@@ -34,7 +46,7 @@ const humans = (state) => Object.values(state.players).filter((p) => !p.bot);
 
 // ---------- pause / resume ----------
 // Pausing freezes every clock; resuming shifts them all forward by the paused time.
-const CLOCKS = ['opensAt', 'deadline', 'until', 'pickUntil', 'spinUntil', 'autoAt', 'startedAt'];
+const CLOCKS = ['opensAt', 'deadline', 'until', 'pickUntil', 'spinUntil', 'autoAt', 'startedAt', 'flashAt', 'goAt'];
 function pause(state) {
   const f = flow(state);
   if (f.paused || f.stage === 'lobby') return;
@@ -99,6 +111,11 @@ function driveGame(state, ctx) {
     else if (live.phase === 'clue' && t > live.deadline + 300) eng.close(live, game);
     else if (live.phase === 'answer' && t >= live.until) eng.next(live, game);
     else if (live.phase === 'done' && later(FINAL_MS)) { done(); ctx.endGame(); }
+  } else if (game.type === 'reflex') {
+    if (live.phase === 'intro' && later(INTRO_MS)) { done(); eng.next(live, game); }
+    else if (live.phase === 'arm' && t > live.deadline) eng.close(live, game);
+    else if (live.phase === 'reveal' && later(REFLEX_REVEAL_MS)) { done(); eng.next(live, game); }
+    else if (live.phase === 'final' && later(FINAL_MS)) { done(); ctx.endGame(); }
   } else if (game.type === 'hookstep') {
     if (live.phase === 'done') { if (later(FINAL_MS)) { done(); ctx.endGame(); } }
     else eng.step(live, game);
@@ -115,7 +132,7 @@ function nextGame(state, ctx) {
     state.awardsFrozen = ctx.computeAwards();
     state.tv.view = 'awards';
     state.tv.awardStep = 0;
-    f.until = now() + 1500;
+    f.until = now() + 4000 / SPEED;
     return;
   }
   f.stage = 'game';
@@ -138,7 +155,7 @@ function nextDeadline(state) {
   const live = state.live;
   if (live) {
     ['autoAt', 'pickUntil', 'until'].forEach((k) => { if (typeof live[k] === 'number') c.push(live[k] + 100); });
-    if (typeof live.deadline === 'number' && ['question', 'clue'].includes(live.phase)) c.push(live.deadline + 400);
+    if (typeof live.deadline === 'number' && ['question', 'clue', 'arm'].includes(live.phase)) c.push(live.deadline + 400);
     // Phases that wait for a clock that has not been set yet: come back soon.
     if (['intro', 'reveal', 'final', 'idle', 'done'].includes(live.phase) && !live.autoAt) c.push(now() + 400);
   }
@@ -146,4 +163,4 @@ function nextDeadline(state) {
   return future.length ? Math.min(...future) : null;
 }
 
-module.exports = { CATALOG, flow, drive, nextGame, afterGame, pause, resume, nextDeadline, PROFILE_MS };
+module.exports = { CATALOG, DEFAULT_ORDER, hasLevels, flow, drive, nextGame, afterGame, pause, resume, nextDeadline, PROFILE_MS };

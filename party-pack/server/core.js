@@ -16,6 +16,8 @@ const { templates } = require('./content');
 const { parseYouTube } = require('./youtube');
 const { phoneHash } = require('./privacy');
 const { mailEnabled, sendRejoinCode } = require('./mail');
+const M = require('./minis');
+const T = require('./themes');
 
 const st = () => S.state;
 let ONLINE = new Set();
@@ -119,8 +121,10 @@ function freshRoom(code) {
   room.qHistLoaded = {};
   room.settings.questionnaireOpen = true;
   room.questionnaireGate = 1;
+  room.settings.theme = 'auto';
+  room.settings.south = false;
   room.games = D.CATALOG.map((g) => ({ ...g, status: 'pending', content: null }));
-  room.flow = { stage: 'lobby', order: D.CATALOG.map((g) => g.id), idx: -1, until: null, paused: null, ready: {} };
+  room.flow = { stage: 'lobby', order: [...D.DEFAULT_ORDER], idx: -1, until: null, paused: null, ready: {} };
   room.hostTokens = [];
   return room;
 }
@@ -138,6 +142,12 @@ function addPlayer({ name, avatar, email }) {
   p.tokens = [t];
   S.pushFeed({ emoji: p.avatar, text: `${p.name} joined the room!` });
   return { p, t };
+}
+
+// Rooms made before a game was added to the catalog pick it up here.
+function syncCatalog() {
+  const s = st();
+  for (const g of D.CATALOG) if (!s.games.some((x) => x.id === g.id)) s.games.push({ ...g, status: 'pending', content: null });
 }
 
 // ---------------- game lifecycle ----------------
@@ -177,7 +187,11 @@ function startGame(gid) {
   game.status = 'live';
   const players = Object.values(s.players);
   let content;
+  const entry = D.CATALOG.find((c) => c.id === gid);
+  game.gen = entry.gen || null;
   if (game.type === 'hookstep') content = { ...templates.hookstep, performSeconds: 25, rounds: hasTeams ? Object.keys(s.teams).length : Math.min(4, players.length) };
+  else if (game.type === 'reflex') content = { rounds: 5 };
+  else if (entry.gen) content = M.generate(entry.gen, levelFor(s, gid));
   else {
     content = B.buildContent(game.bank, players, { enabled: enabledPacks(s), difficulty: levelFor(s, gid), hist: s.qHist || {} });
     const ids = B.questionIds(content);
@@ -187,7 +201,7 @@ function startGame(gid) {
     if (ids.length && hashes.length) (s.qHistPending = s.qHistPending || []).push({ hashes, ids });
   }
   let count = 0;
-  if (game.type !== 'hookstep') {
+  if (entry.bank) {
     const humansWithAnswers = players.filter((p) => !p.bot && p.answers && Object.keys(p.answers).length);
     if (humansWithAnswers.length >= 2) ({ content, count } = P.personalize({ ...game, content }, s));
   }
@@ -230,6 +244,9 @@ function computeAwards() {
     { id: 'fire', emoji: '🔥', title: 'On Fire', desc: 'Longest answer streak', r: top((p) => stat(p.id).bestStreak, 3), fmt: (v) => `${v} right in a row` },
     { id: 'buzz', emoji: '🔔', title: 'Clue Champ', desc: 'First right answer on the most Category Clash clues', r: top((p) => stat(p.id).buzzWins, 2), fmt: (v) => `${v} clues won` },
     { id: 'dance', emoji: '💃', title: 'Dance-Off Hero', desc: 'Highest-rated performance', r: top((p) => stat(p.id).hookBest), fmt: (v) => `${v} points on the dance floor` },
+    { id: 'reflex', emoji: '🚦', title: 'Quick Draw', desc: 'The fastest reaction of the night', r: top((p) => (stat(p.id).reflexBest ? 100000 - stat(p.id).reflexBest : null)), fmt: (v) => `${100000 - v} ms on Green Light` },
+    { id: 'hive', emoji: '🐝', title: 'Mind Reader', desc: 'Thinks just like the room', r: top((p) => stat(p.id).hive, 3), fmt: (v) => `${v}× with the majority` },
+    { id: 'eagle', emoji: '👀', title: 'Eagle Eye', desc: 'Nothing gets past them', r: top((p) => stat(p.id).spots, 3), fmt: (v) => `${v} odd ones spotted` },
     { id: 'crore', emoji: '💰', title: 'High Roller', desc: 'Biggest single Money Ladder score', r: top((p) => stat(p.id).kbcBest), fmt: (v) => `${v.toLocaleString('en-US')} points on one question` },
   ];
   return list.filter((a) => a.r).map((a) => ({
@@ -282,7 +299,9 @@ function botDrive(state) {
       if (!q || (live.answers || {})[b.id] || !plan(key + b.id, live.opensAt)) return;
       const right = Math.random() < 0.65;
       const wrong = q.options.map((_, i) => i).filter((i) => i !== q.answer);
-      try { eng.player(live, game, b, { type: 'answer', choice: right ? q.answer : wrong[Math.floor(rnd(0, wrong.length))] }, { online: ONLINE }); } catch { /* too late */ }
+      // Hive Mind has no right answer: bots lean a little towards the first option.
+      const choice = q.kind === 'poll' ? (Math.random() < 0.6 ? 0 : 1) : right ? q.answer : wrong[Math.floor(rnd(0, wrong.length))];
+      try { eng.player(live, game, b, { type: 'answer', choice }, { online: ONLINE }); } catch { /* too late */ }
     });
   };
   if (game.type === 'quiz' && live.phase === 'question') answer(game.content.questions[live.qIndex], 'q' + live.qIndex);
@@ -294,6 +313,9 @@ function botDrive(state) {
       const picker = bots.find((b) => S.entityKeyFor(b, game) === up);
       if (picker && plan('pick' + Object.keys(live.used).length, t - 1000)) eng.autoPick(live, game);
     }
+  }
+  if (game.type === 'reflex' && live.phase === 'arm' && t >= live.goAt + 200) {
+    bots.forEach((b) => { if (!live.taps[b.id]) live.taps[b.id] = Math.random() < 0.08 ? { foul: true, at: t } : { ms: Math.round(rnd(240, 640)), at: t }; });
   }
   if (game.type === 'hookstep' && live.perf) {
     const onStage = (b) => eng.members(live.perf.team).some((m) => m.id === b.id);
@@ -357,7 +379,7 @@ function playerAction(p, a) {
       if (s.live) {
         const game = playGame(gameById(s.live.gameId));
         const eng = engines[game.type];
-        if (eng.hint) liveCtx = { canHint: (pl) => eng.hint.can(s.live, pl), applyHint: (pl) => eng.hint.apply(s.live, game, pl) };
+        if (eng.hint) liveCtx = { canHint: (pl) => eng.hint.can(s.live, pl, game), applyHint: (pl) => eng.hint.apply(s.live, game, pl) };
       }
       S.usePowerup(p, a.powerupId, a.targetId, liveCtx);
       return;
@@ -372,6 +394,12 @@ function playerAction(p, a) {
       const ids = (Array.isArray(a.order) ? a.order : []).filter((id) => D.CATALOG.some((g) => g.id === id));
       if (!ids.length) throw new Error('Pick at least one game.');
       f.order = [...new Set(ids)];
+      return;
+    }
+    case 'setTheme': {
+      hostOnly();
+      if (a.theme !== 'auto' && !T.valid(a.theme)) throw new Error('Pick a theme.');
+      s.settings.theme = a.theme;
       return;
     }
     case 'setPacks': {
@@ -480,7 +508,7 @@ function flowView() {
     ready: Object.keys(f.ready).filter((id) => f.ready[id]),
     profiled: Object.values(s.players).filter((p) => p.profile).map((p) => p.id),
     hostId: s.hostId,
-    catalog: D.CATALOG.map(({ id, title, emoji, type }) => ({ id, title, emoji, type })),
+    catalog: D.CATALOG.map((g) => ({ id: g.id, title: g.title, emoji: g.emoji, type: g.type, mini: Boolean(g.mini), mins: g.mins, blurb: g.blurb, levels: D.hasLevels(g) })),
     packs: enabledPacks(s),
     levels: Object.fromEntries(D.CATALOG.map((g) => [g.id, levelFor(s, g.id)])),
   };
@@ -489,7 +517,8 @@ function flowView() {
 function baseFor() {
   const s = st();
   const deadlines = [engineDeadline(s), D.nextDeadline(s)].filter(Boolean);
-  return { ...S.basePublic(ONLINE), eventName: s.settings.eventName, nextDeadline: deadlines.length ? Math.min(...deadlines) : null, flow: flowView(), media: currentMedia() };
+  const theme = { id: T.valid(s.settings.theme) ? s.settings.theme : 'auto', pack: T.resolve(s.settings) };
+  return { ...S.basePublic(ONLINE), eventName: s.settings.eventName, theme, nextDeadline: deadlines.length ? Math.min(...deadlines) : null, flow: flowView(), media: currentMedia() };
 }
 
 function viewFor(role, tok, tvSecret) {
@@ -505,6 +534,7 @@ function viewFor(role, tok, tvSecret) {
       allPacks: B.PACK_LIST, groups: B.GROUPS, levels: Object.entries(B.DIFFICULTIES).map(([id, d]) => ({ id, label: d.label })),
       prompts: s.questionnaire.filter((q) => ['text', 'vote'].includes(q.type || 'text')).map((q) => ({ id: q.id, text: q.text, type: q.type || 'text', on: promptOn(q), custom: Boolean(q.custom) })),
       maxPrompts: MAX_PROMPTS,
+      themes: T.PACKS, auto: T.autoPack(new Date(), Boolean(s.settings.south)), inSeason: T.inSeason(),
     } : undefined;
     const on = new Set(enabledPacks(s));
     return {
@@ -570,6 +600,7 @@ function run(store, roomCode, mutate, opts = {}) {
       ROOM = code;
       S.setState(loaded.room);
       ONLINE = new Set([...(loaded.online || []), ...Object.values(st().players).filter((p) => p.bot).map((p) => p.id)]);
+      syncCatalog();
       if (opts.gate) opts.gate();
       await syncHistory(store);
       const before = JSON.stringify(st());
@@ -618,6 +649,7 @@ async function createRoom(store, body) {
       if ((await store.saveBook(loaded.version, book)) == null) { await sleep(20 + Math.random() * 60); continue; }
       const code = newRoomCode((await store.listRooms()).map((r) => r.code));
       S.setState(freshRoom(code));
+      st().settings.south = body.south === true;
       const { p, t } = addPlayer({ name, avatar: body.avatar, email });
       st().hostId = p.id;
       D.flow(st()).ready[p.id] = true;
@@ -639,7 +671,9 @@ async function handle(store, method, path, body = {}, query = {}) {
       return { svg: await QRCode.toString(text, { type: 'svg', margin: 1, color: { dark: '#2a0845', light: '#ffffff' } }) };
     }
     if (path === 'meta') {
-      return { json: { eventName: 'Party Pack', avatars: S.AVATARS, mail: mailEnabled, realtime: store.realtime || null } };
+      const today = new Date();
+      return { json: { eventName: 'Party Pack', avatars: S.AVATARS, mail: mailEnabled, realtime: store.realtime || null,
+        themes: { north: T.autoPack(today, false), south: T.autoPack(today, true) } } };
     }
     if (method !== 'POST') return { status: 405, json: { error: 'Method not allowed' } };
     const origin = String(body.origin || '').replace(/[^a-zA-Z0-9:/._-]/g, '').slice(0, 100);

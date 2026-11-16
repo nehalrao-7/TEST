@@ -58,7 +58,7 @@
       }
       const soon = () => { clearTimeout(debounce); debounce = setTimeout(refresh, 60 + Math.random() * 140); };
 
-      fetch('/api/meta').then((r) => r.json()).then((meta) => {
+      App.meta.then((meta) => {
         const rt = meta.realtime;
         if (rt && window.supabase) {
           const client = window.supabase.createClient(rt.url, rt.key);
@@ -137,43 +137,65 @@
       return data;
     },
 
-    // Party popper with confetti: the Party Pack mark.
-    mascot() {
-      return `<svg class="mascot-svg" viewBox="0 0 200 160" aria-hidden="true">
-        <defs>
-          <radialGradient id="mascotGlow" cx="50%" cy="45%" r="55%"><stop offset="0" stop-color="#FFB020" stop-opacity=".55"/><stop offset="1" stop-color="#FF5A8A" stop-opacity="0"/></radialGradient>
-          <linearGradient id="popCone" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFD166"/><stop offset="1" stop-color="#FF8A3D"/></linearGradient>
-        </defs>
-        <ellipse cx="100" cy="82" rx="80" ry="58" fill="url(#mascotGlow)"/>
-        <path d="M58 140 L84 62 L136 114 Z" fill="url(#popCone)"/>
-        <path d="M71 101 L104 134 M77 82 L118 123" stroke="#FF5A8A" stroke-width="7" stroke-linecap="round"/>
-        <g class="flame">
-          <rect x="112" y="30" width="10" height="18" rx="3" fill="#4CC9F0" transform="rotate(25 117 39)"/>
-          <rect x="140" y="52" width="10" height="18" rx="3" fill="#FF5A8A" transform="rotate(-35 145 61)"/>
-          <circle cx="96" cy="34" r="6" fill="#FFD166"/><circle cx="152" cy="86" r="6" fill="#7BE07B"/>
-          <path d="M128 18 l4 8 9 1 -7 6 2 9 -8-5 -8 5 2-9 -7-6 9-1z" fill="#FFD166"/>
-          <circle cx="164" cy="40" r="4" fill="#B388FF"/><circle cx="80" cy="44" r="3.5" fill="#4CC9F0"/>
-        </g>
-      </svg>`;
+    // The mark: the four answer shapes.
+    mark(size = 84) {
+      return `<span class="mark" style="width:${size}px" aria-hidden="true">${App.shapes.map((s) => `<i>${s}</i>`).join('')}</span>`;
     },
 
-    sparkles(n = 40) {
+    // ---------- theme packs ----------
+    // The room's pack comes with every view. Before joining, we use the season where this
+    // device is (the server knows the date; the time zone tells us the hemisphere).
+    south() {
+      try {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+        return /^(Australia|Antarctica)\/|^Pacific\/(Auckland|Chatham|Fiji|Tongatapu|Apia|Port_Moresby|Noumea)|^Africa\/(Johannesburg|Maputo|Harare|Windhoek|Gaborone|Lusaka|Maseru|Mbabane|Blantyre)|^America\/(Sao_Paulo|Argentina|Buenos_Aires|Santiago|Montevideo|Asuncion|La_Paz|Lima|Punta_Arenas)|^Indian\/(Mauritius|Reunion|Antananarivo)|^Atlantic\/Stanley/.test(tz);
+      } catch { return false; }
+    },
+    pack: '',
+    setPack(id) {
+      if (!id || id === App.pack) return;
+      App.pack = id;
+      document.documentElement.dataset.pack = id;
+      try { localStorage.setItem('pp_pack', id); } catch { /* private mode */ }
+      requestAnimationFrame(() => {
+        const meta = document.querySelector('meta[name=theme-color]');
+        if (meta) meta.content = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+      });
+      App.ambient(id);
+    },
+    // Colours of the current pack, for the canvas effects.
+    palette() {
+      const cs = getComputedStyle(document.documentElement);
+      const v = (n) => cs.getPropertyValue(n).trim();
+      return [v('--accent'), v('--accent-2'), v('--score'), v('--optB'), v('--optC'), v('--optD')].filter(Boolean);
+    },
+    // Each pack has its own weather drifting behind the screens.
+    AMBIENT: {
+      classic: ['star', 22], spring: ['petal', 16], summer: ['bubble', 12], autumn: ['glyph', 12, ['🍂', '🍁']], winter: ['snow', 30],
+      newyear: ['spark', 22], lunar: ['glyph', 8, ['🏮']], spooky: ['bat', 6, ['🦇']], lights: ['ember', 24], festive: ['snow', 26],
+    },
+    ambient(id) {
+      document.querySelectorAll('.ambient').forEach((el) => el.remove());
       if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-      if (false) {
-        const t = document.createElement('div');
-        t.className = 'toran';
-        document.body.prepend(t);
-      }
+      const [kind, count, glyphs] = App.AMBIENT[id] || App.AMBIENT.classic;
+      const n = Math.round(count * (innerWidth < 700 ? 0.6 : 1));
+      const rise = ['bubble', 'ember', 'spark'].includes(kind) || (kind === 'glyph' && id === 'lunar');
       const box = document.createElement('div');
-      box.className = 'sparkles';
+      box.className = 'ambient';
+      const r = (a, b) => a + Math.random() * (b - a);
       for (let i = 0; i < n; i++) {
-        const s = document.createElement('i');
-        s.style.left = Math.random() * 100 + '%';
-        s.style.animationDelay = (Math.random() * 14).toFixed(2) + 's';
-        s.style.animationDuration = (9 + Math.random() * 10).toFixed(2) + 's';
-        s.style.setProperty('--dx', (Math.random() * 80 - 40).toFixed(0) + 'px');
-        if (Math.random() < 0.3) s.style.background = '#ff8a3c';
-        box.appendChild(s);
+        const el = document.createElement('i');
+        el.className = `amb-${kind === 'bat' ? 'glyph amb-bat' : kind} ${kind === 'star' || kind === 'bat' ? '' : rise ? 'rise' : 'fall'}`;
+        if (glyphs) el.textContent = glyphs[i % glyphs.length];
+        el.style.left = r(0, 100).toFixed(1) + '%';
+        if (kind === 'star' || kind === 'bat') el.style.top = r(4, kind === 'bat' ? 60 : 96).toFixed(1) + '%';
+        el.style.setProperty('--s', r(5, 11).toFixed(1) + 'px');
+        el.style.setProperty('--t', (kind === 'star' ? r(2.5, 6) : kind === 'bat' ? r(14, 26) : r(11, 24)).toFixed(1) + 's');
+        el.style.setProperty('--d', (-r(0, 24)).toFixed(1) + 's');
+        el.style.setProperty('--sway', r(-70, 70).toFixed(0) + 'px');
+        el.style.setProperty('--spin', r(-360, 360).toFixed(0) + 'deg');
+        el.style.setProperty('--o', r(0.25, glyphs ? 0.6 : 0.75).toFixed(2));
+        box.appendChild(el);
       }
       document.body.prepend(box);
     },
@@ -186,15 +208,6 @@
       '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="2"/></svg>',
     ],
     shapeNames: ['Triangle', 'Diamond', 'Circle', 'Square'],
-
-    // A glowing star. lit=false shows it dimmed. (Kept under its old name so every screen picks it up.)
-    diya(lit = true, size = 48) {
-      return `<svg class="diya-svg ${lit ? '' : 'unlit'}" width="${size}" height="${size}" ${size !== 48 ? `style="width:${size}px;height:${size}px"` : ''} viewBox="0 0 64 64" aria-hidden="true">
-        <defs><radialGradient id="dg"><stop offset="0" stop-color="#FFD166" stop-opacity=".9"/><stop offset="1" stop-color="#FF8A3D" stop-opacity="0"/></radialGradient></defs>
-        <circle class="glow" cx="32" cy="32" r="24" fill="url(#dg)"/>
-        <g class="flame"><path d="M32 8 l6.6 14.2 15.4 1.8 -11.4 10.6 3.1 15.3 -13.7-7.7 -13.7 7.7 3.1-15.3 -11.4-10.6 15.4-1.8z" fill="#FFD166" stroke="#FF8A3D" stroke-width="2" stroke-linejoin="round"/></g>
-      </svg>`;
-    },
 
     // Count a number up inside an element (scores, points).
     countUp(el, to, ms = 900, from = 0) {
@@ -230,71 +243,90 @@
       requestAnimationFrame(App.tickTimers);
     },
 
-    // ---------- fireworks (anar + rockets) ----------
-    confetti(power = 1) { App.fireworks(power); },
-    fireworks(power = 1, zone) {
-      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    // ---------- confetti and fireworks, in the colours of the current pack ----------
+    _canvas() {
       let c = document.getElementById('confetti');
       if (!c) { c = document.createElement('canvas'); c.id = 'confetti'; document.body.appendChild(c); }
+      const dpr = Math.min(2, devicePixelRatio || 1);
+      if (c.width !== Math.round(innerWidth * dpr) || c.height !== Math.round(innerHeight * dpr)) { c.width = Math.round(innerWidth * dpr); c.height = Math.round(innerHeight * dpr); }
       const ctx = c.getContext('2d');
-      const W = innerWidth, H = innerHeight, dpr = devicePixelRatio || 1;
-      if (c.width !== W * dpr) { c.width = W * dpr; c.height = H * dpr; }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      const palette = [['#FFD36E', '#FFF3C4'], ['#F2A33A', '#FFD36E'], ['#E35D4F', '#FFF3C4'], ['#FFF3C4', '#F2A33A']];
-      App._fw = App._fw || { parts: [], running: false };
-      const P = App._fw.parts;
-      const rockets = Math.max(1, Math.round((zone ? 2 : 3) * power));
-      for (let r = 0; r < rockets; r++) {
-        const side = Math.random() < 0.5;
-        const x = zone === 'sides'
-          ? W * (side ? 0.06 + Math.random() * 0.14 : 0.80 + Math.random() * 0.14)
-          : W * (0.22 + Math.random() * 0.56);
-        const ty = zone ? H * (0.06 + Math.random() * 0.14) : H * (0.15 + Math.random() * 0.3);
-        P.push({ rocket: true, x, y: H + 10, vx: (Math.random() - 0.5) * 1.5, vy: -(Math.sqrt(2 * 0.12 * (H - ty)) ), delay: r * 14, col: palette[(Math.random() * palette.length) | 0] });
-      }
-      // ground fountain (anar) only when the picture is the celebration itself
-      if (!zone && power >= 1) for (let i = 0; i < 90 * power; i++) {
-        P.push({ x: W / 2 + (Math.random() - 0.5) * 40, y: H, vx: (Math.random() - 0.5) * 4, vy: -(6 + Math.random() * 7), life: 70 + Math.random() * 40, max: 110, size: 1.8, col: palette[(Math.random() * 2) | 0], delay: (Math.random() * 40) | 0, g: 0.14 });
-      }
-      if (App._fw.running) return;
-      App._fw.running = true;
-      const step = () => {
-        ctx.globalCompositeOperation = 'destination-out';
-        ctx.fillStyle = 'rgba(0,0,0,0.28)';
-        ctx.fillRect(0, 0, W, H);
-        ctx.globalCompositeOperation = 'lighter';
+      return ctx;
+    },
+    _fx: { parts: [], running: false },
+    _run() {
+      const fx = App._fx;
+      if (fx.running) return;
+      fx.running = true;
+      const ctx = App._canvas();
+      let last = performance.now();
+      const step = (t) => {
+        const k = Math.min(2.5, (t - last) / 16.7); last = t;
+        const W = innerWidth, H = innerHeight;
+        ctx.clearRect(0, 0, W, H);
+        const P = fx.parts;
         for (let i = P.length - 1; i >= 0; i--) {
           const p = P[i];
-          if (p.delay > 0) { p.delay--; continue; }
+          if (p.delay > 0) { p.delay -= k; continue; }
           if (p.rocket) {
-            p.x += p.vx; p.y += p.vy; p.vy += 0.12;
-            ctx.fillStyle = '#ffd28a'; ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, 6.28); ctx.fill();
-            if (p.vy >= -0.5) {
-              const n = 70 + ((Math.random() * 40) | 0), ring = Math.random() < 0.5;
-              for (let k = 0; k < n; k++) {
-                const a = (k / n) * Math.PI * 2, v = ring ? 4.2 : 1 + Math.random() * 4.5;
-                P.push({ x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 60 + Math.random() * 40, max: 100, size: 2.2, col: p.col, g: 0.06, twinkle: Math.random() < 0.35 });
+            p.x += p.vx * k; p.y += p.vy * k; p.vy += 0.12 * k;
+            ctx.globalAlpha = 0.9; ctx.fillStyle = p.col; ctx.beginPath(); ctx.arc(p.x, p.y, 2.2, 0, 6.28); ctx.fill();
+            if (p.vy >= -0.6) {
+              const n = 56 + ((Math.random() * 30) | 0);
+              for (let j = 0; j < n; j++) {
+                const a = (j / n) * 6.28, v = 1.4 + Math.random() * 4;
+                P.push({ x: p.x, y: p.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, life: 55 + Math.random() * 35, max: 90, size: 2.4, col: p.col, g: 0.05, dot: true });
               }
               P.splice(i, 1);
             }
             continue;
           }
-          p.x += p.vx; p.y += p.vy; p.vx *= 0.985; p.vy = p.vy * 0.985 + p.g; p.life--;
-          if (p.life <= 0) { P.splice(i, 1); continue; }
-          const f = p.life / p.max;
-          if (p.twinkle && Math.random() < 0.3) continue;
-          ctx.globalAlpha = Math.min(1, f * 1.4);
-          ctx.fillStyle = f > 0.6 ? p.col[1] : p.col[0];
-          ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (0.6 + f * 0.6), 0, 6.28); ctx.fill();
+          p.x += p.vx * k; p.y += p.vy * k; p.vx *= 0.985; p.vy = p.vy * 0.985 + p.g * k; p.life -= k; p.rot += (p.vr || 0) * k;
+          if (p.life <= 0 || p.y > H + 30) { P.splice(i, 1); continue; }
+          const f = Math.min(1, p.life / (p.max * 0.35));
+          ctx.globalAlpha = f; ctx.fillStyle = p.col;
+          if (p.dot) { ctx.beginPath(); ctx.arc(p.x, p.y, p.size * (0.5 + f * 0.5), 0, 6.28); ctx.fill(); }
+          else {
+            // A paper piece that flutters as it falls.
+            ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.scale(1, Math.cos(p.rot * 1.7));
+            ctx.fillRect(-p.size, -p.size * 0.5, p.size * 2, p.size); ctx.restore();
+          }
         }
         ctx.globalAlpha = 1;
         if (P.length) requestAnimationFrame(step);
-        else { ctx.globalCompositeOperation = 'source-over'; ctx.clearRect(0, 0, W, H); App._fw.running = false; }
+        else { ctx.clearRect(0, 0, W, H); fx.running = false; }
       };
       requestAnimationFrame(step);
     },
+    confetti(power = 1, origin) {
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const cols = App.palette();
+      const W = innerWidth, H = innerHeight;
+      const from = origin || [{ x: W * 0.1, y: H * 0.72, dir: -1.05 }, { x: W * 0.9, y: H * 0.72, dir: -2.09 }];
+      const n = Math.round(46 * power);
+      from.forEach((o) => {
+        for (let i = 0; i < n; i++) {
+          const a = o.dir + (Math.random() - 0.5) * 0.9, v = (7 + Math.random() * 9) * Math.min(1.3, Math.max(0.75, H / 800));
+          App._fx.parts.push({ x: o.x, y: o.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, g: 0.24, life: 110 + Math.random() * 60, max: 170, size: 3.5 + Math.random() * 3.5, rot: Math.random() * 6.28, vr: (Math.random() - 0.5) * 0.3, col: cols[(Math.random() * cols.length) | 0], delay: Math.random() * 8 });
+        }
+      });
+      App._run();
+    },
+    fireworks(power = 1, zone) {
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+      const cols = App.palette();
+      const W = innerWidth, H = innerHeight;
+      const rockets = Math.max(1, Math.round((zone ? 2 : 4) * power));
+      for (let r = 0; r < rockets; r++) {
+        const side = Math.random() < 0.5;
+        const x = zone === 'sides' ? W * (side ? 0.06 + Math.random() * 0.14 : 0.8 + Math.random() * 0.14) : W * (0.18 + Math.random() * 0.64);
+        const ty = H * (0.1 + Math.random() * 0.28);
+        App._fx.parts.push({ rocket: true, x, y: H + 10, vx: (Math.random() - 0.5) * 1.4, vy: -Math.sqrt(2 * 0.12 * (H - ty)), delay: r * 16, col: cols[(Math.random() * cols.length) | 0] });
+      }
+      App._run();
+    },
 
-    // ---------- sounds (WebAudio, no files) — tuned to raag Bhupali (Sa Re Ga Pa Dha) ----------
+    // ---------- sounds (WebAudio, no files), on a pentatonic scale so everything sounds friendly ----------
     audio: null,
     soundOn: false,
     enableSound() {
@@ -358,17 +390,17 @@
       setTimeout(() => el.remove(), 3800);
     },
 
-    // A colour for the game on screen, in run order. Lobby and standings keep the house colour.
-    themeFor(S) {
-      const THEMES = ['marigold', 'rani', 'peacock', 'mehendi', 'indigo'];
-      if (!S || !S.live || !Array.isArray(S.games)) return '';
-      const order = S.flow && Array.isArray(S.flow.order) ? S.flow.order : S.games.map((g) => g.id);
-      const i = order.indexOf(S.live.gameId);
-      return i < 0 ? '' : THEMES[i % THEMES.length];
-    },
+    // The pack for the room, plus a tint for the game on screen so each one feels a little different.
+    GAME_TINTS: ['#F59F0A', '#E5487F', '#1AA6B7', '#6C5CE7', '#35C27C', '#FF7A45'],
     applyTheme(S) {
-      const t = App.themeFor(S);
-      if (document.body.dataset.theme !== t) document.body.dataset.theme = t;
+      if (S && S.theme) App.setPack(S.theme.pack);
+      const order = S && S.flow && Array.isArray(S.flow.order) ? S.flow.order : [];
+      const i = S && S.live ? order.indexOf(S.live.gameId) : -1;
+      const tint = i < 0 ? '' : App.GAME_TINTS[i % App.GAME_TINTS.length];
+      if (document.body.dataset.tint !== tint) {
+        document.body.dataset.tint = tint;
+        if (tint) document.body.style.setProperty('--game', tint); else document.body.style.removeProperty('--game');
+      }
     },
     fmt(n) { return Number(n || 0).toLocaleString('en-US'); },
     letters: ['A', 'B', 'C', 'D', 'E', 'F'],
@@ -378,4 +410,11 @@
   document.addEventListener('pointercancel', () => { App.pointerDown = false; }, true);
   window.App = App;
   requestAnimationFrame(App.tickTimers);
+  // Start in the last pack this device saw, then (outside a room) the season where it is.
+  let stored = '';
+  try { stored = localStorage.getItem('pp_pack') || ''; } catch { /* private mode */ }
+  const boot = () => App.setPack(App.AMBIENT[stored] ? stored : 'classic');
+  if (document.body) boot(); else document.addEventListener('DOMContentLoaded', boot);
+  App.meta = fetch('/api/meta').then((r) => r.json()).catch(() => ({}));
+  App.meta.then((m) => { App.season = m.themes ? (App.south() ? m.themes.south : m.themes.north) : ''; if (!App.room && App.season) App.setPack(App.season); });
 })();
