@@ -65,7 +65,7 @@ export class ClothSim {
           X.push(pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]);
           const r = Math.floor(v / row);
           inv.push((ud.pinRows || []).includes(r) ? 0 : 1);
-          thick.push(ud.thickness ?? 0.4); fric.push(fab.friction); damp.push(fab.damping); grav.push(fab.gravity);
+          thick.push(typeof ud.thickness === 'function' ? ud.thickness(pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]) : ud.thickness ?? 0.4); fric.push(fab.friction); damp.push(fab.damping); grav.push(fab.gravity);
         } else if ((ud.pinRows || []).includes(Math.floor(v / row))) inv[p] = 0;
         map[v] = p;
       }

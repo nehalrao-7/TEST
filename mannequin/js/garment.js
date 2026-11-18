@@ -65,7 +65,7 @@ export function buildGarment(B, m, g, mats, phys) {
     const sh = B.J[`${side}-shoulder`], ax = V3.nrm(sub(B.J[`${side}-elbow`], sh));
     for (const i of B.byLabel[lab]) {
       const d = (B.P[i * 3] - sh[0]) * ax[0] + (B.P[i * 3 + 1] - sh[1]) * ax[1] + (B.P[i * 3 + 2] - sh[2]) * ax[2];
-      if (d < 5) cap.push(i);
+      if (d < 3) cap.push(i);
     }
   }
   const torsoIdx = B.pick(L.torso), upperIdx = torsoIdx.concat(cap), hipIdx = B.pick(L.torso, L.lThigh, L.rThigh);
@@ -131,7 +131,9 @@ export function buildGarment(B, m, g, mats, phys) {
   const kCut = (i, th, p) => p[1] < slitTop && Math.abs(Math.sin(th)) < 0.045;
   // material 0 = body fabric, 1 = zari trim (neck piping + 3 cm hem border)
   mk(loftRings(smoothedK, { folds: kFolds, cut: kCut, clampY: neckCurve, groups: [{ from: 0, mat: 1 }, { from: 1, mat: 0 }, { from: smoothedK.length - 2, mat: 1 }] }),
-    [mats.kameez, mats.trim], 'kameez', [0], 0.4);
+    [mats.kameez, mats.trim], 'kameez', [0],
+    // layered over the salwar from the waistband down: keep a salwar-thick gap
+    (x, y) => (y < B.waistY + 4 ? 1.4 : 0.4));
 
   // ---------------- Sleeves ----------------
   for (const side of ['l', 'r']) {

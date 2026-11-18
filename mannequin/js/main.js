@@ -96,7 +96,7 @@ const heatMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 
 const hiMat = new THREE.MeshStandardMaterial({ color: '#3d9cf0', emissive: '#12406e', roughness: 0.6, side: THREE.DoubleSide });
 const mats = {};
 function updateMaterials() {
-  for (const part of ['kameez', 'salwar', 'cuff']) mats[part] = applyFabric(mats[part], state.fabrics[part]);
+  for (const part of ['kameez', 'salwar', 'cuff']) mats[part] = applyFabric(mats[part], { ...state.fabrics[part], layer: part === 'kameez' ? 'outer' : 'inner' });
   mats.trim = state.zari ? zari : mats.kameez;
 }
 updateMaterials();
@@ -545,4 +545,4 @@ renderer.setAnimationLoop(() => { controls.update(); simTick(); render(); update
 H = await loadHuman('assets/');
 refit();
 document.body.classList.add('ready');
-window.__studio = { state, refit, setView, get B() { return B; }, get garment() { return garmentGroup; }, get sim() { return sim; }, get simRunning() { return simRunning; } };
+window.__studio = { state, refit, setView, zoom: (tx, ty, tz, px, py, pz) => { controls.target.set(tx, ty, tz); camera.position.set(px, py, pz); controls.update(); }, get B() { return B; }, get garment() { return garmentGroup; }, get sim() { return sim; }, get simRunning() { return simRunning; } };

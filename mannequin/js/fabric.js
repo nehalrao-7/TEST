@@ -228,6 +228,8 @@ export function applyFabric(mat, spec) {
   Object.assign(mat, { roughness: F.roughness, sheen: F.sheen, sheenRoughness: F.sheenRoughness, anisotropy: F.anisotropy, clearcoat: F.clearcoat || 0, clearcoatRoughness: 0.4 });
   mat.sheenColor = new THREE.Color(spec.print === 'solid' ? shade(spec.ground, 1.35) : '#ffffff').lerp(new THREE.Color('#ffffff'), 0.35);
   if (spec.type === 'velvet') mat.sheenColor.set(shade(spec.ground, 1.8));
+  // inner layers lose depth ties against the garment worn over them
+  if (spec.layer === 'inner') Object.assign(mat, { polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 4 });
   mat.needsUpdate = true;
   return mat;
 }
