@@ -1,5 +1,6 @@
 import * as THREE from '../vendor/three.module.js';
-import { ring, loft, clipRings } from './geometry.js';
+import { N, section, perimeter, inflate, scaleTo, smooth, smoothAlong, loftRings, lerpRing, frame, rng, V3 } from './drape.js';
+const { add, sub, mul } = V3;
 
 // Garment specs (cm). Ease = garment minus body.
 export const GARMENT_FIELDS = [
@@ -25,98 +26,162 @@ export const GARMENT_FIELDS = [
 ];
 export const GARMENT_DEFAULTS = Object.fromEntries(GARMENT_FIELDS.map((f) => [f.key, f.def]));
 
-// Make garment ring that never renders inside the body ring.
-function over(bodyRing, C, k, gap = 0.6) {
-  const r = ring({ y: bodyRing.y, C, k, x: bodyRing.x, z: bodyRing.z });
-  r.rx = Math.max(r.rx, bodyRing.rx + gap);
-  r.rz = Math.max(r.rz, bodyRing.rz + gap);
-  return r;
+
+// ---------------------------------------------------------------------------
+// Garment builder on the realistic body. `B` = fitted body context:
+// { P (cm), J joints (cm), label index lists, achieved measurements, waistY, crotchY }
+// ---------------------------------------------------------------------------
+const L = { torso: 0, head: 1, lUpper: 2, lFore: 3, lHand: 4, lThigh: 5, lShin: 6, lFoot: 7, rUpper: 8, rFore: 9, rHand: 10, rThigh: 11, rShin: 12, rFoot: 13 };
+const Y = [0, 1, 0];
+const smoothstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+
+export function bodyContext(H, P, labels, J, achieved) {
+  const byLabel = Array.from({ length: 14 }, () => []);
+  const seen = new Uint8Array(P.length / 3);
+  for (const i of H.body.orig) if (!seen[i]) { seen[i] = 1; byLabel[labels[i]].push(i); }
+  const R = H.man.rulers;
+  const avgY = (idx) => idx.reduce((s, i) => s + P[i * 3 + 1], 0) / idx.length;
+  const pick = (...ls) => ls.flatMap((l) => byLabel[l]);
+  return {
+    P, J, byLabel, pick, achieved,
+    waistY: avgY(R['waist-circ']), hipY: avgY(R['hips-circ']), bustY: avgY(R['bust-circ']),
+    underbustY: avgY(R['underbust-circ']), neckY: avgY(R['neck-circ']), crotchY: achieved.inseam,
+    ankleY: J['l-ankle'][1], kneeY: J['l-knee'][1],
+  };
 }
 
-export function buildGarment(bm, m, g, mats) {
+function hsection(B, idx, y, slab = 2.2) { return section(B.P, idx, [0, y, 0], Y, slab); }
+
+export function buildGarment(B, m, g, mats) {
   const group = new THREE.Group();
-  const t = bm.torso;
+  const torsoIdx = B.pick(L.torso), hipIdx = B.pick(L.torso, L.lThigh, L.rThigh);
+  const legsIdx = B.pick(L.lThigh, L.rThigh, L.lShin, L.rShin);
+  const shoulderY = Math.max(B.J['l-shoulder'][1], B.J['r-shoulder'][1]);
+  const topY = B.neckY - 1.5;
+  const hemY = Math.max(2, topY - g.kameezLength);
+  const rand = rng(7);
 
-  // ---------- Salwar ----------
-  const fold = (n, a, ph = 0) => ({ n, a, phase: ph });
-  const cuffTop = bm.ankleY + g.cuffHeight;
-  const salwarTop = Math.min(bm.waistY + 1, bm.waistY + 1);
-  const crY = bm.crotchY - g.crotchDrop;
-  const upper = [
-    { ...over(t.waist, m.waist, 0.74, 0.25), y: salwarTop - 1 },
-    over(t.hip, m.hip + 1, 0.72, 0.3),
-    over(t.seat, m.hip, 0.7, 0.4),
-    ring({ y: crY, C: m.hip * 0.9, k: 0.66, z: -0.3 }),
-  ];
-  group.add(new THREE.Mesh(loft(upper), mats.salwar));
+  // ---------------- Kameez body ----------------
+  const ease = (y) => {
+    if (y >= B.bustY) return g.bustEase;
+    if (y >= B.waistY) return g.waistEase + (g.bustEase - g.waistEase) * smoothstep(B.waistY, B.bustY, y);
+    return g.waistEase + (g.hipEase - g.waistEase) * smoothstep(B.waistY, B.hipY, y);
+  };
+  const rings = [];
+  let hipRing = null;
+  for (let y = topY; y > hemY - 0.01; y -= y > B.bustY ? 1 : 2.5) {
+    const yy = Math.max(y, hemY);
+    if (yy >= B.hipY) {
+      const idx = yy > B.crotchY + 4 ? (yy > B.waistY ? torsoIdx : hipIdx) : hipIdx;
+      let s = hsection(B, idx, yy);
+      if (!s) continue;
+      s = smooth(s, 2);
+      const P0 = perimeter(s.r);
+      s = inflate(s, P0 + ease(yy), yy > shoulderY - 6 ? 0.5 : 1.0);
+      rings.push(s);
+      hipRing = s;
+    } else {
+      // skirt: hip shape scaled out with flare, never inside the legs
+      const t = smoothstep(B.hipY, hemY, yy);
+      const C = perimeter(hipRing.r) + g.hemFlare * Math.min(1, (B.hipY - yy) / Math.max(1, B.hipY - hemY));
+      let s = scaleTo({ ...hipRing, c: [hipRing.c[0], yy, hipRing.c[2]] }, C);
+      const legs = section(B.P, yy > B.crotchY ? hipIdx : legsIdx, s.c, Y, 1.5, null, true);
+      if (legs) s = { ...s, r: s.r.map((r, k) => Math.max(r, legs.r[k] + 3.2)) };
+      s = smooth(s, 3 + Math.round(t * 4));
+      rings.push(s);
+    }
+    if (y <= hemY) break;
+  }
+  const smoothedK = smoothAlong(rings, 6);
+  const foldPhase = Array.from({ length: 6 }, () => rand() * 6.28);
+  const nRings = rings.length;
+  const kFolds = (i, th) => {
+    const y = rings[Math.min(nRings - 1, Math.floor(i))].c[1];
+    const t = smoothstep(B.hipY, hemY, y);
+    return t * (0.035 * Math.sin(5 * th + foldPhase[0]) + 0.02 * Math.sin(9 * th + foldPhase[1]) + 0.012 * Math.sin(14 * th + foldPhase[2]));
+  };
+  const neckHalfW = m.neck / (2 * Math.PI) + 2.2;
+  const slitTop = hemY + g.slitLength;
+  const neckZ = B.J['neck'][2];
+  const neckCurve = (th, x, z) => {
+    const ax = Math.abs(x);
+    if (ax >= neckHalfW) return Infinity;
+    const depth = z > neckZ ? g.frontNeckDepth : g.backNeckDepth;
+    return topY - depth * Math.sqrt(Math.max(0, 1 - (ax / neckHalfW) ** 2));
+  };
+  const kCut = (i, th, p) => p[1] < slitTop && Math.abs(Math.sin(th)) < 0.045;
+  group.add(new THREE.Mesh(loftRings(smoothedK, { folds: kFolds, cut: kCut, clampY: neckCurve, uvScale: [4, 3] }), mats.kameez));
+  // hem trim band
+  const hem = rings[rings.length - 1];
+  const band = [lerpRing(hem, hem, 0), { ...hem, c: add(hem.c, [0, 3, 0]), r: hem.r.map((r) => r * 0.995) }].map((r) => ({ ...r, r: r.r.map((x) => x + 0.25) }));
+  group.add(new THREE.Mesh(loftRings(band.reverse(), { folds: (i, th) => kFolds(nRings - 1, th), cut: (i, th, p) => p[1] < slitTop && Math.abs(Math.sin(th)) < 0.045 }), mats.trim));
+
+  // ---------------- Sleeves ----------------
+  for (const side of ['l', 'r']) {
+    const sh = B.J[`${side}-shoulder`], el = B.J[`${side}-elbow`], wr = B.J[`${side}-hand`];
+    const upper = B.pick(side === 'l' ? L.lUpper : L.rUpper), fore = B.pick(side === 'l' ? L.lFore : L.rFore);
+    const segA = Math.hypot(...sub(el, sh)), segB = Math.hypot(...sub(wr, el));
+    const len = Math.min(g.sleeveLength, segA + segB - 1);
+    const sr = [];
+    const fr = frame(sub(el, sh)); // keep one frame so rings don't twist
+    for (let d = -6; d <= len; d += 1.5) {
+      const onA = d <= segA;
+      const t = onA ? Math.max(0, d) / segA : (d - segA) / segB;
+      const c = onA ? add(sh, mul(sub(el, sh), d / segA)) : add(el, mul(sub(wr, el), t));
+      const axis = onA ? sub(el, sh) : sub(wr, el);
+      const f2 = frame(axis); const fu = { u: f2.u, v: f2.v };
+      let s = section(B.P, onA ? upper : fore, c, axis, 1.0, fu);
+      if (!s) continue;
+      s = smooth(s, 3);
+      const k = d / len;
+      const C = (m.upperArm + g.sleeveEase) * (1 - smoothstep(0.35, 1, k)) + g.sleeveOpening * smoothstep(0.35, 1, k) + (d < 0 ? 1.5 : 0);
+      sr.push(inflate(s, C, 0.5));
+    }
+    if (sr.length > 1) group.add(new THREE.Mesh(loftRings(smoothAlong(sr, 3), { uvScale: [2, 3] }), mats.kameez));
+    void fr;
+  }
+
+  // ---------------- Patiala salwar ----------------
+  const crY = B.crotchY - g.crotchDrop;
+  const cuffTop = B.ankleY + g.cuffHeight - 2;
+  const upperRings = [];
+  for (let y = B.waistY; y >= crY; y -= 2) {
+    let s = hsection(B, y > B.crotchY + 3 ? hipIdx : legsIdx.concat(hipIdx), y);
+    if (!s) continue;
+    upperRings.push(inflate(smooth(s, 2), 0, 0.12));
+  }
+  if (upperRings.length > 1) group.add(new THREE.Mesh(loftRings(smoothAlong(upperRings, 2), { uvScale: [6, 3] }), mats.salwar));
   const fullness = Math.max(1, g.fullness);
-  const legTop = Math.min(crY + 10, bm.hipY);
-  const hemBodyY = Math.max(bm.shoulderY - g.kameezLength, 0);
-  for (const side of [-1, 1]) {
-    const lx = (f) => side * bm.legX * f;
-    // Volume blooms only below the kameez hem so the salwar never pokes through it.
-    const bloom = (y) => { const t = Math.min(1, Math.max(0, (hemBodyY + 2 - y) / 18)); return t * t * (3 - 2 * t); };
-    const pts = [
-      { y: legTop, C: m.thigh * 1.04, x: 1 },
-      { y: bm.crotchY - 4, C: m.thigh * (1.1 + 0.12 * fullness), x: 1.0 },
-      { y: (bm.crotchY + bm.kneeY) / 2, C: m.thigh * (1 + 0.2 * fullness), x: 0.95 },
-      { y: bm.kneeY + 2, C: m.knee * (0.9 + 0.4 * fullness), x: 0.9 },
-      { y: bm.calfY, C: m.calf * (1 + 0.45 * fullness), x: 0.84 },
-      { y: cuffTop + 5, C: m.calf * (0.8 + 0.4 * fullness), x: 0.75 },
-      { y: cuffTop + 0.5, C: g.mohri * 1.1, x: 0.68 },
-    ];
-    const legRings = pts.map((p, i) => {
-      const b = i === pts.length - 1 ? 1 : bloom(p.y);
-      const base = m.thigh * 1.04 * (1 - i / pts.length) + m.calf * (i / pts.length);
-      const C = Math.max(base + (p.C - base) * b, 1);
-      return { ...ring({ y: p.y, C, k: 0.92, x: lx(p.x) }),
-        wave: [fold(g.pleats + 3, (0.02 + 0.025 * fullness) * b, i * 0.5), fold(5, 0.04 * b, side * i)] };
-    });
-    group.add(new THREE.Mesh(loft(legRings), mats.salwar));
-    const cr = (y) => ring({ y, C: Math.max(g.mohri, m.ankle + 1), k: 0.85, x: lx(0.66) });
-    group.add(new THREE.Mesh(loft([cr(cuffTop), cr(bm.ankleY - 1)], { seg: 40 }), mats.cuff));
+  for (const side of ['l', 'r']) {
+    const idx = B.pick(side === 'l' ? L.lThigh : L.rThigh, side === 'l' ? L.lShin : L.rShin);
+    const lr = [];
+    const ph = Array.from({ length: 4 }, () => rand() * 6.28);
+    for (let y = crY + 6; y >= cuffTop; y -= 2) {
+      let s = hsection(B, idx, y);
+      if (!s) continue;
+      s = smooth(s, 4);
+      const P0 = perimeter(s.r);
+      // volume blooms below the kameez hem, deepest over the calf, then gathers into the cuff
+      const below = smoothstep(hemY + 4, hemY - 14, y);
+      const toCuff = smoothstep(cuffTop + 14, cuffTop, y);
+      const extra = (P0 * 0.25 + 10) * (fullness - 1) * below * (1 - 0.7 * toCuff);
+      lr.push(y < hemY - 2 ? inflate(s, P0 + 4 + extra, 0.3) : inflate(s, 0, 0.15));
+    }
+    // gather into cuff
+    const cuffRing = (y) => { const s = hsection(B, idx, y) || lr[lr.length - 1]; return inflate(smooth(s, 4), g.mohri, 0.4); };
+    lr.push(cuffRing(cuffTop));
+    const lrs = smoothAlong(lr, 3);
+    const nL = lrs.length;
+    const folds = (i, th) => {
+      const y = lrs[Math.min(nL - 1, Math.floor(i))].c[1];
+      const a = smoothstep(hemY + 4, hemY - 10, y) * (1 - smoothstep(cuffTop + 4, cuffTop, y));
+      return a * (0.05 * Math.sin((g.pleats + 1) * th + ph[0] + y * 0.015) + 0.04 * Math.sin(4 * th + ph[1] - y * 0.02) + 0.012 * Math.sin(11 * th + ph[2]));
+    };
+    group.add(new THREE.Mesh(loftRings(lrs, { folds, uvScale: [6, 3] }), mats.salwar));
+    const cuff = [cuffRing(cuffTop + 0.5), cuffRing(B.ankleY - 3.5)];
+    group.add(new THREE.Mesh(loftRings(cuff, { uvScale: [3, 1] }), mats.cuff));
   }
-
-  // ---------- Kameez ----------
-  const k = [
-    ring({ y: bm.shoulderY + 1.6, C: m.neck + 6, k: 0.85, z: 0.5 }),
-    { ...t.shoulder, rx: t.shoulder.rx + 1.4, rz: t.shoulder.rz + 1.2, y: t.shoulder.y - 0.5 },
-    over(t.chest, m.bust * 0.95 + g.bustEase, 0.66, 1),
-    over(t.bust, m.bust + g.bustEase, 0.76),
-    over(t.underbust, (m.underbust + m.waist) / 2 + (g.bustEase + g.waistEase) / 2 + 2, 0.74),
-    over(t.waist, m.waist + g.waistEase, 0.76),
-    over(t.hip, m.hip + g.hipEase, 0.76),
-    over(t.seat, m.hip + g.hipEase + g.hemFlare * 0.25, 0.76, 1.5),
-  ];
-  const hipC = m.hip + g.hipEase;
-  for (let i = 1; i <= 6; i++) {
-    const y = bm.hipY - (i / 6) * (bm.hipY - 0);
-    k.push(ring({ y, C: hipC + g.hemFlare * Math.min(1, (bm.hipY - y) / Math.max(1, bm.hipY - hemBodyY)) + 8 * (y < bm.crotchY), k: 0.8, z: -0.5 }));
-  }
-  const kRings = clipRings(k, hemBodyY);
-  group.add(new THREE.Mesh(loft(kRings), mats.kameez));
-  // neckline trim
-  const nk = kRings[0];
-  group.add(new THREE.Mesh(new THREE.TorusGeometry(1, 0.06, 8, 48).scale(nk.rx, nk.rz, 1).rotateX(Math.PI / 2).translate(0, nk.y, nk.z), mats.trim));
-  // hem trim
-  const hm = kRings[kRings.length - 1];
-  group.add(new THREE.Mesh(loft([{ ...hm, rx: hm.rx + 0.2, rz: hm.rz + 0.2 }, { ...hm, y: hm.y + 3, rx: hm.rx + 0.25, rz: hm.rz + 0.25 }]), mats.trim));
-
-  // Sleeves
-  for (const arm of [bm.armL, bm.armR]) {
-    const len = Math.min(g.sleeveLength, m.armLength);
-    const endY = bm.armTop - len;
-    const sl = arm.map((r, i) => {
-      const C = i < 3 ? m.upperArm + g.sleeveEase + (i === 0 ? 4 : 0) : (m.upperArm + g.sleeveEase + g.sleeveOpening) / 2;
-      return over(r, C, 0.95, 0.5);
-    });
-    const tail = clipRings(sl, endY);
-    const last = tail[tail.length - 1];
-    const op = ring({ y: last.y, C: g.sleeveOpening, k: 0.95, x: last.x, z: last.z });
-    tail[tail.length - 1] = { ...last, rx: Math.max(op.rx, arm[0].rx * 0 + last.rx * 0.6), rz: Math.max(op.rz, last.rz * 0.6) };
-    group.add(new THREE.Mesh(loft(tail), mats.kameez));
-  }
-  return group;
+  return { group, hemY };
 }
 
 // Fit report rows: [label, body, garment]

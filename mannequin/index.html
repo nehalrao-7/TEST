@@ -19,6 +19,10 @@
   .row.focus { background:#fde7ef; }
   .row label { cursor:pointer; } .row input { width:100%; padding:4px 6px; border:1px solid var(--line); border-radius:5px; font:inherit; text-align:right; }
   .row span { color:var(--mute); font-size:11px; }
+  .row { grid-template-columns: 1fr 70px 18px 46px; }
+  .got { font-style:normal; font-size:11px; text-align:right; }
+  .look { display:flex; gap:8px; flex-wrap:wrap; margin:6px 0 2px; font-size:12px; } .look select { font:inherit; padding:2px 4px; }
+  #status { position:absolute; left:10px; bottom:10px; font-size:12px; color:#555; background:#fffc; padding:4px 8px; border-radius:6px; }
   .help { margin:8px 0; padding:8px 10px; background:#fff7e0; border:1px solid #f0e0b0; border-radius:6px; min-height:52px; font-size:12px; }
   .btns { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0; }
   .btn { border:1px solid var(--line); background:#fff; border-radius:6px; padding:6px 10px; cursor:pointer; font:inherit; }
@@ -40,9 +44,14 @@
 </head>
 <body>
 <aside>
-  <header><h1>Mannequin Fit Studio</h1><p>Body → Patiala dress → Pattern. All units in cm.</p></header>
+  <header><h1>Mannequin Fit Studio</h1><p>Realistic body fitted to your tape measurements → Patiala dress → Pattern. Units: cm.</p></header>
   <div class="tabs"><button data-tab="body" class="on">1 · Body</button><button data-tab="garment">2 · Garment</button><button data-tab="pattern">3 · Pattern</button></div>
   <div class="pane on" id="pane-body">
+    <div class="look">
+      <label>Body <select id="look-sex"><option value="female">Female</option><option value="male">Male</option></select></label>
+      <label>Skin <select id="look-eth"><option value="asian">Light-medium</option><option value="caucasian">Light</option><option value="african">Deep</option></select></label>
+      <label>Hair <select id="look-hair"><option value="long01">Long</option><option value="ponytail01">Ponytail</option><option value="bob02">Bob</option><option value="none">None</option></select></label>
+    </div>
     <div class="help" id="helpBody">Click a measurement to see where to take it on the mannequin.</div>
     <div id="bodyFields"></div>
     <div class="btns">
@@ -78,6 +87,7 @@
     <button class="btn" id="vFront">Front</button><button class="btn" id="vSide">Side</button><button class="btn" id="vBack">Back</button>
   </div>
   <div id="fit"></div>
+  <div id="status"></div>
 </main>
 <script type="module" src="js/main.js"></script>
 </body>

@@ -1,6 +1,6 @@
 # Mannequin Fit Studio
 
-A small browser tool that builds a 3D mannequin from real body measurements, puts a patiala dress on it (kameez + patiala salwar), and exports a 1:1 sewing pattern.
+A small browser tool that builds a realistic 3D human from real body measurements, puts a patiala dress on it (kameez + patiala salwar), and exports a 1:1 sewing pattern.
 
 ## Run
 Static files with no build step. Serve this folder and open it:
@@ -19,3 +19,12 @@ Static files with no build step. Serve this folder and open it:
 - `js/garment.js`: garment parameters, 3D garment, fit report
 - `js/pattern.js`: flat pattern drafting and SVG export
 - `js/geometry.js`: ellipse/loft helpers
+
+## Realistic body model
+The body is the MakeHuman base mesh (CC0, ~19k vertices) with photographic skin, eyes, brows, lashes and hair.
+On every change, a Levenberg–Marquardt solver blends 60+ MakeHuman morph targets until the mesh's own tape-line
+measurements (MakeHuman's measurement rulers) match your inputs. Each field shows ✓ or the remaining difference.
+Garments are built from cross-sections of the fitted body, so they follow its actual shape.
+
+Assets are prebuilt in `assets/`. To rebuild them: `python3 tools/build_assets.py <makehuman/data> <assets-1.1/base> assets`
+(see the header of that script for the sources).
