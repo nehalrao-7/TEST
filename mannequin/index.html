@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mannequin Fit Studio</title>
+<style>
+  :root { --bg:#f6f3ef; --panel:#fff; --ink:#222; --mute:#777; --line:#e4ddd5; --acc:#c2185b; }
+  * { box-sizing: border-box; }
+  body { margin:0; font:13px/1.4 system-ui, sans-serif; color:var(--ink); background:var(--bg); display:grid; grid-template-columns: 340px 1fr; height:100vh; overflow:hidden; }
+  aside { background:var(--panel); border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0; }
+  header { padding:12px 14px 8px; } header h1 { font-size:16px; margin:0; } header p { margin:2px 0 0; color:var(--mute); font-size:12px; }
+  .tabs { display:flex; border-bottom:1px solid var(--line); padding:0 8px; }
+  .tabs button { flex:1; background:none; border:0; padding:9px 4px; cursor:pointer; font-weight:600; color:var(--mute); border-bottom:2px solid transparent; }
+  .tabs button.on { color:var(--acc); border-color:var(--acc); }
+  .pane { overflow:auto; padding:10px 14px 16px; flex:1; display:none; } .pane.on { display:block; }
+  .grp { font-weight:700; margin:14px 0 4px; color:var(--acc); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
+  .row { display:grid; grid-template-columns: 1fr 78px 22px; align-items:center; gap:6px; padding:3px 6px; border-radius:6px; }
+  .row.focus { background:#fde7ef; }
+  .row label { cursor:pointer; } .row input { width:100%; padding:4px 6px; border:1px solid var(--line); border-radius:5px; font:inherit; text-align:right; }
+  .row span { color:var(--mute); font-size:11px; }
+  .help { margin:8px 0; padding:8px 10px; background:#fff7e0; border:1px solid #f0e0b0; border-radius:6px; min-height:52px; font-size:12px; }
+  .btns { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0; }
+  .btn { border:1px solid var(--line); background:#fff; border-radius:6px; padding:6px 10px; cursor:pointer; font:inherit; }
+  .btn.pri { background:var(--acc); color:#fff; border-color:var(--acc); }
+  main { position:relative; min-width:0; }
+  #c { width:100%; height:100%; display:block; }
+  .toolbar { position:absolute; top:10px; left:10px; display:flex; gap:10px; flex-wrap:wrap; background:#fffd; padding:6px 10px; border-radius:8px; border:1px solid var(--line); }
+  .toolbar label { display:flex; gap:4px; align-items:center; }
+  #fit { position:absolute; right:10px; bottom:10px; background:#fffe; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-size:12px; }
+  #fit table { border-collapse:collapse; } #fit td,#fit th { padding:2px 6px; text-align:right; } #fit td:first-child,#fit th:first-child { text-align:left; }
+  .ok { color:#2e7d32; } .warn { color:#e08600; } .bad { color:#c62828; font-weight:700; }
+  .lbl { position:absolute; pointer-events:none; font-size:11px; padding:1px 5px; border-radius:4px; background:#fffc; border:1px solid #ccc; white-space:nowrap; transform:translate(-50%,-50%); }
+  .lbl.hi { background:var(--acc); color:#fff; border-color:var(--acc); font-weight:700; z-index:2; }
+  #labels { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+  #patPrev { border:1px solid var(--line); border-radius:6px; background:#fff; max-height:55vh; overflow:auto; }
+  #patPrev svg { width:100%; height:auto; display:block; }
+  @media (max-width: 800px) { body { grid-template-columns:1fr; grid-template-rows: 55vh 45vh; } aside { order:2; } #fit { display:none; } }
+</style>
+</head>
+<body>
+<aside>
+  <header><h1>Mannequin Fit Studio</h1><p>Body → Patiala dress → Pattern. All units in cm.</p></header>
+  <div class="tabs"><button data-tab="body" class="on">1 · Body</button><button data-tab="garment">2 · Garment</button><button data-tab="pattern">3 · Pattern</button></div>
+  <div class="pane on" id="pane-body">
+    <div class="help" id="helpBody">Click a measurement to see where to take it on the mannequin.</div>
+    <div id="bodyFields"></div>
+    <div class="btns">
+      <button class="btn" id="resetBody">Reset</button>
+      <button class="btn" id="saveJson">Save profile (.json)</button>
+      <label class="btn">Load profile<input type="file" id="loadJson" accept=".json" hidden></label>
+    </div>
+  </div>
+  <div class="pane" id="pane-garment">
+    <div class="help" id="helpGarment">Adjust the garment; the fit table (bottom-right) shows ease vs. the body.</div>
+    <div id="garmentFields"></div>
+    <div class="btns"><button class="btn" id="resetGarment">Reset garment</button></div>
+  </div>
+  <div class="pane" id="pane-pattern">
+    <p>Flat pattern drafted from the body + garment settings. Exported SVG is true 1:1 scale (check the 10 cm square after printing).</p>
+    <div class="btns">
+      <button class="btn pri" id="dlSvg">Download SVG pattern</button>
+      <button class="btn" id="printPat">Print / PDF</button>
+      <button class="btn" id="dlSpec">Download spec (.json)</button>
+    </div>
+    <div id="patPrev"></div>
+  </div>
+</aside>
+<main>
+  <canvas id="c"></canvas>
+  <div id="labels"></div>
+  <div class="toolbar">
+    <label><input type="checkbox" id="vGuides" checked> Measurement guide</label>
+    <label><input type="checkbox" id="vGarment"> Garment</label>
+    <label>Opacity <input type="range" id="vOpacity" min="0.2" max="1" step="0.05" value="1"></label>
+    <label>Kameez <input type="color" id="cKameez" value="#c2185b"></label>
+    <label>Salwar <input type="color" id="cSalwar" value="#f3c623"></label>
+    <button class="btn" id="vFront">Front</button><button class="btn" id="vSide">Side</button><button class="btn" id="vBack">Back</button>
+  </div>
+  <div id="fit"></div>
+</main>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
