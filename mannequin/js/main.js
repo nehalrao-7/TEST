@@ -601,4 +601,29 @@ renderer.setAnimationLoop(() => { controls.update(); simTick(); render(); update
 H = await loadHuman('assets/');
 refit();
 document.body.classList.add('ready');
-window.__studio = { state, refit, setView, skin, renderer, skinUniforms, zoom: (tx, ty, tz, px, py, pz) => { controls.target.set(tx, ty, tz); camera.position.set(px, py, pz); controls.update(); }, get B() { return B; }, get garment() { return garmentGroup; }, get sim() { return sim; }, get simRunning() { return simRunning; } };
+// Scene export for the offline (Blender) renderer: meshes in cm, Y-up, plus the app's own textures.
+function exportScene() {
+  const geo = (mesh, extra = {}) => {
+    const g = mesh.geometry;
+    return { pos: Array.from(g.attributes.position.array), uv: g.attributes.uv ? Array.from(g.attributes.uv.array) : null,
+      index: Array.from(g.index.array), groups: g.groups.map((x) => ({ start: x.start, count: x.count, mat: x.materialIndex })), ...extra };
+  };
+  const img = (t) => { if (!t || !t.image) return null; const im = t.image; if (im.toDataURL) return im.toDataURL('image/png');
+    const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; c.getContext('2d').drawImage(im, 0, 0); return c.toDataURL('image/png'); };
+  const mat = (m) => m && { map: img(m.map), mapRepeat: m.map ? [m.map.repeat.x, m.map.repeat.y, m.map.offset.x, m.map.offset.y] : null,
+    normal: img(m.normalMap), normalRepeat: m.normalMap ? [m.normalMap.repeat.x, m.normalMap.repeat.y] : null,
+    color: '#' + m.color.getHexString(), roughness: m.roughness, metalness: m.metalness, sheen: m.sheen || 0 };
+  const garments = garmentGroup.children.map((m) => {
+    const g = m.geometry, nv = g.attributes.position.count, rows = g.userData.rows || 1, row = nv / rows, pin = new Uint8Array(nv);
+    if (!m.userData.sewn) for (let v = 0; v < nv; v++) if ((m.userData.pinRows || []).includes(Math.floor(v / row))) pin[v] = 1;
+    return geo(m, { part: m.userData.part, piece: m.userData.piece, sewn: !!m.userData.sewn, pin: Array.from(pin), half: m.userData.halfspace || 0 });
+  });
+  const skey = H.man.skins[`${state.look.sex}-${state.look.eth === 'southasian' ? 'asian' : state.look.eth}`];
+  return {
+    body: geo(bodyMesh), skinTexture: 'assets/' + skey, skinTone: '#' + skinUniforms.skinTone.value.getHexString(),
+    proxies: proxyGroup.children.map((m, i) => geo(m, { kind: ['eyes', 'eyebrows', 'eyelashes', 'hair'][i], texture: img(m.material.map), color: '#' + m.material.color.getHexString() })),
+    garments, materials: { kameez: mat(mats.kameez), border: mat(mats.border), trim: mat(mats.trim), salwar: mat(mats.salwar), cuff: mat(mats.cuff) },
+    fabrics: state.fabrics, fabricPhys: { kameez: physFor('kameez'), salwar: physFor('salwar') }, body_measurements: eff(), garment: state.garment,
+  };
+}
+window.__studio = { state, refit, setView, skin, renderer, skinUniforms, exportScene, zoom: (tx, ty, tz, px, py, pz) => { controls.target.set(tx, ty, tz); camera.position.set(px, py, pz); controls.update(); }, get B() { return B; }, get garment() { return garmentGroup; }, get sim() { return sim; }, get simRunning() { return simRunning; } };
