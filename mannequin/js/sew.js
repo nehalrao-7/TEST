@@ -256,7 +256,10 @@ export function buildSewnKameez(B, m, g, mats, fabric, { h = 1.6 } = {}) {
   geo.computeVertexNormals();
   geo.userData.rows = 1;
   const mesh = new THREE.Mesh(geo, [mats.kameez, mats.trim]);
+  // neckline: stay-stitched (eased in) and faced, so it lies on the skin instead of standing off it
+  const neckEdge = [F.neckR, F.neckL, K.neckR, K.neckL];
   mesh.userData = { part: 'kameez', piece: 'bodice', pinRows: [], seams, sewn: true, fabric, bridge: true,
+    stayStitch: neckEdge.map((c) => c.slice()), attach: [...new Set(neckEdge.flat())],
     thickness: (x, y) => (y < B.waistY + 4 ? 1.4 : 0.45) };
   return mesh;
 }

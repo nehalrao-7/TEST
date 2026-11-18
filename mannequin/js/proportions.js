@@ -6,7 +6,7 @@ export const PROPORTIONS = {
 };
 
 /** Model canon as fractions of height (balanced female proportions). */
-const CANON = { shoulder: 0.24, backLength: 0.247, waistToHip: 0.121, inseam: 0.47, armLength: 0.346, waistHeight: 0.62 };
+const CANON = { shoulder: 0.238, backLength: 0.245, waistToHip: 0.124, inseam: 0.48, armLength: 0.346, waistHeight: 0.625 };
 
 export function effectiveBody(m, mode) {
   const H = m.height, out = { ...m };
@@ -23,8 +23,9 @@ export function effectiveBody(m, mode) {
     return out;
   }
   // balanced: keep her size, sculpt an hourglass (defined waist, bust ≈ hip)
-  out.waist = +Math.min(m.waist, 0.76 * m.hip).toFixed(1);
-  out.bust = +Math.max(m.bust, 0.95 * m.hip).toFixed(1);
+  out.waist = +Math.min(m.waist, 0.72 * m.hip).toFixed(1);
+  out.bust = +Math.max(m.bust, 0.97 * m.hip).toFixed(1);
+  out.thigh = +Math.max(m.thigh, 0.57 * m.hip).toFixed(1);
   out.underbust = +Math.max(out.waist + 4, Math.min(m.underbust, out.bust - 13)).toFixed(1);
   return out;
 }

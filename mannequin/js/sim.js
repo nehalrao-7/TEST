@@ -47,7 +47,7 @@ export class ClothSim {
    */
   constructor(meshes, collider, bridge = null) {
     this.meshes = meshes; this.collider = collider; this.bridge = bridge;
-    const bridgeFlags = [];
+    const bridgeFlags = [], attachFlags = [];
     const X = [], inv = [], thick = [], fric = [], damp = [], grav = [];
     const ca = [], cb = [], rest = [], stiff = [], kind = [];
     const ta = [], tb = [], tl = [];
@@ -66,12 +66,13 @@ export class ClothSim {
           X.push(pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]);
           const r = Math.floor(v / row);
           inv.push((ud.pinRows || []).includes(r) ? 0 : 1);
-          bridgeFlags.push(ud.bridge ? 1 : 0);
+          bridgeFlags.push(ud.bridge ? 1 : 0); attachFlags.push(0);
           thick.push(typeof ud.thickness === 'function' ? ud.thickness(pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]) : ud.thickness ?? 0.4); fric.push(fab.friction); damp.push(fab.damping); grav.push(fab.gravity);
         } else if ((ud.pinRows || []).includes(Math.floor(v / row))) inv[p] = 0;
         map[v] = p;
       }
       this.maps.push(map);
+      for (const v of ud.attach || []) attachFlags[map[v]] = 1;
       // long-range attachments: each particle may not drift further from the pinned ring
       // above it (same column) than its rest path length → no rubbery sagging
       const pins = ud.pinRows || [], rows = geo.userData.rows || 1;
@@ -99,21 +100,34 @@ export class ClothSim {
         const a = map[va], b = map[vb];
         if (a !== b) { ca.push(a); cb.push(b); rest.push(0); stiff.push(1); kind.push(2); }
       }
+      const firstC = ca.length;
       for (let t = 0; t < idx.length; t += 3) {
         const tri = [map[idx[t]], map[idx[t + 1]], map[idx[t + 2]]];
         for (let e = 0; e < 3; e++) {
           const a = tri[e], b = tri[(e + 1) % 3], opp = tri[(e + 2) % 3];
           const k = a < b ? a * 4194304 + b : b * 4194304 + a;
           const ex = edges.get(k);
-          if (!ex) { edges.set(k, opp); addC(a, b, 1, 0); }
+          if (ex === undefined) { edges.set(k, opp); addC(a, b, 1, 0); }
           else if (ex >= 0) { addC(ex, opp, fab.bend, 1); edges.set(k, -1); }
+        }
+      }
+      // stay-stitching: edges along these chains are eased in so the edge hugs the body
+      if (ud.stayStitch) {
+        const pairs = new Set();
+        for (const ch of ud.stayStitch) for (let i = 1; i < ch.length; i++) {
+          const a = map[ch[i - 1]], b = map[ch[i]]; pairs.add(a < b ? `${a},${b}` : `${b},${a}`);
+        }
+        for (let c = firstC; c < ca.length; c++) {
+          if (kind[c] !== 0) continue;
+          const a = ca[c], b = cb[c];
+          if (pairs.has(a < b ? `${a},${b}` : `${b},${a}`)) rest[c] *= 0.94;
         }
       }
     }
     this.X = new Float32Array(X); this.prev = new Float32Array(X); this.inv = new Float32Array(inv);
     this.thick = new Float32Array(thick); this.fric = new Float32Array(fric); this.damp = new Float32Array(damp); this.grav = new Float32Array(grav);
     this.ca = new Int32Array(ca); this.cb = new Int32Array(cb); this.rest = new Float32Array(rest); this.stiff = new Float32Array(stiff); this.kind = new Uint8Array(kind);
-    this.bridgeMask = new Uint8Array(bridgeFlags);
+    this.bridgeMask = new Uint8Array(bridgeFlags); this.attachMask = new Uint8Array(attachFlags);
     this.ta = new Int32Array(ta); this.tb = new Int32Array(tb); this.tl = new Float32Array(tl);
     this.n = this.X.length / 3; this.frame = 0; this.motion = Infinity;
     // particles with no cloth constraints (slit edges, unused seam points) stay put
@@ -126,6 +140,23 @@ export class ClothSim {
     this.collideWith(this.collider, null);
     // outer garments also rest on a 'bridge' surface spanning the gap between the legs
     if (this.bridge) this.collideWith(this.bridge, this.bridgeMask);
+    this.attach();
+  }
+
+  /** facing: neckline particles settle onto the skin (soft pull to the nearest surface point) */
+  attach() {
+    const { X, n, inv, thick, attachMask, collider } = this;
+    if (!attachMask) return;
+    const P = collider.P, Nn = collider.N, k = this.frame < 24 ? 0.05 : 0.3;
+    for (let i = 0; i < n; i++) {
+      if (!attachMask[i] || !inv[i]) continue;
+      const x = X[i * 3], y = X[i * 3 + 1], z = X[i * 3 + 2];
+      const b = collider.nearest(x, y, z);
+      if (b < 0) continue;
+      const tx = P[b * 3] + Nn[b * 3] * thick[i], ty = P[b * 3 + 1] + Nn[b * 3 + 1] * thick[i], tz = P[b * 3 + 2] + Nn[b * 3 + 2] * thick[i];
+      if ((tx - x) ** 2 + (ty - y) ** 2 + (tz - z) ** 2 > 64) continue;
+      X[i * 3] += (tx - x) * k; X[i * 3 + 1] += (ty - y) * k; X[i * 3 + 2] += (tz - z) * k;
+    }
   }
 
   collideWith(collider, mask) {
@@ -262,7 +293,7 @@ function rampColor(mode, v, out) {
 }
 
 // ---------- Web Worker transport ----------
-const SIM_FIELDS = ['X', 'prev', 'inv', 'thick', 'fric', 'damp', 'grav', 'ca', 'cb', 'rest', 'stiff', 'kind', 'ta', 'tb', 'tl', 'n', 'bridgeMask'];
+const SIM_FIELDS = ['X', 'prev', 'inv', 'thick', 'fric', 'damp', 'grav', 'ca', 'cb', 'rest', 'stiff', 'kind', 'ta', 'tb', 'tl', 'n', 'bridgeMask', 'attachMask'];
 /** Plain-data snapshot of a sim (and its collider) for a worker. */
 export function simState(sim) {
   const st = {}; for (const f of SIM_FIELDS) st[f] = sim[f];

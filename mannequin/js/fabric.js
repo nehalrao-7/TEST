@@ -5,7 +5,7 @@ import * as THREE from '../vendor/three.module.js';
 export const FABRICS = {
   cotton: { name: 'Cotton lawn', gsm: 90, weave: 'plain', threadsPerCm: 28, roughness: 0.82, sheen: 0.35, sheenRoughness: 0.7, normalScale: 0.6, anisotropy: 0,
     phys: { bend: 0.35, friction: 0.45, damping: 0.96, gravity: 1.0 } },
-  silk: { name: 'Silk satin', gsm: 75, weave: 'satin', threadsPerCm: 40, roughness: 0.42, sheen: 0.9, sheenRoughness: 0.3, normalScale: 0.25, anisotropy: 0.35, clearcoat: 0,
+  silk: { name: 'Silk satin', gsm: 75, weave: 'satin', threadsPerCm: 40, roughness: 0.42, sheen: 0.7, sheenRoughness: 0.3, normalScale: 0.25, anisotropy: 0.35, clearcoat: 0,
     phys: { bend: 0.12, friction: 0.18, damping: 0.985, gravity: 1.0 } },
   georgette: { name: 'Georgette', gsm: 65, weave: 'crepe', threadsPerCm: 30, roughness: 0.92, sheen: 0.55, sheenRoughness: 0.45, normalScale: 0.9, anisotropy: 0,
     phys: { bend: 0.05, friction: 0.35, damping: 0.975, gravity: 0.9 } },
@@ -225,8 +225,9 @@ export function applyFabric(mat, spec) {
   mat.normalMap.repeat.set(1 / weaveCm, 1 / weaveCm);
   mat.normalScale = new THREE.Vector2(F.normalScale, F.normalScale);
   mat.color.set('#ffffff');
-  Object.assign(mat, { roughness: F.roughness, sheen: F.sheen, sheenRoughness: F.sheenRoughness, anisotropy: F.anisotropy, clearcoat: F.clearcoat || 0, clearcoatRoughness: 0.4 });
-  mat.sheenColor = new THREE.Color(spec.print === 'solid' ? shade(spec.ground, 1.35) : '#ffffff').lerp(new THREE.Color('#ffffff'), 0.35);
+  Object.assign(mat, { roughness: F.roughness, sheen: F.sheen * 0.7, sheenRoughness: F.sheenRoughness, anisotropy: F.anisotropy, clearcoat: F.clearcoat || 0, clearcoatRoughness: 0.4, envMapIntensity: 0.6, specularIntensity: 0.6 });
+  // sheen takes the cloth's own colour (a white sheen washes saturated silks out to pastel)
+  mat.sheenColor = new THREE.Color(shade(spec.ground, 1.5));
   if (spec.type === 'velvet') mat.sheenColor.set(shade(spec.ground, 1.8));
   installWrinkles(mat);
   // inner layers lose depth ties against the garment worn over them

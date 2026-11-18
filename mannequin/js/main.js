@@ -40,7 +40,7 @@ const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDraw
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.0;
+renderer.toneMappingExposure = 0.9;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
@@ -53,18 +53,18 @@ const scene = new THREE.Scene();
 }
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
-scene.environmentIntensity = 0.45;
+scene.environmentIntensity = 0.32;
 const camera = new THREE.PerspectiveCamera(28, 1, 20, 2500);
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true; controls.autoRotateSpeed = 2.2;
-const key = new THREE.DirectionalLight('#fff3e6', 2.4);
+const key = new THREE.DirectionalLight('#fff3e6', 1.45);
 key.position.set(140, 280, 220); key.castShadow = true;
 key.shadow.mapSize.set(2048, 2048);
 Object.assign(key.shadow.camera, { left: -90, right: 90, top: 210, bottom: -10, near: 50, far: 800 });
 key.shadow.bias = -0.0004; key.shadow.normalBias = 0.6; key.shadow.radius = 5;
 scene.add(key);
-const fillL = new THREE.DirectionalLight('#d9e6ff', 0.7); fillL.position.set(-240, 140, 140); scene.add(fillL);
-const rim = new THREE.DirectionalLight('#ffffff', 1.3); rim.position.set(-80, 240, -280); scene.add(rim);
+const fillL = new THREE.DirectionalLight('#d9e6ff', 0.45); fillL.position.set(-240, 140, 140); scene.add(fillL);
+const rim = new THREE.DirectionalLight('#ffffff', 0.9); rim.position.set(-80, 240, -280); scene.add(rim);
 const floor = new THREE.Mesh(new THREE.CircleGeometry(200, 64), new THREE.ShadowMaterial({ opacity: 0.35 }));
 floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
 const grid = new THREE.GridHelper(400, 40, '#6a6e76', '#4a4d54'); grid.position.y = 0.05;
@@ -86,14 +86,28 @@ try {
 
 const texLoader = new THREE.TextureLoader();
 const tex = (url, srgb = true) => { const t = texLoader.load(url); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
-const skin = new THREE.MeshPhysicalMaterial({ roughness: 0.5, sheen: 0.4, sheenRoughness: 0.5, sheenColor: new THREE.Color('#ff9a85'), clearcoat: 0.08, clearcoatRoughness: 0.45, specularIntensity: 0.5 });
+// Studio skin: even tone (keeps ~45% of the texture's detail), satin gloss, and a warm sheen that
+// stands in for light scattering under the skin.
+const skin = new THREE.MeshPhysicalMaterial({ roughness: 0.46, sheen: 0.12, sheenRoughness: 0.45, sheenColor: new THREE.Color('#c8603e'),
+  clearcoat: 0.05, clearcoatRoughness: 0.35, specularIntensity: 0.35, envMapIntensity: 0.9 });
+const skinUniforms = { skinTone: { value: new THREE.Color('#c48b69') }, skinEven: { value: 0.9 } };
+skin.onBeforeCompile = (sh) => {
+  Object.assign(sh.uniforms, skinUniforms);
+  sh.fragmentShader = sh.fragmentShader
+    .replace('#include <common>', '#include <common>\nuniform vec3 skinTone;\nuniform float skinEven;')
+    .replace('#include <map_fragment>', `#include <map_fragment>
+      float lum = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+      vec3 even = skinTone * clamp(0.55 + 0.6 * lum, 0.6, 1.08);
+      diffuseColor.rgb = mix(diffuseColor.rgb, even, skinEven);`);
+};
+skin.customProgramCacheKey = () => 'studio-skin';
 const formMat = new THREE.MeshStandardMaterial({ color: '#bdb8b0', roughness: 0.75, metalness: 0 });
 const eyeTex = {};
 const eyeMat = new THREE.MeshPhysicalMaterial({ map: (eyeTex.brown = tex('assets/eye_brown.png')), alphaTest: 0.5, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.03 });
 const browMat = new THREE.MeshStandardMaterial({ color: '#5a4a42', map: tex('assets/eyebrows.png'), transparent: true, alphaTest: 0.05, depthWrite: false, roughness: 0.9, side: THREE.DoubleSide });
 const lashMat = new THREE.MeshStandardMaterial({ map: tex('assets/eyelashes.png'), transparent: true, alphaTest: 0.05, depthWrite: false, roughness: 0.9, side: THREE.DoubleSide });
 const hairMats = {};
-const hairMat = (name) => hairMats[name] ||= new THREE.MeshStandardMaterial({ map: tex(`assets/hair_${name}.png`), alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.5, color: '#33241c' });
+const hairMat = (name) => hairMats[name] ||= new THREE.MeshPhysicalMaterial({ map: tex(`assets/hair_${name}.png`), alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.38, sheen: 0.6, sheenRoughness: 0.3, sheenColor: new THREE.Color('#8a6a55'), color: '#33241c' });
 const skinTex = {};
 const zari = zariMaterial(); installWrinkles(zari);
 const heatMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75, side: THREE.DoubleSide });
@@ -163,11 +177,11 @@ function refit() {
   B = bodyContext(H, P, H.labels, joints(H, P), fit.achieved);
 
   dispose(bodyMesh);
-  const SKIN = { southasian: ['asian', '#efc6a4'], asian: ['asian', '#ffffff'], caucasian: ['caucasian', '#ffffff'], african: ['african', '#ffffff'] };
+  const SKIN = { southasian: ['asian', '#c48b69'], asian: ['asian', '#d1a07f'], caucasian: ['caucasian', '#d9ae94'], african: ['african', '#7a4a32'] };
   const [texEth, tint] = SKIN[state.look.eth] || SKIN.asian;
   const skey = `${state.look.sex}-${texEth}`;
   skin.map = skinTex[skey] ||= tex('assets/' + H.man.skins[skey]);
-  skin.color.set(tint);
+  skinUniforms.skinTone.value.set(tint);
   skin.needsUpdate = true;
   bodyMesh = new THREE.Mesh(geometryFrom(P, H.body.orig, H.body.uv, H.body.index), skin);
   bodyMesh.castShadow = bodyMesh.receiveShadow = true;
@@ -578,4 +592,4 @@ renderer.setAnimationLoop(() => { controls.update(); simTick(); render(); update
 H = await loadHuman('assets/');
 refit();
 document.body.classList.add('ready');
-window.__studio = { state, refit, setView, zoom: (tx, ty, tz, px, py, pz) => { controls.target.set(tx, ty, tz); camera.position.set(px, py, pz); controls.update(); }, get B() { return B; }, get garment() { return garmentGroup; }, get sim() { return sim; }, get simRunning() { return simRunning; } };
+window.__studio = { state, refit, setView, skin, renderer, skinUniforms, zoom: (tx, ty, tz, px, py, pz) => { controls.target.set(tx, ty, tz); camera.position.set(px, py, pz); controls.update(); }, get B() { return B; }, get garment() { return garmentGroup; }, get sim() { return sim; }, get simRunning() { return simRunning; } };
