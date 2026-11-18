@@ -504,12 +504,20 @@ $('resetDrape').addEventListener('click', () => rebuildGarment());
 $('toggle2d').addEventListener('click', () => { document.body.classList.toggle('no2d'); $('toggle2d').classList.toggle('on'); setTimeout(resize, 0); });
 addEventListener('keydown', (e) => { if (e.code === 'Space' && e.target === document.body) { e.preventDefault(); $('simBtn').click(); } });
 
-const download = (name, data, type) => {
+// Downloads: inside a claude.ai Artifact use the platform's save dialog; otherwise a normal browser download.
+let artifactDownloads = null;
+if (window.claude?.use) window.claude.use('downloads').then((d) => { artifactDownloads = d; if (d) $('printPat').hidden = true; }).catch(() => {});
+async function download(name, data, type) {
+  if (artifactDownloads) {
+    try { await artifactDownloads.save({ filename: name, data: data instanceof Blob ? data : new Blob([data], { type }) }); status.textContent = `Saved ${name}`; }
+    catch (e) { status.textContent = e?.code === 'declined' ? 'Save cancelled' : `Could not save ${name}`; }
+    return;
+  }
   const a = document.createElement('a');
-  a.href = typeof data === 'string' && data.startsWith('data:') ? data : URL.createObjectURL(new Blob([data], { type }));
+  a.href = URL.createObjectURL(data instanceof Blob ? data : new Blob([data], { type }));
   a.download = name; a.click();
-};
-$('snap').addEventListener('click', () => { render(); download('fit-studio-render.png', canvas.toDataURL('image/png')); });
+}
+$('snap').addEventListener('click', () => { render(); canvas.toBlob((b) => b && download('fit-studio-render.png', b, 'image/png'), 'image/png'); });
 $('resetBody').addEventListener('click', () => { Object.assign(state.body, BODY_DEFAULTS); renderForms(); scheduleFit(true); setView('front'); });
 $('resetGarment').addEventListener('click', () => { Object.assign(state.garment, GARMENT_DEFAULTS); renderForms(); rebuildGarment(); });
 $('saveJson').addEventListener('click', () => download('body-profile.json', JSON.stringify({ body: state.body, garment: state.garment, look: state.look, fabrics: state.fabrics }, null, 2), 'application/json'));

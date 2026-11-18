@@ -2,10 +2,22 @@
 // fitted to tape measurements with a damped Gauss-Newton solver.
 const DM = 10; // MakeHuman units are decimetres → cm
 
+// Binary mesh/morph data. Hosts that don't serve .bin get a base64 text copy (human.b64.txt).
+async function loadBin(base) {
+  try {
+    const r = await fetch(base + 'human.bin');
+    if (r.ok) return await r.arrayBuffer();
+  } catch {}
+  const txt = await (await fetch(base + 'human.b64.txt')).text();
+  const bin = atob(txt.trim()), out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out.buffer;
+}
+
 export async function loadHuman(base = 'assets/') {
   const [man, buf] = await Promise.all([
     fetch(base + 'human.json').then((r) => r.json()),
-    fetch(base + 'human.bin').then((r) => r.arrayBuffer()),
+    loadBin(base),
   ]);
   const T = { float32: Float32Array, uint32: Uint32Array, uint16: Uint16Array, uint8: Uint8Array };
   const get = (n) => { const b = man.buffers[n]; return new T[b.type](buf, b.offset, b.length); };
