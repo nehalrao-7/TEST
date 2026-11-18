@@ -116,7 +116,7 @@ function alongRing(R, k0, dir, s) {
 /**
  * Build the sewn kameez as one mesh. Returns a THREE.Mesh whose userData.seams lists vertex pairs.
  */
-export function buildSewnKameez(B, m, g, mats, fabric, { h = 1.6 } = {}) {
+export function buildSewnKameez(B, m, g, mats, fabric, { h = 1.6, hemBand = 9 } = {}) {
   const pieces = draftPattern(m, g);
   const front = pieces[0], back = pieces[1], sleeve = pieces[2];
   const topY = B.neckY - 1.5;
@@ -169,13 +169,14 @@ export function buildSewnKameez(B, m, g, mats, fabric, { h = 1.6 } = {}) {
     return best;
   };
 
-  const verts = [], uvs = [], index = [], trimIdx = [], seams = [];
+  const verts = [], uvs = [], index = [], borderIdx = [], trimIdx = [], seams = [];
   const addPiece = (mesh, place, isTrim) => {
     const base = verts.length;
     mesh.pts.forEach((p) => { verts.push(place(p)); uvs.push([p[0], -p[1]]); });
     for (const t of mesh.tris) {
       const c = [(mesh.pts[t[0]][0] + mesh.pts[t[1]][0] + mesh.pts[t[2]][0]) / 3, (mesh.pts[t[0]][1] + mesh.pts[t[1]][1] + mesh.pts[t[2]][1]) / 3];
-      (isTrim(c) ? trimIdx : index).push(base + t[0], base + t[2], base + t[1]);
+      const zone = isTrim(c);
+      (zone === 1 ? borderIdx : zone === 2 ? trimIdx : index).push(base + t[0], base + t[2], base + t[1]);
     }
     const ch = {};
     for (const [k, v] of Object.entries(mesh.chains)) ch[k] = v.map((i) => base + i);
@@ -194,7 +195,8 @@ export function buildSewnKameez(B, m, g, mats, fabric, { h = 1.6 } = {}) {
       const R = { ...inflate(ref, C, 1.5), c: [ref.c[0], y, ref.c[2]] };
       return alongRing(R, isFront ? N / 4 : (3 * N) / 4, isFront ? 1 : -1, px);
     };
-    const isTrim = (c) => c[1] > L - 3 || neckLine.some((q, i) => i > 0 && segDist(c, neckLine[i - 1], q) < 1.1);
+    // 1 = embroidered hem border, 2 = narrow piping at the neckline
+    const isTrim = (c) => (c[1] > L - hemBand ? 1 : neckLine.some((q, i) => i > 0 && segDist(c, neckLine[i - 1], q) < 1.1) ? 2 : 0);
     return addPiece(mesh, place, isTrim);
   };
   const F = bodiceMesh(front, true), K = bodiceMesh(back, false);
@@ -219,7 +221,7 @@ export function buildSewnKameez(B, m, g, mats, fabric, { h = 1.6 } = {}) {
       const phi = (2 * Math.PI * px) / sw;
       return add(c, add(mul(o, Math.cos(phi) * Rs), mul(f, Math.sin(phi) * Rs)));
     };
-    return addPiece(mesh, place, (c) => c[1] > sL - 2.5);
+    return addPiece(mesh, place, (c) => (c[1] > sL - 2.5 ? 2 : 0));
   };
   const SL = sleeveMesh('l'), SR = sleeveMesh('r');
 
@@ -251,11 +253,11 @@ export function buildSewnKameez(B, m, g, mats, fabric, { h = 1.6 } = {}) {
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(verts.flat(), 3));
   geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs.flat(), 2));
-  geo.setIndex(index.concat(trimIdx));
-  geo.addGroup(0, index.length, 0); geo.addGroup(index.length, trimIdx.length, 1);
+  geo.setIndex(index.concat(borderIdx, trimIdx));
+  geo.addGroup(0, index.length, 0); geo.addGroup(index.length, borderIdx.length, 1); geo.addGroup(index.length + borderIdx.length, trimIdx.length, 2);
   geo.computeVertexNormals();
   geo.userData.rows = 1;
-  const mesh = new THREE.Mesh(geo, [mats.kameez, mats.trim]);
+  const mesh = new THREE.Mesh(geo, [mats.kameez, mats.border || mats.trim, mats.trim]);
   // neckline: stay-stitched (eased in) and faced, so it lies on the skin instead of standing off it
   const neckEdge = [F.neckR, F.neckL, K.neckR, K.neckL];
   mesh.userData = { part: 'kameez', piece: 'bodice', pinRows: [], seams, sewn: true, fabric, bridge: true,

@@ -173,35 +173,54 @@ export function buildGarment(B, m, g, mats, phys) {
   }
   // hidden under the kameez: held in place (no need to simulate what can't be seen)
   if (upperRings.length > 1) mk(loftRings(smoothAlong(upperRings, 2)), [mats.salwar], 'salwar', upperRings.map((_, i) => i), 0.15);
+  // Patiala legs: each leg carries its pattern fullness (wide panel, ~15–20% longer than the leg)
+  // between a waist gathered under the kameez and a narrow cuff. The cloth starts as a pleated,
+  // ballooned tube with exactly those lengths; gravity then drapes the excess into swags.
   const fullness = Math.max(1, g.fullness);
+  const panelTop = (m.hip / 2) * fullness, panelBot = g.mohri * 1.8;
+  const nPleats = Math.max(6, Math.round(g.pleats));
+  const TAU = Math.PI * 2;
   for (const side of ['l', 'r']) {
+    const sgn = side === 'l' ? 1 : -1;
     const idx = B.pick(side === 'l' ? L.lThigh : L.rThigh, side === 'l' ? L.lShin : L.rShin);
+    const top = crY + 6, visTop = hemY + 1;
+    const ys = [];
+    for (let y = top; y > cuffTop + 1.8; y -= 1.8) ys.push(y);
+    ys.push(cuffTop + 0.6);
+    const bases = ys.map((y) => { const s = hsection(B, idx, y); return s && smooth(s, 4); });
+    // ballooning: extra length so the leg can swag; solve the bulge amplitude for ~18% extra length
+    const visYs = ys.filter((y) => y < visTop);
+    const tv = (y) => Math.min(1, Math.max(0, (visTop - y) / Math.max(1, visTop - cuffTop)));
+    // fullest just below the kameez (around the knee), tapering into the cuff
+    const bulgeAt = (y, B0) => { const t = Math.min(1, tv(y) * 1.03); return B0 * Math.pow(Math.sin(Math.PI * t), 0.5) * Math.pow(1 - t, 0.9); };
+    const colLen = (B0) => { let L2 = 0; for (let i = 1; i < visYs.length; i++) L2 += Math.hypot(visYs[i - 1] - visYs[i], bulgeAt(visYs[i - 1], B0) - bulgeAt(visYs[i], B0)); return L2; };
+    const want = (visTop - cuffTop) * 1.06;
+    let lo = 0, hi = 40; for (let it = 0; it < 30; it++) { const mid = (lo + hi) / 2; colLen(mid) < want ? (lo = mid) : (hi = mid); }
+    const B0 = lo;
     const lr = [];
-    const ph = Array.from({ length: 4 }, () => rand() * 6.28);
-    for (let y = crY + 6; y >= cuffTop + 1; y -= 2) {
-      let s = hsection(B, idx, y);
-      if (!s) continue;
-      s = smooth(s, 4);
-      const P0 = perimeter(s.r);
-      // volume blooms below the kameez hem, deepest over the calf, then gathers into the cuff
-      const below = smoothstep(hemY + 4, hemY - 14, y);
-      const toCuff = smoothstep(cuffTop + 14, cuffTop, y);
-      const extra = (P0 * 0.25 + 10) * (fullness - 1) * below * (1 - 0.7 * toCuff);
-      lr.push(y < hemY - 2 ? inflate(s, P0 + 4 + extra, 0.3) : inflate(s, 0, 0.15));
-    }
+    ys.forEach((y, i) => {
+      let s = bases[i] || (lr.length ? lr[lr.length - 1] : null);
+      if (!s) return;
+      if (y >= visTop) { lr.push(inflate(s, 0, 0.15)); return; } // hidden under the kameez
+      const t = tv(y);
+      const C = panelTop * 0.82 * (1 - t * t) + panelBot * t * t; // pattern width: full near the knee, gathering toward the cuff
+      const bulge = bulgeAt(y, B0);
+      const w = (th) => 0.55 - 0.45 * Math.cos(th) * sgn; // little volume on the inner side
+      const base = s.r.map((r, k) => r + 0.8 + bulge * w((k / N) * TAU));
+      const shape = (A) => base.map((r, k) => r + A * 0.5 * (1 - Math.cos(nPleats * (k / N) * TAU + i * 0.07)));
+      let a0 = 0, a1 = 30;
+      if (perimeter(shape(0)) < C) for (let it = 0; it < 30; it++) { const mid = (a0 + a1) / 2; perimeter(shape(mid)) < C ? (a0 = mid) : (a1 = mid); }
+      // ease in from the hem so the fabric emerges from under the kameez
+      const ease = smoothstep(visTop, visTop - 4, y);
+      const r = shape(a0).map((v, k) => s.r[k] + 0.3 + (v - s.r[k] - 0.3) * ease);
+      lr.push({ ...s, r, min: s.r.map((x) => x + 0.3) });
+    });
     const cuffRing = (y) => { const s = hsection(B, idx, y) || lr[lr.length - 1]; return inflate(smooth(s, 4), g.mohri, 0.4); };
     const cuffFrom = lr.length;
     for (const y of [cuffTop, cuffTop - (cuffTop - B.ankleY + 3.5) / 2, B.ankleY - 3.5]) lr.push(cuffRing(y));
-    const lrs = smoothAlong(lr.slice(0, cuffFrom + 1), 3).concat(lr.slice(cuffFrom + 1));
-    const nL = lrs.length;
-    const folds = (i, th) => {
-      if (i >= cuffFrom) return 0;
-      const y = lrs[Math.min(nL - 1, Math.floor(i))].c[1];
-      const a = smoothstep(hemY + 4, hemY - 10, y) * (1 - smoothstep(cuffTop + 4, cuffTop, y));
-      return a * (0.05 * Math.sin((g.pleats + 1) * th + ph[0] + y * 0.015) + 0.04 * Math.sin(4 * th + ph[1] - y * 0.02) + 0.012 * Math.sin(11 * th + ph[2]));
-    };
-    const hidden = lrs.map((r, i) => (r.c[1] > hemY - 3 ? i : -1)).filter((i) => i >= 0);
-    mk(loftRings(lrs, { folds, groups: [{ from: 0, mat: 0 }, { from: cuffFrom, mat: 1 }] }), [mats.salwar, mats.cuff], 'salwar', hidden.length ? hidden : [0, 1], 0.3);
+    const hidden = lr.map((r, i) => (r.c[1] >= visTop || i >= cuffFrom ? i : -1)).filter((i) => i >= 0);
+    const mesh = mk(loftRings(lr, { groups: [{ from: 0, mat: 0 }, { from: cuffFrom, mat: 1 }] }), [mats.salwar, mats.cuff], 'salwar', hidden, 0.3);
+    mesh.userData.halfspace = sgn; // keep each leg's fabric on its own side of the body midline
   }
   if (phys.dupatta) group.add(buildDupatta(B, mats, phys.dupatta, hemY));
   return { group, hemY };

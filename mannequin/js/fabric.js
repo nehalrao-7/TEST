@@ -18,7 +18,7 @@ export const FABRICS = {
 };
 
 export const PRINTS = {
-  solid: 'Solid', phulkari: 'Phulkari', paisley: 'Paisley', bandhani: 'Bandhani', buti: 'Buti floral', block: 'Block print', ikat: 'Ikat', leheriya: 'Leheriya',
+  solid: 'Solid', embroidered: 'Embroidered', phulkari: 'Phulkari', paisley: 'Paisley', bandhani: 'Bandhani', buti: 'Buti floral', block: 'Block print', ikat: 'Ikat', leheriya: 'Leheriya',
 };
 
 // ---------- helpers ----------
@@ -75,8 +75,35 @@ export function weaveTexture(type) {
 }
 
 // ---------- prints (one tile; the tile spans `scale` cm of fabric) ----------
+// gold-thread buta with a mirror disc (used by the embroidered print and border)
+function buta(g, x, y, s, gold, mirror, dark) {
+  g.save(); g.translate(x, y); g.lineCap = 'round';
+  g.strokeStyle = gold; g.lineWidth = s * 0.09;
+  g.beginPath(); g.moveTo(0, s * 0.9); g.lineTo(0, -s * 0.2); g.stroke(); // stem
+  for (const sx of [-1, 1]) { // leaves
+    g.beginPath(); g.moveTo(0, s * 0.45); g.quadraticCurveTo(sx * s * 0.55, s * 0.25, sx * s * 0.42, -s * 0.05); g.stroke();
+  }
+  g.beginPath(); g.ellipse(0, -s * 0.45, s * 0.28, s * 0.36, 0, 0, 6.3); g.stroke(); // bud
+  g.fillStyle = dark; g.beginPath(); g.arc(0, -s * 0.45, s * 0.16, 0, 6.3); g.fill();
+  const grd = g.createRadialGradient(-s * 0.04, -s * 0.5, 0, 0, -s * 0.45, s * 0.14);
+  grd.addColorStop(0, '#ffffff'); grd.addColorStop(0.5, mirror); grd.addColorStop(1, '#8a8a8a');
+  g.fillStyle = grd; g.beginPath(); g.arc(0, -s * 0.45, s * 0.12, 0, 6.3); g.fill();
+  g.fillStyle = gold; for (const [dx, dy] of [[-0.35, 0.75], [0.35, 0.75], [0, 1.05]]) { g.beginPath(); g.arc(dx * s, dy * s, s * 0.05, 0, 6.3); g.fill(); }
+  g.restore();
+}
+
 const DRAW = {
   solid(g, S, f) { g.fillStyle = f.ground; g.fillRect(0, 0, S, S); },
+
+  // scattered zari/thread butas with mirror work on a plain ground
+  embroidered(g, S, f) {
+    g.fillStyle = f.ground; g.fillRect(0, 0, S, S);
+    const n = 3, cs = S / n, dark = shade(f.ground, 0.7);
+    for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) {
+      const x = (i + (j % 2) * 0.5) * cs + cs / 2, y = (j + 0.5) * cs;
+      wrapDraw(S, x, y, cs, (px, py) => buta(g, px, py, cs * 0.28, f.accent, f.accent2, dark));
+    }
+  },
 
   // Punjabi phulkari: dense satin-stitch geometric "baghs" in golden silk
   phulkari(g, S, f) {
@@ -268,7 +295,7 @@ export function installWrinkles(mat) {
   if (mat.userData.wrinkles) return;
   mat.userData.wrinkles = true;
   mat.onBeforeCompile = (sh) => {
-    sh.uniforms.wrinkleStrength = { value: 0.45 };
+    sh.uniforms.wrinkleStrength = { value: 0.25 };
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nattribute vec2 wrinkle;\nvarying vec2 vWrinkle;\nvarying vec2 vWuv;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWrinkle = wrinkle;\nvWuv = uv;');
@@ -311,4 +338,36 @@ export function computeWrinkles(geo) {
   const out = new Float32Array(n * 2);
   for (let i = 0; i < n * 2; i++) out[i] = cnt[i] ? acc[i] / cnt[i] : 0;
   geo.setAttribute('wrinkle', new THREE.BufferAttribute(out, 2));
+}
+
+/** Wide embroidered hem border (gold arches + butas + mirror discs on the garment ground). */
+export function borderMaterial(prev, ground, gold, mirror, bandCm, hemPy) {
+  const W = 512, Hh = 460, c = document.createElement('canvas'); c.width = W; c.height = Hh;
+  const g = c.getContext('2d'), dark = shade(ground, 0.7);
+  g.fillStyle = ground; g.fillRect(0, 0, W, Hh);
+  g.strokeStyle = gold; g.lineCap = 'round';
+  // edging lines (bottom of the canvas = hem edge)
+  g.lineWidth = 7; for (const y of [Hh - 10, Hh - 34, 26]) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+  // scalloped arches with a buta inside each
+  const arches = 3, aw = W / arches;
+  for (let i = 0; i < arches; i++) {
+    const cx = i * aw + aw / 2;
+    g.lineWidth = 6; g.beginPath(); g.arc(cx, Hh - 40, aw * 0.42, Math.PI, 0); g.stroke();
+    g.lineWidth = 3; g.beginPath(); g.arc(cx, Hh - 40, aw * 0.32, Math.PI, 0); g.stroke();
+    buta(g, cx, Hh - 120, aw * 0.26, gold, mirror, dark);
+    g.fillStyle = gold; for (let k = -3; k <= 3; k++) { g.beginPath(); g.arc(cx + k * aw * 0.1, 70, 5, 0, 6.3); g.fill(); }
+  }
+  const map = new THREE.CanvasTexture(c);
+  map.colorSpace = THREE.SRGBColorSpace; map.wrapS = THREE.RepeatWrapping; map.wrapT = THREE.ClampToEdgeWrapping; map.anisotropy = 8;
+  // UVs are pattern cm (v = -py): map the band [hem - bandCm, hem] onto the texture height
+  map.repeat.set(1 / 15, 1 / bandCm); map.offset.set(0, hemPy / bandCm);
+  const mat = prev || new THREE.MeshPhysicalMaterial({ side: THREE.DoubleSide });
+  mat.map?.dispose(); mat.map = map;
+  Object.assign(mat, { roughness: 0.5, metalness: 0.25, sheen: 0.4, sheenRoughness: 0.4, envMapIntensity: 0.7 });
+  mat.sheenColor = new THREE.Color(shade(ground, 1.5));
+  const w = weaveTexture('satin').tex.clone(); w.needsUpdate = true; w.repeat.set(1.2, 1.2);
+  mat.normalMap = w; mat.normalScale = new THREE.Vector2(0.4, 0.4);
+  installWrinkles(mat);
+  mat.needsUpdate = true;
+  return mat;
 }

@@ -47,7 +47,7 @@ export class ClothSim {
    */
   constructor(meshes, collider, bridge = null) {
     this.meshes = meshes; this.collider = collider; this.bridge = bridge;
-    const bridgeFlags = [], attachFlags = [];
+    const bridgeFlags = [], attachFlags = [], halfFlags = [];
     const X = [], inv = [], thick = [], fric = [], damp = [], grav = [];
     const ca = [], cb = [], rest = [], stiff = [], kind = [];
     const ta = [], tb = [], tl = [];
@@ -66,7 +66,7 @@ export class ClothSim {
           X.push(pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]);
           const r = Math.floor(v / row);
           inv.push((ud.pinRows || []).includes(r) ? 0 : 1);
-          bridgeFlags.push(ud.bridge ? 1 : 0); attachFlags.push(0);
+          bridgeFlags.push(ud.bridge ? 1 : 0); attachFlags.push(0); halfFlags.push(ud.halfspace || 0);
           thick.push(typeof ud.thickness === 'function' ? ud.thickness(pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]) : ud.thickness ?? 0.4); fric.push(fab.friction); damp.push(fab.damping); grav.push(fab.gravity);
         } else if ((ud.pinRows || []).includes(Math.floor(v / row))) inv[p] = 0;
         map[v] = p;
@@ -127,7 +127,7 @@ export class ClothSim {
     this.X = new Float32Array(X); this.prev = new Float32Array(X); this.inv = new Float32Array(inv);
     this.thick = new Float32Array(thick); this.fric = new Float32Array(fric); this.damp = new Float32Array(damp); this.grav = new Float32Array(grav);
     this.ca = new Int32Array(ca); this.cb = new Int32Array(cb); this.rest = new Float32Array(rest); this.stiff = new Float32Array(stiff); this.kind = new Uint8Array(kind);
-    this.bridgeMask = new Uint8Array(bridgeFlags); this.attachMask = new Uint8Array(attachFlags);
+    this.bridgeMask = new Uint8Array(bridgeFlags); this.attachMask = new Uint8Array(attachFlags); this.half = new Int8Array(halfFlags);
     this.ta = new Int32Array(ta); this.tb = new Int32Array(tb); this.tl = new Float32Array(tl);
     this.n = this.X.length / 3; this.frame = 0; this.motion = Infinity;
     // particles with no cloth constraints (slit edges, unused seam points) stay put
@@ -141,6 +141,9 @@ export class ClothSim {
     // outer garments also rest on a 'bridge' surface spanning the gap between the legs
     if (this.bridge) this.collideWith(this.bridge, this.bridgeMask);
     this.attach();
+    // left/right legs of a garment stay on their own side of the midline (cheap leg-to-leg contact)
+    const { X, half, n } = this;
+    if (half) for (let i = 0; i < n; i++) { const h = half[i]; if (h && h * X[i * 3] < 0.4) X[i * 3] = h * 0.4; }
   }
 
   /** facing: neckline particles settle onto the skin (soft pull to the nearest surface point) */
@@ -293,7 +296,7 @@ function rampColor(mode, v, out) {
 }
 
 // ---------- Web Worker transport ----------
-const SIM_FIELDS = ['X', 'prev', 'inv', 'thick', 'fric', 'damp', 'grav', 'ca', 'cb', 'rest', 'stiff', 'kind', 'ta', 'tb', 'tl', 'n', 'bridgeMask', 'attachMask'];
+const SIM_FIELDS = ['X', 'prev', 'inv', 'thick', 'fric', 'damp', 'grav', 'ca', 'cb', 'rest', 'stiff', 'kind', 'ta', 'tb', 'tl', 'n', 'bridgeMask', 'attachMask', 'half'];
 /** Plain-data snapshot of a sim (and its collider) for a worker. */
 export function simState(sim) {
   const st = {}; for (const f of SIM_FIELDS) st[f] = sim[f];

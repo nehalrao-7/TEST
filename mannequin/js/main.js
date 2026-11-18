@@ -9,7 +9,7 @@ import { BODY_FIELDS, BODY_DEFAULTS } from './body.js';
 import { GARMENT_FIELDS, GARMENT_DEFAULTS, buildGarment, bodyContext, fitReport } from './garment.js';
 import { draftPattern, patternSVG } from './pattern.js';
 import { loadHuman, fitHuman, joints, fitProxy } from './human.js';
-import { FABRICS, PRINTS, applyFabric, zariMaterial, swatch, printCanvas, installWrinkles, computeWrinkles } from './fabric.js';
+import { FABRICS, PRINTS, applyFabric, zariMaterial, swatch, printCanvas, installWrinkles, computeWrinkles, borderMaterial } from './fabric.js';
 import { ClothSim, BodyCollider, LEGEND, simState, legBridge } from './sim.js';
 import { section, N as RING_N } from './drape.js';
 import { poseMesh, POSES } from './pose.js';
@@ -17,9 +17,15 @@ import { PROFILE } from './profile.js';
 import { effectiveBody } from './proportions.js';
 
 const $ = (id) => document.getElementById(id);
-const STORE = 'fit-studio-3d-v7';
+const STORE = 'fit-studio-3d-v8';
 const saved = (() => { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } })();
-const FABRIC_DEFAULTS = { dupatta: { type: 'georgette', print: 'phulkari', ground: '#d4a537', accent: '#b3122a', accent2: '#3fa66b', scale: 16 }, ...PROFILE.fabrics };
+// Default look: deep red art silk, gold thread embroidery with mirror work (as in the client's reference)
+const FABRIC_DEFAULTS = {
+  kameez: { type: 'silk', print: 'embroidered', ground: '#8a0e1e', accent: '#e0c07a', accent2: '#e9e6df', scale: 12 },
+  salwar: { type: 'silk', print: 'solid', ground: '#8a0e1e', accent: '#e0c07a', accent2: '#e9e6df', scale: 10 },
+  cuff: { type: 'silk', print: 'solid', ground: '#8a0e1e', accent: '#e0c07a', accent2: '#e9e6df', scale: 8 },
+  dupatta: { type: 'georgette', print: 'embroidered', ground: '#8a0e1e', accent: '#e0c07a', accent2: '#e9e6df', scale: 16 },
+};
 const BODY_START = { ...BODY_DEFAULTS, ...PROFILE.body }, GARMENT_START = { ...GARMENT_DEFAULTS, ...PROFILE.garment };
 const state = {
   body: { ...BODY_START, ...saved.body },
@@ -116,6 +122,8 @@ const mats = {};
 function updateMaterials() {
   for (const part of ['kameez', 'salwar', 'cuff', 'dupatta']) mats[part] = applyFabric(mats[part], { ...state.fabrics[part], layer: part === 'salwar' || part === 'cuff' ? 'inner' : 'outer' });
   mats.trim = state.zari ? zari : mats.kameez;
+  const kf = state.fabrics.kameez;
+  mats.border = state.zari ? (mats._border = borderMaterial(mats._border, kf.ground, kf.accent, kf.accent2, 9, state.garment.kameezLength)) : mats.kameez;
 }
 updateMaterials();
 const physFor = (part) => (FABRICS[state.fabrics[part].type] || FABRICS.cotton).phys;
@@ -228,6 +236,7 @@ function applyAvatarMode() {
 // ---------------- garment + cloth simulation ----------------
 function rebuildGarment({ drape = true } = {}) {
   if (!B) return;
+  updateMaterials();
   dispose(garmentGroup);
   const m = { ...eff(), waistHeight: B.achieved.waistHeight };
   const { group } = buildGarment(B, m, state.garment, mats, { kameez: physFor('kameez'), salwar: physFor('salwar'), dupatta: state.dupatta ? physFor('dupatta') : null, sewn: state.construction === 'sewn' });
@@ -245,7 +254,7 @@ function rebuildGarment({ drape = true } = {}) {
 }
 
 // The solver runs in a Web Worker so orbiting stays smooth while the cloth drapes.
-const SIM_PARAMS = { substeps: 4, iterations: 10, omega: 1.5, maxFrames: 150, rest: 0.09 };
+const SIM_PARAMS = { substeps: 4, iterations: 10, omega: 1.5, maxFrames: 200, rest: 0.09 };
 const MAX_FRAMES = SIM_PARAMS.maxFrames;
 let worker = null, simToken = 0, workerFailed = false;
 function getWorker() {
@@ -493,7 +502,7 @@ let colorTimer = null;
 function fabricChanged(physics) {
   updateMaterials();
   if (garmentGroup) garmentGroup.children.forEach((m) => {
-    m.userData.fabricMat = m.userData.part === 'salwar' ? [mats.salwar, mats.cuff] : m.userData.part === 'dupatta' ? [mats.dupatta, mats.trim] : [mats.kameez, mats.trim];
+    m.userData.fabricMat = m.userData.part === 'salwar' ? [mats.salwar, mats.cuff] : m.userData.part === 'dupatta' ? [mats.dupatta, mats.trim] : m.userData.sewn ? [mats.kameez, mats.border, mats.trim] : [mats.kameez, mats.trim];
   });
   applyShading();
   renderFabricPanel();
