@@ -1,7 +1,12 @@
-# Photoreal renders (Blender / Cycles)
+# Blender pipeline (work in progress)
 
-1. Serve the app: `cd mannequin && python3 -m http.server 8765`
-2. Export the current avatar and draped outfit: `node tools/blender/export_scene.js <scene_dir>`
-   (uses Playwright; this writes scene.json plus textures)
-3. Render: `python tools/blender/render.py <scene_dir> <out_dir> --sim --frames 60 --samples 64 --views front,three,close`
-   (needs `pip install bpy`. `--sim` re-drapes the salwar with Blender cloth, using self-collision and a finer mesh.)
+Avatar: MB-Lab (open-source Blender character generator; its data is AGPL-3). Garments: built from the web app's pattern.
+
+1. Avatar fitted to measurements: `python avatar_fit.py -- body.json avatar.blend f_as01`
+   (MB-Lab statistical fitting plus refinement; girths come out within about 0.5 cm)
+2. Dress and simulate: `python dress.py -- avatar.blend pattern.json dressed.blend --frames 45 --relax 30 --pose standing04`
+   (kameez sewn from its pattern pieces in the A-pose; patiala legs gathered into the band and cuff; skinned to the pose; then relaxed)
+3. Studio render: `python studio.py -- dressed.blend <web texture export> out --samples 96`
+
+Older path: `export_scene.js` + `render.py` (renders the web app's MakeHuman avatar).
+MB-Lab is loaded from /tmp/claude-0/mblab (git clone https://github.com/animate1978/MB-Lab).
