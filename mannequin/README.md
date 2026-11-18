@@ -1,4 +1,4 @@
-# Mannequin Fit Studio
+# Fit Studio 3D
 
 A small browser tool that builds a realistic 3D human from real body measurements, puts a patiala dress on it (kameez + patiala salwar), and exports a 1:1 sewing pattern.
 
@@ -28,3 +28,15 @@ Garments are built from cross-sections of the fitted body, so they follow its ac
 
 Assets are prebuilt in `assets/`. To rebuild them: `python3 tools/build_assets.py <makehuman/data> <assets-1.1/base> assets`
 (see the header of that script for the sources).
+
+## Studio features (CLO-style)
+- **Cloth simulation**: position-based dynamics (stretch + bending constraints, long-range tethers, gravity,
+  friction, continuous body collision via a spatial hash). Garments re-drape on every change; press
+  **Simulate** or Space to run or pause, and **Re-drape** to start again from the pattern.
+- **Fit map / Strain map**: heatmaps of ease to the skin (cm) and fabric stretch (%).
+- **Fabric library**: cotton lawn, silk satin, georgette, chanderi, linen and velvet. Each has a woven normal map,
+  sheen and roughness, and drape physics (bend stiffness, weight, friction).
+- **Prints**: phulkari, paisley, bandhani, buti, block print, ikat and leheriya, plus a colourway and print size in cm.
+  UVs are in real centimetres, so a 14 cm repeat is 14 cm on the garment and on the pattern.
+- **2D window**: the live pattern, filled with the chosen fabric at true scale. Hover a piece to highlight it in 3D.
+- **Rendering**: ambient occlusion (GTAO), soft shadows, a studio backdrop, a turntable, and a PNG render button.

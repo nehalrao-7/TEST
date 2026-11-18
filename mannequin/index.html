@@ -3,92 +3,179 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Mannequin Fit Studio</title>
+<title>Fit Studio 3D</title>
 <style>
-  :root { --bg:#f6f3ef; --panel:#fff; --ink:#222; --mute:#777; --line:#e4ddd5; --acc:#c2185b; }
-  * { box-sizing: border-box; }
-  body { margin:0; font:13px/1.4 system-ui, sans-serif; color:var(--ink); background:var(--bg); display:grid; grid-template-columns: 340px 1fr; height:100vh; overflow:hidden; }
-  aside { background:var(--panel); border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0; }
-  header { padding:12px 14px 8px; } header h1 { font-size:16px; margin:0; } header p { margin:2px 0 0; color:var(--mute); font-size:12px; }
-  .tabs { display:flex; border-bottom:1px solid var(--line); padding:0 8px; }
-  .tabs button { flex:1; background:none; border:0; padding:9px 4px; cursor:pointer; font-weight:600; color:var(--mute); border-bottom:2px solid transparent; }
-  .tabs button.on { color:var(--acc); border-color:var(--acc); }
-  .pane { overflow:auto; padding:10px 14px 16px; flex:1; display:none; } .pane.on { display:block; }
-  .grp { font-weight:700; margin:14px 0 4px; color:var(--acc); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
-  .row { display:grid; grid-template-columns: 1fr 78px 22px; align-items:center; gap:6px; padding:3px 6px; border-radius:6px; }
-  .row.focus { background:#fde7ef; }
-  .row label { cursor:pointer; } .row input { width:100%; padding:4px 6px; border:1px solid var(--line); border-radius:5px; font:inherit; text-align:right; }
+  :root {
+    --bg:#17181b; --panel:#212327; --panel2:#2a2c31; --line:#34373d; --ink:#e6e8eb; --mute:#959ba4;
+    --acc:#3d9cf0; --acc2:#2b6fb0; --warn:#f0a43d; --bad:#ef5350; --ok:#5cc87a;
+  }
+  * { box-sizing:border-box; }
+  html,body { height:100%; }
+  body { margin:0; font:12.5px/1.4 Inter, system-ui, -apple-system, sans-serif; color:var(--ink); background:var(--bg); overflow:hidden;
+    display:grid; grid-template-rows:46px 1fr; grid-template-columns:320px 1fr var(--right, 400px); grid-template-areas:"top top top" "left view right"; }
+  body.no2d { --right: 0px; } body.no2d #twoD { display:none; }
+  button, select, input { font:inherit; color:inherit; }
+  /* top bar */
+  .top { grid-area:top; display:flex; align-items:center; gap:6px; padding:0 10px; background:#1c1d21; border-bottom:1px solid var(--line); overflow-x:auto; }
+  .brand { display:flex; align-items:center; gap:8px; font-weight:700; letter-spacing:.02em; margin-right:10px; white-space:nowrap; }
+  .brand i { width:22px; height:22px; border-radius:6px; background:linear-gradient(135deg,#3d9cf0,#b04bd8); display:inline-block; }
+  .sep { width:1px; height:24px; background:var(--line); margin:0 6px; flex:none; }
+  .tb { background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:5px 10px; cursor:pointer; white-space:nowrap; display:inline-flex; gap:6px; align-items:center; }
+  .tb:hover { border-color:#4a4e56; } .tb.on { background:var(--acc2); border-color:var(--acc); }
+  .tb.play { background:#1f6e3a; border-color:#2f9a55; } .tb.play.on { background:#7a2b2b; border-color:#b54848; }
+  .seg { display:inline-flex; border:1px solid var(--line); border-radius:6px; overflow:hidden; flex:none; }
+  .seg button { background:var(--panel2); border:0; padding:5px 10px; cursor:pointer; border-right:1px solid var(--line); white-space:nowrap; }
+  .seg button:last-child { border-right:0; } .seg button.on { background:var(--acc2); }
+  .top select { background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:4px 6px; }
+  .lab { color:var(--mute); white-space:nowrap; }
+  /* left panel */
+  aside { grid-area:left; background:var(--panel); border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0; }
+  .tabs { display:flex; border-bottom:1px solid var(--line); }
+  .tabs button { flex:1; background:none; border:0; padding:10px 4px; cursor:pointer; font-weight:600; color:var(--mute); border-bottom:2px solid transparent; }
+  .tabs button.on { color:var(--ink); border-color:var(--acc); }
+  .pane { overflow:auto; padding:10px 12px 18px; flex:1; display:none; } .pane.on { display:block; }
+  .grp { font-weight:700; margin:14px 0 6px; color:var(--mute); font-size:11px; text-transform:uppercase; letter-spacing:.08em; }
+  .row { display:grid; grid-template-columns:1fr 66px 18px 46px; align-items:center; gap:6px; padding:3px 6px; border-radius:6px; }
+  .row.g { grid-template-columns:1fr 66px 18px; }
+  .row.focus { background:#1f3550; }
+  .row label { cursor:pointer; } .row input { width:100%; padding:4px 6px; border:1px solid var(--line); border-radius:5px; text-align:right; background:#18191c; }
   .row span { color:var(--mute); font-size:11px; }
-  .row { grid-template-columns: 1fr 70px 18px 46px; }
   .got { font-style:normal; font-size:11px; text-align:right; }
-  .look { display:flex; gap:8px; flex-wrap:wrap; margin:6px 0 2px; font-size:12px; } .look select { font:inherit; padding:2px 4px; }
-  #status { position:absolute; left:10px; bottom:10px; font-size:12px; color:#555; background:#fffc; padding:4px 8px; border-radius:6px; }
-  .help { margin:8px 0; padding:8px 10px; background:#fff7e0; border:1px solid #f0e0b0; border-radius:6px; min-height:52px; font-size:12px; }
+  .ok { color:var(--ok); } .warn { color:var(--warn); } .bad { color:var(--bad); font-weight:700; }
+  .help { margin:8px 0; padding:8px 10px; background:#1b2a3a; border:1px solid #27425f; border-radius:6px; min-height:48px; font-size:12px; color:#cfe3f7; }
+  .look { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin:4px 0; }
+  .look label { display:flex; flex-direction:column; gap:3px; color:var(--mute); font-size:11px; }
+  .look select { background:var(--panel2); border:1px solid var(--line); border-radius:5px; padding:4px; color:var(--ink); }
   .btns { display:flex; flex-wrap:wrap; gap:6px; margin:10px 0; }
-  .btn { border:1px solid var(--line); background:#fff; border-radius:6px; padding:6px 10px; cursor:pointer; font:inherit; }
-  .btn.pri { background:var(--acc); color:#fff; border-color:var(--acc); }
-  main { position:relative; min-width:0; }
+  .btn { border:1px solid var(--line); background:var(--panel2); border-radius:6px; padding:6px 10px; cursor:pointer; }
+  .btn.pri { background:var(--acc2); border-color:var(--acc); }
+  .chk { display:flex; gap:6px; align-items:center; margin:6px 0; color:var(--mute); }
+  /* fabric library */
+  .chips { display:flex; gap:6px; margin:4px 0 8px; }
+  .chips button { flex:1; background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:6px; cursor:pointer; display:flex; gap:6px; align-items:center; justify-content:center; }
+  .chips button.on { border-color:var(--acc); background:#1f3550; }
+  .chips canvas { width:18px; height:18px; border-radius:4px; }
+  .lib { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+  .card { background:var(--panel2); border:1px solid var(--line); border-radius:7px; padding:5px; cursor:pointer; text-align:center; font-size:11px; }
+  .card canvas { width:100%; aspect-ratio:1; border-radius:5px; display:block; margin-bottom:4px; }
+  .card small { color:var(--mute); display:block; }
+  .card.on { border-color:var(--acc); box-shadow:0 0 0 1px var(--acc) inset; }
+  .colors { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+  .colors label { display:flex; flex-direction:column; gap:3px; color:var(--mute); font-size:11px; }
+  .colors input[type=color] { width:100%; height:28px; border:1px solid var(--line); border-radius:5px; background:none; padding:0; }
+  .slider { display:grid; grid-template-columns:1fr 50px; gap:8px; align-items:center; margin-top:6px; color:var(--mute); }
+  .props { margin-top:8px; display:grid; grid-template-columns:1fr auto; gap:2px 10px; color:var(--mute); font-size:11.5px; }
+  .props b { color:var(--ink); font-weight:600; text-align:right; }
+  /* 3D view */
+  main { grid-area:view; position:relative; min-width:0; min-height:0; }
   #c { width:100%; height:100%; display:block; }
-  .toolbar { position:absolute; top:10px; left:10px; display:flex; gap:10px; flex-wrap:wrap; background:#fffd; padding:6px 10px; border-radius:8px; border:1px solid var(--line); }
-  .toolbar label { display:flex; gap:4px; align-items:center; }
-  #fit { position:absolute; right:10px; bottom:10px; background:#fffe; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-size:12px; }
-  #fit table { border-collapse:collapse; } #fit td,#fit th { padding:2px 6px; text-align:right; } #fit td:first-child,#fit th:first-child { text-align:left; }
-  .ok { color:#2e7d32; } .warn { color:#e08600; } .bad { color:#c62828; font-weight:700; }
-  .lbl { position:absolute; pointer-events:none; font-size:11px; padding:1px 5px; border-radius:4px; background:#fffc; border:1px solid #ccc; white-space:nowrap; transform:translate(-50%,-50%); }
-  .lbl.hi { background:var(--acc); color:#fff; border-color:var(--acc); font-weight:700; z-index:2; }
   #labels { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
-  #patPrev { border:1px solid var(--line); border-radius:6px; background:#fff; max-height:55vh; overflow:auto; }
-  #patPrev svg { width:100%; height:auto; display:block; }
-  @media (max-width: 800px) { body { grid-template-columns:1fr; grid-template-rows: 55vh 45vh; } aside { order:2; } #fit { display:none; } }
+  .lbl { position:absolute; pointer-events:none; font-size:11px; padding:1px 6px; border-radius:4px; background:#202227e6; border:1px solid #3d4148; white-space:nowrap; transform:translate(-50%,-50%); }
+  .lbl.hi { background:#e91e63; border-color:#e91e63; color:#fff; font-weight:700; z-index:2; }
+  .hud { position:absolute; background:#1d1f23e6; border:1px solid var(--line); border-radius:8px; padding:8px 10px; font-size:12px; backdrop-filter:blur(4px); }
+  #fit { right:10px; bottom:10px; } #fit table { border-collapse:collapse; } #fit td,#fit th { padding:2px 6px; text-align:right; } #fit td:first-child,#fit th:first-child { text-align:left; }
+  #fit th { color:var(--mute); font-weight:500; }
+  #legend { left:10px; bottom:46px; display:none; min-width:260px; } #legend .bar { height:10px; border-radius:5px; margin:6px 0 3px; }
+  #legend .ticks { display:flex; justify-content:space-between; color:var(--mute); font-size:10.5px; gap:6px; }
+  #status { left:10px; bottom:10px; padding:4px 10px; color:var(--mute); }
+  #simbar { position:absolute; left:0; right:0; top:0; height:2px; background:transparent; }
+  #simbar i { display:block; height:100%; width:0; background:var(--acc); transition:width .1s; }
+  .viewtag { left:10px; top:10px; padding:4px 10px; color:var(--mute); }
+  /* 2D window */
+  #twoD { grid-area:right; background:#202226; border-left:1px solid var(--line); display:flex; flex-direction:column; min-width:0; min-height:0; }
+  #twoD header { display:flex; align-items:center; gap:6px; padding:8px 10px; border-bottom:1px solid var(--line); }
+  #twoD header b { flex:1; }
+  #patPrev { flex:1; overflow:auto; padding:8px; }
+  #patPrev svg { width:100%; height:auto; display:block; border-radius:6px; }
+  #patPrev .piece { cursor:pointer; } #patPrev .piece:hover path:first-of-type { stroke:#3d9cf0; stroke-width:0.4; }
+  #pieces { border-top:1px solid var(--line); padding:6px 10px 10px; font-size:11.5px; color:var(--mute); max-height:30%; overflow:auto; }
+  #pieces table { width:100%; border-collapse:collapse; } #pieces td { padding:2px 4px; } #pieces td:last-child { text-align:right; color:var(--ink); }
+  #loading { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:10px; background:var(--bg); z-index:10; color:var(--mute); }
+  #loading i { width:38px; height:38px; border-radius:50%; border:3px solid var(--line); border-top-color:var(--acc); animation:spin 1s linear infinite; }
+  body.ready #loading { display:none; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  @media (max-width: 1100px) { body { --right: 0px; } #twoD { display:none; } }
+  @media (max-width: 760px) { body { grid-template-columns:1fr; grid-template-rows:46px 55vh 1fr; grid-template-areas:"top" "view" "left"; overflow:auto; } #fit { display:none; } }
 </style>
 </head>
 <body>
+<div id="loading"><i></i>Loading avatar &amp; fabrics…</div>
+<div class="top">
+  <div class="brand"><i></i>Fit Studio 3D</div>
+  <button class="tb play" id="simBtn" title="Run cloth simulation (Space)">▶ Simulate</button>
+  <button class="tb" id="resetDrape" title="Rebuild garment and drape again">⟲ Re-drape</button>
+  <span class="sep"></span>
+  <span class="lab">Show</span>
+  <div class="seg" id="shading"><button data-v="fabric" class="on">Fabric</button><button data-v="fit">Fit map</button><button data-v="strain">Strain map</button></div>
+  <span class="sep"></span>
+  <span class="lab">Avatar</span>
+  <select id="avatarMode"><option value="real">Realistic</option><option value="form">Dress form</option><option value="hide">Hidden</option></select>
+  <button class="tb" id="vGarmentBtn">Garment ✓</button>
+  <span class="sep"></span>
+  <div class="seg" id="views"><button data-v="front">Front</button><button data-v="side">Side</button><button data-v="back">Back</button><button data-v="three">¾</button></div>
+  <button class="tb" id="turn" title="Turntable">⟳ Turntable</button>
+  <button class="tb" id="snap" title="Save a high-resolution render">📷 Render</button>
+  <span class="sep"></span>
+  <button class="tb on" id="toggle2d">2D window</button>
+</div>
 <aside>
-  <header><h1>Mannequin Fit Studio</h1><p>Realistic body fitted to your tape measurements → Patiala dress → Pattern. Units: cm.</p></header>
-  <div class="tabs"><button data-tab="body" class="on">1 · Body</button><button data-tab="garment">2 · Garment</button><button data-tab="pattern">3 · Pattern</button></div>
+  <div class="tabs"><button data-tab="body" class="on">Avatar</button><button data-tab="garment">Garment</button><button data-tab="fabric">Fabric</button></div>
   <div class="pane on" id="pane-body">
     <div class="look">
       <label>Body <select id="look-sex"><option value="female">Female</option><option value="male">Male</option></select></label>
-      <label>Skin <select id="look-eth"><option value="asian">Light-medium</option><option value="caucasian">Light</option><option value="african">Deep</option></select></label>
+      <label>Skin tone <select id="look-eth"><option value="asian">Light-medium</option><option value="caucasian">Light</option><option value="african">Deep</option></select></label>
       <label>Hair <select id="look-hair"><option value="long01">Long</option><option value="ponytail01">Ponytail</option><option value="bob02">Bob</option><option value="none">None</option></select></label>
+      <label>&nbsp;<span class="chk" style="margin:4px 0"><input type="checkbox" id="vGuides" checked> Tape guides</span></label>
     </div>
-    <div class="help" id="helpBody">Click a measurement to see where to take it on the mannequin.</div>
+    <div class="help" id="helpBody">Click a measurement to see where to take it on the avatar.</div>
     <div id="bodyFields"></div>
     <div class="btns">
       <button class="btn" id="resetBody">Reset</button>
-      <button class="btn" id="saveJson">Save profile (.json)</button>
+      <button class="btn" id="saveJson">Save profile</button>
       <label class="btn">Load profile<input type="file" id="loadJson" accept=".json" hidden></label>
     </div>
   </div>
   <div class="pane" id="pane-garment">
-    <div class="help" id="helpGarment">Adjust the garment; the fit table (bottom-right) shows ease vs. the body.</div>
+    <div class="help" id="helpGarment">Change the pattern; the garment re-drapes and the 2D window updates live.</div>
     <div id="garmentFields"></div>
     <div class="btns"><button class="btn" id="resetGarment">Reset garment</button></div>
   </div>
-  <div class="pane" id="pane-pattern">
-    <p>Flat pattern drafted from the body + garment settings. Exported SVG is true 1:1 scale (check the 10 cm square after printing).</p>
-    <div class="btns">
-      <button class="btn pri" id="dlSvg">Download SVG pattern</button>
-      <button class="btn" id="printPat">Print / PDF</button>
-      <button class="btn" id="dlSpec">Download spec (.json)</button>
+  <div class="pane" id="pane-fabric">
+    <div class="grp">Apply to</div>
+    <div class="chips" id="partChips"></div>
+    <div class="grp">Fabric</div>
+    <div class="lib" id="fabricLib"></div>
+    <div class="props" id="fabricProps"></div>
+    <div class="grp">Print</div>
+    <div class="lib" id="printLib"></div>
+    <div class="grp">Colourway</div>
+    <div class="colors">
+      <label>Ground<input type="color" id="colGround"></label>
+      <label>Accent<input type="color" id="colAccent"></label>
+      <label>Accent 2<input type="color" id="colAccent2"></label>
     </div>
-    <div id="patPrev"></div>
+    <div class="slider"><input type="range" id="printScale" min="3" max="40" step="0.5"><span id="printScaleVal"></span></div>
+    <div class="grp">Trim</div>
+    <label class="chk"><input type="checkbox" id="zari" checked> Gold zari border on neck, hem &amp; sleeves</label>
   </div>
 </aside>
 <main>
   <canvas id="c"></canvas>
+  <div id="simbar"><i></i></div>
   <div id="labels"></div>
-  <div class="toolbar">
-    <label><input type="checkbox" id="vGuides" checked> Measurement guide</label>
-    <label><input type="checkbox" id="vGarment"> Garment</label>
-    <label>Opacity <input type="range" id="vOpacity" min="0.2" max="1" step="0.05" value="1"></label>
-    <label>Kameez <input type="color" id="cKameez" value="#c2185b"></label>
-    <label>Salwar <input type="color" id="cSalwar" value="#f3c623"></label>
-    <button class="btn" id="vFront">Front</button><button class="btn" id="vSide">Side</button><button class="btn" id="vBack">Back</button>
-  </div>
-  <div id="fit"></div>
-  <div id="status"></div>
+  <div class="hud" id="fit"></div>
+  <div class="hud" id="legend"></div>
+  <div class="hud" id="status"></div>
 </main>
+<section id="twoD">
+  <header><b>2D Pattern</b>
+    <button class="btn pri" id="dlSvg">Export SVG</button>
+    <button class="btn" id="printPat">Print/PDF</button>
+    <button class="btn" id="dlSpec">Spec</button>
+  </header>
+  <div id="patPrev"></div>
+  <div id="pieces"></div>
+</section>
 <script type="module" src="js/main.js"></script>
 </body>
 </html>

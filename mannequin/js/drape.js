@@ -75,7 +75,7 @@ export function perimeter(r) {
 export function inflate(ring, C, gap = 0.4) {
   const Pm = perimeter(ring.r);
   const d = Math.max(gap, (C - Pm) / TAU);
-  return { ...ring, r: ring.r.map((x) => x + d) };
+  return { ...ring, r: ring.r.map((x) => x + d), min: ring.r.map((x) => x + gap) };
 }
 
 export function scaleTo(ring, C) {
@@ -95,12 +95,17 @@ export function smooth(ring, w = 2) {
 }
 
 /**
- * Loft rings into a mesh. opts.folds(ringIndex, theta) → radial multiplier offset;
- * opts.cut(ringIndex, theta, point) → true to drop faces (slits, necklines).
+ * Loft rings into a mesh with real-world UVs (centimetres: u = arc length from
+ * front centre, v = length down the garment), so fabric prints sit at true scale.
+ * opts.folds(ringIndex, theta) → radial multiplier offset
+ * opts.cut(ringIndex, theta, point) → true to drop faces (slits)
+ * opts.clampY(theta, x, z) → max y for a vertex (necklines)
+ * opts.groups [{from: ringIndex, mat}] → material index per face row
  */
-export function loftRings(rings, { folds, cut, clampY, uvScale = [1, 1] } = {}) {
-  const pos = [], uv = [], idx = [];
+export function loftRings(rings, { folds, cut, clampY, groups = [] } = {}) {
+  const row = N + 1, pos = new Float32Array(rings.length * row * 3), uv = new Float32Array(rings.length * row * 2);
   let vacc = 0;
+  const k0 = N / 4; // theta = pi/2 → front centre
   rings.forEach((R, i) => {
     if (i > 0) vacc += Math.hypot(...sub(R.c, rings[i - 1].c));
     for (let k = 0; k <= N; k++) {
@@ -109,26 +114,38 @@ export function loftRings(rings, { folds, cut, clampY, uvScale = [1, 1] } = {}) 
       const d = add(mul(R.u, Math.cos(th) * R.r[kk] * m), mul(R.v, Math.sin(th) * R.r[kk] * m));
       let py = R.c[1] + d[1];
       if (clampY) py = Math.min(py, clampY(th, R.c[0] + d[0], R.c[2] + d[2]));
-      pos.push(R.c[0] + d[0], py, R.c[2] + d[2]);
-      uv.push((k / N) * uvScale[0], (vacc / 100) * uvScale[1]);
+      const o = (i * row + k) * 3;
+      pos[o] = R.c[0] + d[0]; pos[o + 1] = py; pos[o + 2] = R.c[2] + d[2];
     }
+    const base = i * row, arc = new Float32Array(row);
+    const dist = (a, b) => Math.hypot(pos[(base + a) * 3] - pos[(base + b) * 3], pos[(base + a) * 3 + 1] - pos[(base + b) * 3 + 1], pos[(base + a) * 3 + 2] - pos[(base + b) * 3 + 2]);
+    for (let k = k0 + 1; k <= N; k++) arc[k] = arc[k - 1] + dist(k, k - 1);
+    for (let k = k0 - 1; k >= 0; k--) arc[k] = arc[k + 1] - dist(k, k + 1);
+    for (let k = 0; k <= N; k++) { uv[(base + k) * 2] = arc[k]; uv[(base + k) * 2 + 1] = -vacc; }
   });
-  const row = N + 1;
-  for (let i = 0; i < rings.length - 1; i++)
+  const byMat = new Map();
+  const matOf = (i) => { let m = 0; for (const g of groups) if (i >= g.from) m = g.mat; return m; };
+  for (let i = 0; i < rings.length - 1; i++) {
+    const mat = matOf(i);
+    if (!byMat.has(mat)) byMat.set(mat, []);
+    const idx = byMat.get(mat);
     for (let k = 0; k < N; k++) {
+      const a = i * row + k, b = a + 1, c = a + row, d = c + 1;
       if (cut) {
-        const a = (i * row + k) * 3;
-        const mid = [(pos[a] + pos[a + row * 3 + 3]) / 2, (pos[a + 1] + pos[a + row * 3 + 4]) / 2, (pos[a + 2] + pos[a + row * 3 + 5]) / 2];
+        const mid = [0, 1, 2].map((q) => (pos[a * 3 + q] + pos[d * 3 + q]) / 2);
         if (cut(i + 0.5, ((k + 0.5) / N) * TAU, mid)) continue;
       }
-      const a = i * row + k, b = a + 1, c = a + row, d = c + 1;
       idx.push(a, c, b, b, c, d);
     }
+  }
   const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
-  g.setIndex(idx);
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  const all = [];
+  for (const [mat, idx] of [...byMat.entries()].sort((x, y) => x[0] - y[0])) { g.addGroup(all.length, idx.length, mat); all.push(...idx); }
+  g.setIndex(all);
   g.computeVertexNormals();
+  g.userData.rows = rings.length;
   return g;
 }
 
@@ -142,7 +159,7 @@ export function smoothAlong(rings, passes = 2) {
     rs = rs.map((R, i) => {
       if (i === 0 || i === rs.length - 1) return R;
       const A = rs[i - 1], C = rs[i + 1];
-      return { ...R, c: R.c.map((v, k) => (A.c[k] + 2 * v + C.c[k]) / 4), r: R.r.map((v, k) => Math.max(v, (A.r[k] + 2 * v + C.r[k]) / 4)) };
+      return { ...R, c: R.c.map((v, k) => (A.c[k] + 2 * v + C.c[k]) / 4), r: R.r.map((v, k) => Math.max(R.min ? R.min[k] : 0, (A.r[k] + 2 * v + C.r[k]) / 4)) };
     });
   }
   return rs;

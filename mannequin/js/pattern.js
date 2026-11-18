@@ -80,7 +80,15 @@ export function draftPattern(m, g) {
   return pieces;
 }
 
-export function patternSVG(pieces, { title = 'Patiala dress pattern' } = {}) {
+const PART = (name) => (/^(Kameez|SLEEVE)/.test(name) ? 'kameez' : /^CUFF/.test(name) ? 'cuff' : 'salwar');
+
+/**
+ * opts.dark: CLO-style 2D window rendering; opts.fills: {part: {url, scale}} fabric images
+ * placed at true scale inside each piece.
+ */
+export function patternSVG(pieces, { title = 'Patiala dress pattern', dark = false, fills = null } = {}) {
+  const C = dark ? { bg: '#2a2c30', cut: '#c9ced6', sew: '#ffd166', ink: '#e8eaed', mute: '#9aa0a6', fold: '#6fb3ff', grain: '#e8eaed' }
+                 : { bg: '#fff', cut: '#111', sew: '#c2185b', ink: '#111', mute: '#666', fold: '#1565c0', grain: '#333' };
   const gap = 6;
   let x = gap, y = 14, rowH = 0, maxW = 0;
   const W = 150; // layout width in cm (approx fabric width)
@@ -96,25 +104,31 @@ export function patternSVG(pieces, { title = 'Patiala dress pattern' } = {}) {
   });
   const totalH = y + rowH + gap;
   const path = (pts, tx, ty) => 'M' + pts.map((q) => `${(q[0] + tx).toFixed(2)},${(q[1] + ty).toFixed(2)}`).join('L') + 'Z';
-  let body = '';
+  let body = '', defs = '';
+  if (fills) for (const [part, f] of Object.entries(fills))
+    defs += `<pattern id="fab-${part}" patternUnits="userSpaceOnUse" width="${f.scale}" height="${f.scale}"><image href="${f.url}" width="${f.scale}" height="${f.scale}" preserveAspectRatio="none"/></pattern>`;
   for (const { p, tx, ty, w, h, minX, minY } of placed) {
-    body += `<path d="${path(p.cut, tx, ty)}" fill="none" stroke="#111" stroke-width="0.12"/>`;
-    body += `<path d="${path(p.pts, tx, ty)}" fill="#fbe9ef" fill-opacity="0.5" stroke="#c2185b" stroke-width="0.08" stroke-dasharray="0.8 0.5"/>`;
+    const part = PART(p.name);
+    body += `<g class="piece" data-part="${part}" data-name="${p.name}">`;
+    body += `<path d="${path(p.cut, tx, ty)}" fill="${fills ? `url(#fab-${part})` : 'none'}" stroke="${C.cut}" stroke-width="0.14"/>`;
+    body += `<path d="${path(p.pts, tx, ty)}" fill="${fills ? 'none' : '#fbe9ef'}" fill-opacity="0.5" stroke="${C.sew}" stroke-width="0.1" stroke-dasharray="0.8 0.5"/>`;
     const cx = tx + minX + w / 2, cy = ty + minY + h / 2;
-    if (p.fold) body += `<line x1="${tx}" y1="${ty + minY + 3}" x2="${tx}" y2="${ty + minY + h - 3}" stroke="#1565c0" stroke-width="0.3"/><text x="${tx + 0.8}" y="${ty + minY + h / 2}" font-size="1.6" fill="#1565c0" transform="rotate(90 ${tx + 0.8} ${ty + minY + h / 2})">PLACE ON FOLD</text>`;
-    body += `<line x1="${cx}" y1="${cy - h * 0.25}" x2="${cx}" y2="${cy + h * 0.25}" stroke="#333" stroke-width="0.12" marker-start="url(#ar)" marker-end="url(#ar)"/>`;
-    for (const mk of p.marks || []) body += `<text x="${tx + minX + 1}" y="${ty + mk.y - 0.4}" font-size="1.4" fill="#666">— ${mk.label}</text>`;
-    body += `<text x="${cx + 1}" y="${cy - 2}" font-size="2.4" font-weight="bold" font-family="sans-serif">${p.name}</text>`;
-    body += `<text x="${cx + 1}" y="${cy + 1}" font-size="1.5" font-family="sans-serif">${p.note}</text>`;
+    if (p.fold) body += `<line x1="${tx}" y1="${ty + minY + 3}" x2="${tx}" y2="${ty + minY + h - 3}" stroke="${C.fold}" stroke-width="0.3"/><text x="${tx + 0.8}" y="${ty + minY + h / 2}" font-size="1.6" fill="${C.fold}" transform="rotate(90 ${tx + 0.8} ${ty + minY + h / 2})">PLACE ON FOLD</text>`;
+    body += `<line x1="${cx}" y1="${cy - h * 0.25}" x2="${cx}" y2="${cy + h * 0.25}" stroke="${C.grain}" stroke-width="0.12" marker-start="url(#ar)" marker-end="url(#ar)"/>`;
+    for (const mk of p.marks || []) body += `<text x="${tx + minX + 1}" y="${ty + mk.y - 0.4}" font-size="1.4" fill="${C.mute}">— ${mk.label}</text>`;
+    const halo = fills ? ` paint-order="stroke" stroke="${C.bg}" stroke-width="0.5"` : '';
+    body += `<text x="${cx + 1}" y="${cy - 2}" font-size="2.4" font-weight="bold" fill="${C.ink}"${halo}>${p.name}</text>`;
+    body += `<text x="${cx + 1}" y="${cy + 1}" font-size="1.5" fill="${C.ink}"${halo}>${p.note}</text>`;
+    body += `<text x="${cx + 1}" y="${cy + 3.2}" font-size="1.4" fill="${C.mute}"${halo}>${w.toFixed(1)} × ${h.toFixed(1)} cm</text></g>`;
   }
   const Wt = Math.max(maxW, 60);
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="${Wt.toFixed(1)}cm" height="${totalH.toFixed(1)}cm" viewBox="0 0 ${Wt.toFixed(1)} ${totalH.toFixed(1)}" font-family="sans-serif">
-<defs><marker id="ar" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="#333"/></marker></defs>
-<rect width="100%" height="100%" fill="#fff"/>
-<text x="${gap}" y="6" font-size="3" font-weight="bold">${title}</text>
-<text x="${gap}" y="9.5" font-size="1.6">1:1 scale (units = cm). Solid = cutting line incl. seam allowance · dashed = stitching line · arrow = grainline.</text>
-<rect x="${Wt - 16}" y="2" width="10" height="10" fill="none" stroke="#000" stroke-width="0.1"/><text x="${Wt - 15.5}" y="7.5" font-size="1.3">10 cm check</text>
+<defs><marker id="ar" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="4" markerHeight="4" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" fill="${C.grain}"/></marker>${defs}</defs>
+<rect width="100%" height="100%" fill="${C.bg}"/>
+<text x="${gap}" y="6" font-size="3" font-weight="bold" fill="${C.ink}">${title}</text>
+<text x="${gap}" y="9.5" font-size="1.6" fill="${C.mute}">1:1 scale (units = cm). Solid = cutting line incl. seam allowance · dashed = stitching line · arrow = grainline.</text>
+<rect x="${Wt - 16}" y="2" width="10" height="10" fill="none" stroke="${C.ink}" stroke-width="0.1"/><text x="${Wt - 15.5}" y="7.5" font-size="1.3" fill="${C.ink}">10 cm check</text>
 ${body}
 </svg>`;
 }

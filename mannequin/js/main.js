@@ -1,72 +1,109 @@
 import * as THREE from '../vendor/three.module.js';
 import { OrbitControls } from '../vendor/OrbitControls.js';
 import { RoomEnvironment } from '../vendor/RoomEnvironment.js';
+import { EffectComposer } from '../vendor/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from '../vendor/jsm/postprocessing/RenderPass.js';
+import { GTAOPass } from '../vendor/jsm/postprocessing/GTAOPass.js';
+import { OutputPass } from '../vendor/jsm/postprocessing/OutputPass.js';
 import { BODY_FIELDS, BODY_DEFAULTS } from './body.js';
 import { GARMENT_FIELDS, GARMENT_DEFAULTS, buildGarment, bodyContext, fitReport } from './garment.js';
 import { draftPattern, patternSVG } from './pattern.js';
 import { loadHuman, fitHuman, joints, fitProxy } from './human.js';
-import { fabricTextures } from './fabric.js';
+import { FABRICS, PRINTS, applyFabric, zariMaterial, swatch, printCanvas } from './fabric.js';
+import { ClothSim, BodyCollider, LEGEND } from './sim.js';
 
-const STORE = 'mannequin-fit-studio-v2';
+const $ = (id) => document.getElementById(id);
+const STORE = 'fit-studio-3d-v3';
 const saved = (() => { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } })();
+const FABRIC_DEFAULTS = {
+  kameez: { type: 'cotton', print: 'phulkari', ground: '#7d1435', accent: '#f2b33d', accent2: '#ff7a3d', scale: 14 },
+  salwar: { type: 'silk', print: 'solid', ground: '#e9b949', accent: '#7d1435', accent2: '#ffffff', scale: 10 },
+  cuff: { type: 'cotton', print: 'phulkari', ground: '#7d1435', accent: '#f2b33d', accent2: '#ff7a3d', scale: 8 },
+};
 const state = {
   body: { ...BODY_DEFAULTS, ...saved.body },
   garment: { ...GARMENT_DEFAULTS, ...saved.garment },
   look: { sex: 'female', eth: 'asian', hair: 'long01', ...saved.look },
+  fabrics: JSON.parse(JSON.stringify({ ...FABRIC_DEFAULTS, ...saved.fabrics })),
+  zari: saved.zari ?? true,
+  part: 'kameez', shading: 'fabric', avatar: 'real', showGarment: true,
   focus: null, fit: null, x: null,
 };
-const persist = () => { try { localStorage.setItem(STORE, JSON.stringify({ body: state.body, garment: state.garment, look: state.look })); } catch {} };
+const persist = () => { try { localStorage.setItem(STORE, JSON.stringify({ body: state.body, garment: state.garment, look: state.look, fabrics: state.fabrics, zari: state.zari })); } catch {} };
 
-// ---------- renderer / scene ----------
-const canvas = document.getElementById('c');
+// ---------------- renderer / studio ----------------
+const canvas = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.95;
+renderer.toneMappingExposure = 1.0;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 const scene = new THREE.Scene();
-scene.background = new THREE.Color('#e9e4de');
+{ // studio gradient backdrop
+  const c = document.createElement('canvas'); c.width = 4; c.height = 512;
+  const g = c.getContext('2d'), grd = g.createLinearGradient(0, 0, 0, 512);
+  grd.addColorStop(0, '#62666e'); grd.addColorStop(0.55, '#3d4046'); grd.addColorStop(1, '#232428');
+  g.fillStyle = grd; g.fillRect(0, 0, 4, 512);
+  scene.background = new THREE.CanvasTexture(c); scene.background.colorSpace = THREE.SRGBColorSpace;
+}
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(renderer), 0.04).texture;
-scene.environmentIntensity = 0.4;
+scene.environmentIntensity = 0.45;
 const camera = new THREE.PerspectiveCamera(28, 1, 20, 2500);
 const controls = new OrbitControls(camera, canvas);
-controls.enableDamping = true;
-const key = new THREE.DirectionalLight('#fff4ea', 2.2);
-key.position.set(120, 260, 200); key.castShadow = true;
+controls.enableDamping = true; controls.autoRotateSpeed = 2.2;
+const key = new THREE.DirectionalLight('#fff3e6', 2.4);
+key.position.set(140, 280, 220); key.castShadow = true;
 key.shadow.mapSize.set(2048, 2048);
-Object.assign(key.shadow.camera, { left: -80, right: 80, top: 200, bottom: -10, near: 50, far: 700 });
-key.shadow.bias = -0.0004; key.shadow.normalBias = 0.6; key.shadow.radius = 4;
+Object.assign(key.shadow.camera, { left: -90, right: 90, top: 210, bottom: -10, near: 50, far: 800 });
+key.shadow.bias = -0.0004; key.shadow.normalBias = 0.6; key.shadow.radius = 5;
 scene.add(key);
-const fill = new THREE.DirectionalLight('#dfe8ff', 0.6); fill.position.set(-220, 120, 120); scene.add(fill);
-const rim = new THREE.DirectionalLight('#ffffff', 1.0); rim.position.set(-60, 220, -260); scene.add(rim);
-const floor = new THREE.Mesh(new THREE.CircleGeometry(160, 64), new THREE.ShadowMaterial({ opacity: 0.22 }));
+const fillL = new THREE.DirectionalLight('#d9e6ff', 0.7); fillL.position.set(-240, 140, 140); scene.add(fillL);
+const rim = new THREE.DirectionalLight('#ffffff', 1.3); rim.position.set(-80, 240, -280); scene.add(rim);
+const floor = new THREE.Mesh(new THREE.CircleGeometry(200, 64), new THREE.ShadowMaterial({ opacity: 0.35 }));
 floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+const grid = new THREE.GridHelper(400, 40, '#6a6e76', '#4a4d54'); grid.position.y = 0.05;
+grid.material.transparent = true; grid.material.opacity = 0.35; scene.add(grid);
+
+// post-processing: ground-truth ambient occlusion for contact shadows in folds
+let composer = null, gtao = null;
+try {
+  composer = new EffectComposer(renderer);
+  composer.addPass(new RenderPass(scene, camera));
+  gtao = new GTAOPass(scene, camera, 800, 600);
+  gtao.output = GTAOPass.OUTPUT.Default;
+  gtao.blendIntensity = 0.9;
+  gtao.updateGtaoMaterial({ radius: 7, distanceExponent: 1.4, thickness: 4, scale: 1, samples: 16 });
+  gtao.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 16 });
+  composer.addPass(gtao);
+  composer.addPass(new OutputPass());
+} catch (e) { console.warn('AO disabled', e); composer = null; }
 
 const texLoader = new THREE.TextureLoader();
 const tex = (url, srgb = true) => { const t = texLoader.load(url); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
-
-const skin = new THREE.MeshPhysicalMaterial({ roughness: 0.52, sheen: 0.35, sheenRoughness: 0.55, sheenColor: new THREE.Color('#ff9a85'), clearcoat: 0.06, clearcoatRoughness: 0.5, specularIntensity: 0.45 });
-const fab = fabricTextures();
-const mats = {
-  kameez: new THREE.MeshPhysicalMaterial({ color: '#b0174f', map: fab.print, normalMap: fab.weave, normalScale: new THREE.Vector2(0.35, 0.35), roughness: 0.78, sheen: 0.8, sheenRoughness: 0.45, sheenColor: new THREE.Color('#ffd0e0'), side: THREE.DoubleSide, transparent: true }),
-  salwar: new THREE.MeshPhysicalMaterial({ color: '#f1c232', normalMap: fab.weave, normalScale: new THREE.Vector2(0.3, 0.3), roughness: 0.6, sheen: 1, sheenRoughness: 0.35, sheenColor: new THREE.Color('#fff2c0'), side: THREE.DoubleSide, transparent: true }),
-  cuff: new THREE.MeshPhysicalMaterial({ color: '#b0174f', map: fab.print, normalMap: fab.weave, roughness: 0.7, sheen: 0.8, side: THREE.DoubleSide, transparent: true }),
-  trim: new THREE.MeshPhysicalMaterial({ color: '#d4a42a', map: fab.zari, roughness: 0.35, metalness: 0.75, side: THREE.DoubleSide, transparent: true }),
-};
+const skin = new THREE.MeshPhysicalMaterial({ roughness: 0.5, sheen: 0.4, sheenRoughness: 0.5, sheenColor: new THREE.Color('#ff9a85'), clearcoat: 0.08, clearcoatRoughness: 0.45, specularIntensity: 0.5 });
+const formMat = new THREE.MeshStandardMaterial({ color: '#bdb8b0', roughness: 0.75, metalness: 0 });
 const eyeMat = new THREE.MeshPhysicalMaterial({ map: tex('assets/eye_brown.png'), alphaTest: 0.5, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.03 });
 const browMat = new THREE.MeshStandardMaterial({ map: tex('assets/eyebrows.png'), transparent: true, alphaTest: 0.05, depthWrite: false, roughness: 0.9, side: THREE.DoubleSide });
 const lashMat = new THREE.MeshStandardMaterial({ map: tex('assets/eyelashes.png'), transparent: true, alphaTest: 0.05, depthWrite: false, roughness: 0.9, side: THREE.DoubleSide });
 const hairMats = {};
 const hairMat = (name) => hairMats[name] ||= new THREE.MeshStandardMaterial({ map: tex(`assets/hair_${name}.png`), alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.55, color: '#6b5444' });
 const skinTex = {};
+const zari = zariMaterial();
+const heatMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75, side: THREE.DoubleSide });
+const hiMat = new THREE.MeshStandardMaterial({ color: '#3d9cf0', emissive: '#12406e', roughness: 0.6, side: THREE.DoubleSide });
+const mats = {};
+function updateMaterials() {
+  for (const part of ['kameez', 'salwar', 'cuff']) mats[part] = applyFabric(mats[part], state.fabrics[part]);
+  mats.trim = state.zari ? zari : mats.kameez;
+}
+updateMaterials();
+const physFor = (part) => (FABRICS[state.fabrics[part].type] || FABRICS.cotton).phys;
 
-let H, bodyMesh, proxyGroup, garmentGroup, guideGroup, guides = {}, B;
-const labelsEl = document.getElementById('labels');
-const labelEls = {};
-const status = document.getElementById('status');
+let H, bodyMesh, proxyGroup, garmentGroup, guideGroup, guides = {}, B, collider, sim = null, simRunning = false;
+const labelsEl = $('labels'), labelEls = {}, status = $('status');
 
 function setView(dir) {
   const h = state.body.height;
@@ -76,7 +113,6 @@ function setView(dir) {
   camera.position.set(p[0], h * 0.62, p[1]);
   controls.update();
 }
-
 const dispose = (g) => { if (!g) return; g.parent?.remove(g); g.traverse((o) => o.geometry?.dispose()); };
 
 function geometryFrom(P, orig, uv, index, smoothNormals = true) {
@@ -87,7 +123,6 @@ function geometryFrom(P, orig, uv, index, smoothNormals = true) {
   g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
   g.setIndex(new THREE.BufferAttribute(index, 1));
   if (!smoothNormals) { g.computeVertexNormals(); return g; }
-  // normals accumulated on original vertices so UV seams stay invisible
   const acc = new Float32Array(P.length);
   for (let t = 0; t < index.length; t += 3) {
     const a = orig[index[t]] * 3, b = orig[index[t + 1]] * 3, c = orig[index[t + 2]] * 3;
@@ -104,25 +139,22 @@ function geometryFrom(P, orig, uv, index, smoothNormals = true) {
   return g;
 }
 
-// ---------- fitting + building ----------
+// ---------------- body fitting ----------------
 let fitTimer = null, lastLookKey = '';
 function scheduleFit(immediate = false) {
   clearTimeout(fitTimer);
-  status.textContent = 'Fitting body to measurements…';
-  fitTimer = setTimeout(() => requestAnimationFrame(() => { refit(); }), immediate ? 0 : 280);
+  status.textContent = 'Fitting avatar to measurements…';
+  fitTimer = setTimeout(() => requestAnimationFrame(refit), immediate ? 0 : 280);
 }
 
 function refit() {
   const t0 = performance.now();
   const lookKey = state.look.sex + state.look.eth;
   const fit = fitHuman(H, state.body, { sex: state.look.sex, eth: state.look.eth, x0: lookKey === lastLookKey ? state.x : null });
-  lastLookKey = lookKey;
-  state.fit = fit; state.x = fit.x;
+  lastLookKey = lookKey; state.fit = fit; state.x = fit.x;
   const P = fit.P;
-  const J = joints(H, P);
-  B = bodyContext(H, P, H.labels, J, fit.achieved);
+  B = bodyContext(H, P, H.labels, joints(H, P), fit.achieved);
 
-  // body
   dispose(bodyMesh);
   const skey = `${state.look.sex}-${state.look.eth}`;
   skin.map = skinTex[skey] ||= tex('assets/' + H.man.skins[skey]);
@@ -131,42 +163,94 @@ function refit() {
   bodyMesh.castShadow = bodyMesh.receiveShadow = true;
   scene.add(bodyMesh);
 
-  // eyes, brows, lashes, hair
+  // collider: unique skin vertices + smooth normals
+  const g = bodyMesh.geometry, pos = g.attributes.position.array, nor = g.attributes.normal.array;
+  const seen = new Set(), cp = [], cn = [];
+  H.body.orig.forEach((o, k) => { if (seen.has(o)) return; seen.add(o); cp.push(pos[k * 3], pos[k * 3 + 1], pos[k * 3 + 2]); cn.push(nor[k * 3], nor[k * 3 + 1], nor[k * 3 + 2]); });
+  collider = new BodyCollider(new Float32Array(cp), new Float32Array(cn));
+
   dispose(proxyGroup);
   proxyGroup = new THREE.Group();
   const addProxy = (name, mat, shadow = false) => {
     const p = H.proxies[name]; if (!p) return;
-    const pos = fitProxy(H, p, fit.rawP, fit.scale, fit.floor);
+    const ppos = fitProxy(H, p, fit.rawP, fit.scale, fit.floor);
     const n = p.refs.length / 3, ident = new Uint32Array(n).map((_, i) => i);
-    const mesh = new THREE.Mesh(geometryFrom(pos, ident, p.uv, p.index, false), mat);
+    const mesh = new THREE.Mesh(geometryFrom(ppos, ident, p.uv, p.index, false), mat);
     mesh.castShadow = shadow; mesh.renderOrder = mat.transparent ? 2 : 0;
     proxyGroup.add(mesh);
   };
   addProxy('eyes', eyeMat); addProxy('eyebrows', browMat); addProxy('eyelashes', lashMat);
   if (state.look.hair !== 'none') addProxy('hair-' + state.look.hair, hairMat(state.look.hair), true);
   scene.add(proxyGroup);
+  applyAvatarMode();
 
-  status.textContent = `Body fitted in ${Math.round(performance.now() - t0)} ms`;
+  status.textContent = `Avatar fitted in ${Math.round(performance.now() - t0)} ms`;
   renderAchieved();
   rebuildGarment();
 }
 
-function rebuildGarment() {
+function applyAvatarMode() {
+  if (!bodyMesh) return;
+  bodyMesh.visible = state.avatar !== 'hide';
+  bodyMesh.material = state.avatar === 'form' ? formMat : skin;
+  if (proxyGroup) proxyGroup.visible = state.avatar === 'real';
+}
+
+// ---------------- garment + cloth simulation ----------------
+function rebuildGarment({ drape = true } = {}) {
   if (!B) return;
   dispose(garmentGroup);
   const m = { ...state.body, waistHeight: B.achieved.waistHeight };
-  const { group } = buildGarment(B, m, state.garment, mats);
+  const { group } = buildGarment(B, m, state.garment, mats, { kameez: physFor('kameez'), salwar: physFor('salwar') });
   garmentGroup = group;
-  garmentGroup.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-  garmentGroup.visible = document.getElementById('vGarment').checked;
+  garmentGroup.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.userData.fabricMat = o.material; } });
+  garmentGroup.visible = state.showGarment;
   scene.add(garmentGroup);
+  sim = new ClothSim(garmentGroup.children, collider);
+  if (drape) startSim(); else applyShading();
   buildGuides();
   renderFit();
-  if (document.getElementById('pane-pattern').classList.contains('on')) renderPattern();
+  renderPattern();
   persist();
 }
 
-// ---------- measurement guides (tape lines on the skin) ----------
+function startSim() { if (!sim) return; simRunning = true; updateSimBtn(); }
+function stopSim() { simRunning = false; updateSimBtn(); $('simbar').firstElementChild.style.width = '0'; applyShading(); }
+function updateSimBtn() { const b = $('simBtn'); b.classList.toggle('on', simRunning); b.textContent = simRunning ? '❚❚ Pause' : '▶ Simulate'; }
+const MAX_FRAMES = 140;
+function simTick() {
+  if (!simRunning || !sim) return;
+  const t0 = performance.now();
+  do { sim.step(); } while (performance.now() - t0 < 14 && sim.frame < MAX_FRAMES);
+  sim.sync();
+  if (state.shading !== 'fabric' && sim.frame % 6 === 0) applyShading();
+  $('simbar').firstElementChild.style.width = Math.min(100, (sim.frame / MAX_FRAMES) * 100) + '%';
+  status.textContent = `Simulating · frame ${sim.frame} · ${sim.n.toLocaleString()} particles`;
+  if (sim.frame >= MAX_FRAMES || (sim.frame > 40 && sim.motion < 0.04)) { stopSim(); status.textContent = `Draped · ${sim.n.toLocaleString()} particles · ${sim.frame} frames`; }
+}
+
+function applyShading() {
+  if (!garmentGroup) return;
+  const mode = state.shading;
+  if (mode !== 'fabric' && sim) sim.colorize(mode);
+  garmentGroup.children.forEach((m) => { m.material = mode === 'fabric' ? m.userData.fabricMat : heatMat; });
+  const lg = $('legend');
+  if (mode === 'fabric') { lg.style.display = 'none'; return; }
+  const L = LEGEND[mode], stops = L.stops, lo = stops[0][0], hi = stops[stops.length - 1][0];
+  lg.style.display = 'block';
+  lg.innerHTML = `<b>${L.title}</b><div class="bar" style="background:linear-gradient(90deg,${stops.map(([v, c]) => `${c} ${((v - lo) / (hi - lo)) * 100}%`).join(',')})"></div><div class="ticks">${L.labels.map((t) => `<span>${t}</span>`).join('')}</div>`;
+}
+
+function highlightPart(name) {
+  if (!garmentGroup) return;
+  const piece = !name ? null : /SLEEVE/.test(name) ? 'sleeve' : /^Kameez/.test(name) ? 'bodice' : 'salwar';
+  garmentGroup.children.forEach((m) => {
+    const p = m.userData.part === 'salwar' ? 'salwar' : m.userData.pinRows.length === 3 ? 'sleeve' : 'bodice';
+    m.material = piece && p === piece ? hiMat : state.shading === 'fabric' ? m.userData.fabricMat : heatMat;
+  });
+}
+
+// ---------------- measurement guides ----------------
 function buildGuides() {
   dispose(guideGroup);
   guideGroup = new THREE.Group();
@@ -182,37 +266,37 @@ function buildGuides() {
   const floorAt = (p) => new THREE.Vector3(p.x, 0, p.z);
   const waistSide = R['waist-circ'].map(pt).reduce((a, p) => (p.x > a.x ? p : a));
   const crotch = new THREE.Vector3(0, B.crotchY, B.J['pelvis'][2]);
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
   const g = {
-    height: line(new THREE.Vector3(-34, 0, 0), new THREE.Vector3(-34, state.body.height, 0)),
+    height: line(V(-34, 0, 0), V(-34, state.body.height, 0)),
     neck: loop('neck-circ'), bust: loop('bust-circ'), underbust: loop('underbust-circ'), waist: loop('waist-circ'),
     hip: loop('hips-circ'), thigh: loop('thigh-circ'), knee: loop('knee-circ'), calf: loop('calf-circ'), ankle: loop('ankle-circ'),
     upperArm: loop('upperarm-circ'), wrist: loop('wrist-circ'),
-    shoulder: line(sh[0].clone().add(new THREE.Vector3(0, 1, -3)), sh[1].clone().add(new THREE.Vector3(0, 1, -3))),
-    armLength: line(...[R['upperarm-length'][0], R['upperarm-length'][1], R['lowerarm-length'][1]].map(pt).map((p) => p.add(new THREE.Vector3(0, 0, 4)))),
-    backLength: line(...R['napetowaist-dist'].map(pt).map((p) => p.add(new THREE.Vector3(0, 0, -1.5)))),
-    waistToHip: line(...R['waisttohip-dist'].map(pt).map((p) => p.add(new THREE.Vector3(1.5, 0, 0)))),
-    waistHeight: line(waistSide.clone().add(new THREE.Vector3(10, 0, 0)), floorAt(waistSide).add(new THREE.Vector3(10, 0, 0))),
-    inseam: line(crotch.clone().add(new THREE.Vector3(0, -0.5, 0)), floorAt(crotch)),
+    shoulder: line(sh[0].clone().add(V(0, 1, -3)), sh[1].clone().add(V(0, 1, -3))),
+    armLength: line(...[R['upperarm-length'][0], R['upperarm-length'][1], R['lowerarm-length'][1]].map(pt).map((p) => p.add(V(0, 0, 4)))),
+    backLength: line(...R['napetowaist-dist'].map(pt).map((p) => p.add(V(0, 0, -1.5)))),
+    waistToHip: line(...R['waisttohip-dist'].map(pt).map((p) => p.add(V(1.5, 0, 0)))),
+    waistHeight: line(waistSide.clone().add(V(10, 0, 0)), floorAt(waistSide).add(V(10, 0, 0))),
+    inseam: line(crotch.clone().add(V(0, -0.5, 0)), floorAt(crotch)),
   };
   guides = {};
   for (const [k, gd] of Object.entries(g)) {
     const hi = k === state.focus;
     const curve = new THREE.CatmullRomCurve3(gd.pts, gd.closed, 'centripetal');
     const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, gd.closed ? 160 : 40, hi ? 0.45 : 0.25, 8, gd.closed),
-      new THREE.MeshBasicMaterial({ color: hi ? '#e91e63' : '#1e88e5', depthTest: hi ? false : true, transparent: true, opacity: hi ? 1 : 0.9 }));
+      new THREE.MeshBasicMaterial({ color: hi ? '#ff2d78' : '#3d9cf0', depthTest: !hi, transparent: true, opacity: hi ? 1 : 0.9 }));
     mesh.renderOrder = hi ? 20 : 5;
     guideGroup.add(mesh);
-    const back = gd.closed ? null : k === 'backLength' || k === 'shoulder';
-    const anchor = gd.closed ? gd.pts.reduce((a, p) => (p.x > a.x ? p : a)).clone().add(new THREE.Vector3(6, 0, 0)) : curve.getPoint(k === 'height' ? 0.92 : 0.5);
-    guides[k] = { anchor, back };
+    const anchor = gd.closed ? gd.pts.reduce((a, p) => (p.x > a.x ? p : a)).clone().add(V(6, 0, 0)) : curve.getPoint(k === 'height' ? 0.92 : 0.5);
+    guides[k] = { anchor, back: !gd.closed && (k === 'backLength' || k === 'shoulder') };
   }
-  guideGroup.visible = document.getElementById('vGuides').checked;
+  guideGroup.visible = $('vGuides').checked && activeTab === 'body';
   scene.add(guideGroup);
   updateLabels(true);
 }
 
 function updateLabels(refresh) {
-  const show = document.getElementById('vGuides').checked;
+  const show = guideGroup?.visible;
   const w = canvas.clientWidth, h = canvas.clientHeight;
   for (const f of BODY_FIELDS) {
     let el = labelEls[f.key];
@@ -223,9 +307,8 @@ function updateLabels(refresh) {
     const hi = f.key === state.focus;
     el.classList.toggle('hi', hi);
     const p = gd.anchor.clone().project(camera);
-    const facingBack = camera.position.z < 0;
-    el.style.display = p.z < 1 && (hi || !state.focus || false) && (hi || gd.back === null || gd.back === facingBack || !gd.back) ? '' : 'none';
-    if (state.focus && !hi) el.style.display = 'none';
+    const visible = p.z < 1 && (hi || (!state.focus && (!gd.back || camera.position.z < 0)));
+    el.style.display = visible ? '' : 'none';
     el.style.left = ((p.x + 1) / 2) * w + 'px';
     el.style.top = ((1 - p.y) / 2) * h + 'px';
   }
@@ -238,32 +321,54 @@ function renderAchieved() {
     const a = state.fit.achieved[f.key];
     if (a === undefined) { el.textContent = ''; continue; }
     const off = a - state.body[f.key];
-    el.textContent = f.key === 'waistHeight' ? `model ${a.toFixed(1)}` : Math.abs(off) < 0.6 ? '✓' : `${off > 0 ? '+' : ''}${off.toFixed(1)}`;
+    el.textContent = f.key === 'waistHeight' ? a.toFixed(1) : Math.abs(off) < 0.6 ? '✓' : `${off > 0 ? '+' : ''}${off.toFixed(1)}`;
     el.className = 'got ' + (f.key === 'waistHeight' ? '' : Math.abs(off) < 0.6 ? 'ok' : Math.abs(off) < 2 ? 'warn' : 'bad');
-    el.title = `Model measures ${a.toFixed(1)} cm`;
+    el.title = `Avatar measures ${a.toFixed(1)} cm`;
   }
 }
 
 function renderFit() {
   const rows = fitReport(state.body, state.garment);
-  document.getElementById('fit').innerHTML = `<b>Fit check</b><table><tr><th></th><th>Body</th><th>Garment</th><th>Ease</th><th></th></tr>${rows
+  $('fit').innerHTML = `<b>Fit check</b><table><tr><th></th><th>Body</th><th>Garment</th><th>Ease</th><th></th></tr>${rows
     .map((r) => `<tr><td>${r.label}</td><td>${r.body.toFixed(1)}</td><td>${r.garment.toFixed(1)}</td><td>${r.ease >= 0 ? '+' : ''}${r.ease.toFixed(1)}</td><td class="${r.cls}">${r.status}</td></tr>`)
     .join('')}</table>`;
 }
 
-let lastSvg = '';
+// ---------------- 2D pattern window ----------------
+let lastSvg = '', patTimer = null;
+const patternInputs = () => draftPattern({ ...state.body, waistHeight: B ? B.achieved.waistHeight : state.body.waistHeight }, state.garment);
+function fabricFills() {
+  const fills = {};
+  for (const part of ['kameez', 'salwar', 'cuff']) {
+    const f = state.fabrics[part], src = printCanvas(f.print, f.ground, f.accent, f.accent2), c = document.createElement('canvas');
+    c.width = c.height = 256; c.getContext('2d').drawImage(src, 0, 0, 256, 256);
+    fills[part] = { url: c.toDataURL('image/jpeg', 0.85), scale: f.print === 'solid' ? 50 : f.scale };
+  }
+  return fills;
+}
 function renderPattern() {
-  const m = { ...state.body, waistHeight: B ? B.achieved.waistHeight : state.body.waistHeight };
-  lastSvg = patternSVG(draftPattern(m, state.garment));
-  document.getElementById('patPrev').innerHTML = lastSvg.replace(/^<\?xml[^>]*>/, '');
+  clearTimeout(patTimer);
+  patTimer = setTimeout(() => {
+    const pieces = patternInputs();
+    $('patPrev').innerHTML = patternSVG(pieces, { dark: true, fills: fabricFills() }).replace(/^<\?xml[^>]*>/, '');
+    $('pieces').innerHTML = `<table>${pieces.map((p) => {
+      const xs = p.cut.map((q) => q[0]), ys = p.cut.map((q) => q[1]);
+      return `<tr data-name="${p.name}"><td>${p.name}</td><td>${(Math.max(...xs) - Math.min(...xs)).toFixed(1)} × ${(Math.max(...ys) - Math.min(...ys)).toFixed(1)} cm</td></tr>`;
+    }).join('')}</table>`;
+    for (const el of document.querySelectorAll('#patPrev .piece, #pieces tr')) {
+      el.addEventListener('mouseenter', () => highlightPart(el.dataset.name));
+      el.addEventListener('mouseleave', () => highlightPart(null));
+    }
+  }, 60);
 }
 
-// ---------- UI ----------
+// ---------------- UI: fields ----------------
+let activeTab = 'body';
 function buildFields(container, fields, obj, helpEl, isBody) {
   container.innerHTML = '';
   for (const f of fields) {
     if (f.group) { const gEl = document.createElement('div'); gEl.className = 'grp'; gEl.textContent = f.group; container.appendChild(gEl); }
-    const row = document.createElement('div'); row.className = 'row'; row.dataset.key = f.key;
+    const row = document.createElement('div'); row.className = 'row' + (isBody ? '' : ' g'); row.dataset.key = f.key;
     const unit = f.key === 'fullness' ? '×' : f.key === 'pleats' ? '#' : 'cm';
     row.innerHTML = `<label for="f-${f.key}">${f.label}</label><input id="f-${f.key}" type="number" step="${f.step ?? 0.5}" min="0" value="${obj[f.key]}"><span>${unit}</span>${isBody ? '<em class="got"></em>' : ''}`;
     const input = row.querySelector('input');
@@ -273,79 +378,141 @@ function buildFields(container, fields, obj, helpEl, isBody) {
       if (isBody) { state.focus = f.key; if (B) buildGuides(); }
     });
     row.addEventListener('click', () => input.focus());
+    let t = null;
     input.addEventListener('input', () => {
       const v = parseFloat(input.value);
       if (!isFinite(v) || v <= 0) return;
       obj[f.key] = v;
-      isBody ? scheduleFit() : rebuildGarment();
+      if (isBody) scheduleFit();
+      else { clearTimeout(t); t = setTimeout(() => rebuildGarment(), 200); }
     });
     container.appendChild(row);
   }
   if (isBody) renderAchieved();
 }
+
+// ---------------- UI: fabric library ----------------
+function renderFabricPanel() {
+  const spec = state.fabrics[state.part];
+  $('partChips').innerHTML = '';
+  for (const part of ['kameez', 'salwar', 'cuff']) {
+    const b = document.createElement('button');
+    b.className = part === state.part ? 'on' : '';
+    b.append(swatch(state.fabrics[part], 36), part === 'cuff' ? 'Cuffs' : part[0].toUpperCase() + part.slice(1));
+    b.onclick = () => { state.part = part; renderFabricPanel(); };
+    $('partChips').appendChild(b);
+  }
+  const lib = $('fabricLib'); lib.innerHTML = '';
+  for (const [k, F] of Object.entries(FABRICS)) {
+    const c = document.createElement('div'); c.className = 'card' + (spec.type === k ? ' on' : '');
+    c.append(swatch({ ...spec, type: k, print: 'solid' }, 96));
+    c.insertAdjacentHTML('beforeend', `${F.name}<small>${F.gsm} g/m²</small>`);
+    c.onclick = () => { spec.type = k; fabricChanged(true); };
+    lib.appendChild(c);
+  }
+  const F = FABRICS[spec.type];
+  $('fabricProps').innerHTML = `<span>Weight</span><b>${F.gsm} g/m²</b><span>Bending stiffness</span><b>${Math.round(F.phys.bend * 100)}</b><span>Friction</span><b>${F.phys.friction}</b><span>Thread count</span><b>${F.threadsPerCm}/cm</b>`;
+  const pl = $('printLib'); pl.innerHTML = '';
+  for (const [k, name] of Object.entries(PRINTS)) {
+    const c = document.createElement('div'); c.className = 'card' + (spec.print === k ? ' on' : '');
+    c.append(swatch({ ...spec, print: k }, 96)); c.insertAdjacentHTML('beforeend', name);
+    c.onclick = () => { spec.print = k; fabricChanged(false); };
+    pl.appendChild(c);
+  }
+  $('colGround').value = spec.ground; $('colAccent').value = spec.accent; $('colAccent2').value = spec.accent2;
+  $('printScale').value = spec.scale; $('printScaleVal').textContent = spec.scale + ' cm';
+  $('zari').checked = state.zari;
+}
+let colorTimer = null;
+function fabricChanged(physics) {
+  updateMaterials();
+  if (garmentGroup) garmentGroup.children.forEach((m) => {
+    m.userData.fabricMat = m.userData.part === 'salwar' ? [mats.salwar, mats.cuff] : (Array.isArray(m.userData.fabricMat) ? [mats.kameez, mats.trim] : mats.kameez);
+  });
+  applyShading();
+  renderFabricPanel();
+  renderPattern();
+  persist();
+  if (physics) rebuildGarment();
+}
+for (const [id, keyName] of [['colGround', 'ground'], ['colAccent', 'accent'], ['colAccent2', 'accent2']])
+  $(id).addEventListener('input', (e) => { state.fabrics[state.part][keyName] = e.target.value; clearTimeout(colorTimer); colorTimer = setTimeout(() => fabricChanged(false), 60); });
+$('printScale').addEventListener('input', (e) => { state.fabrics[state.part].scale = +e.target.value; $('printScaleVal').textContent = e.target.value + ' cm'; updateMaterials(); renderPattern(); persist(); });
+$('zari').addEventListener('change', (e) => { state.zari = e.target.checked; updateMaterials(); rebuildGarment({ drape: false }); persist(); });
+
+// ---------------- UI: wiring ----------------
 const renderForms = () => {
-  buildFields(document.getElementById('bodyFields'), BODY_FIELDS, state.body, document.getElementById('helpBody'), true);
-  buildFields(document.getElementById('garmentFields'), GARMENT_FIELDS, state.garment, document.getElementById('helpGarment'), false);
-  for (const k of ['sex', 'eth', 'hair']) document.getElementById('look-' + k).value = state.look[k];
+  buildFields($('bodyFields'), BODY_FIELDS, state.body, $('helpBody'), true);
+  buildFields($('garmentFields'), GARMENT_FIELDS, state.garment, $('helpGarment'), false);
+  for (const k of ['sex', 'eth', 'hair']) $('look-' + k).value = state.look[k];
+  renderFabricPanel();
 };
-for (const k of ['sex', 'eth', 'hair']) document.getElementById('look-' + k).addEventListener('change', (e) => { state.look[k] = e.target.value; k === 'hair' ? refit() : scheduleFit(true); persist(); });
+for (const k of ['sex', 'eth', 'hair']) $('look-' + k).addEventListener('change', (e) => { state.look[k] = e.target.value; k === 'hair' ? refit() : scheduleFit(true); persist(); });
 
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => {
   document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x === b));
   document.querySelectorAll('.pane').forEach((p) => p.classList.toggle('on', p.id === 'pane-' + b.dataset.tab));
-  const tab = b.dataset.tab;
-  const vg = document.getElementById('vGarment'), vgu = document.getElementById('vGuides');
-  if (tab === 'body') { vg.checked = false; vgu.checked = true; } else { vg.checked = true; vgu.checked = false; state.focus = null; }
-  applyVisibility();
-  if (tab === 'pattern') renderPattern();
-  buildGuides();
+  activeTab = b.dataset.tab;
+  if (activeTab !== 'body') state.focus = null;
+  if (B) buildGuides();
 }));
-function applyVisibility() {
-  if (garmentGroup) garmentGroup.visible = document.getElementById('vGarment').checked;
-  if (guideGroup) guideGroup.visible = document.getElementById('vGuides').checked;
-  updateLabels(true);
-}
-document.getElementById('vGuides').addEventListener('change', applyVisibility);
-document.getElementById('vGarment').addEventListener('change', applyVisibility);
-document.getElementById('vOpacity').addEventListener('input', (e) => Object.values(mats).forEach((m) => { m.opacity = +e.target.value; m.depthWrite = +e.target.value > 0.95; }));
-document.getElementById('cKameez').addEventListener('input', (e) => { mats.kameez.color.set(e.target.value); mats.cuff.color.set(e.target.value); });
-document.getElementById('cSalwar').addEventListener('input', (e) => mats.salwar.color.set(e.target.value));
-for (const d of ['Front', 'Side', 'Back']) document.getElementById('v' + d).addEventListener('click', () => setView(d.toLowerCase()));
-
-const download = (name, text, type) => {
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(new Blob([text], { type }));
-  a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-};
-document.getElementById('resetBody').addEventListener('click', () => { Object.assign(state.body, BODY_DEFAULTS); renderForms(); scheduleFit(true); setView('front'); });
-document.getElementById('resetGarment').addEventListener('click', () => { Object.assign(state.garment, GARMENT_DEFAULTS); renderForms(); rebuildGarment(); });
-document.getElementById('saveJson').addEventListener('click', () => download('body-profile.json', JSON.stringify({ body: state.body, garment: state.garment, look: state.look }, null, 2), 'application/json'));
-document.getElementById('loadJson').addEventListener('change', async (e) => {
-  const file = e.target.files[0]; if (!file) return;
-  try { const d = JSON.parse(await file.text()); Object.assign(state.body, d.body || {}); Object.assign(state.garment, d.garment || {}); Object.assign(state.look, d.look || {}); renderForms(); scheduleFit(true); }
-  catch { alert('Could not read that profile file.'); }
+$('vGuides').addEventListener('change', () => B && buildGuides());
+document.querySelectorAll('#shading button').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('#shading button').forEach((x) => x.classList.toggle('on', x === b));
+  state.shading = b.dataset.v; applyShading();
+}));
+$('avatarMode').addEventListener('change', (e) => { state.avatar = e.target.value; applyAvatarMode(); });
+$('vGarmentBtn').addEventListener('click', () => {
+  state.showGarment = !state.showGarment;
+  if (garmentGroup) garmentGroup.visible = state.showGarment;
+  $('vGarmentBtn').textContent = 'Garment ' + (state.showGarment ? '✓' : '✗');
 });
-document.getElementById('dlSvg').addEventListener('click', () => { renderPattern(); download('patiala-pattern.svg', lastSvg, 'image/svg+xml'); });
-document.getElementById('dlSpec').addEventListener('click', () => download('patiala-spec.json', JSON.stringify({ body: state.body, modelMeasured: state.fit?.achieved, garment: state.garment, fit: fitReport(state.body, state.garment), pieces: draftPattern({ ...state.body, waistHeight: B?.achieved.waistHeight ?? state.body.waistHeight }, state.garment) }, null, 2), 'application/json'));
-document.getElementById('printPat').addEventListener('click', () => {
-  renderPattern();
+document.querySelectorAll('#views button').forEach((b) => b.addEventListener('click', () => setView(b.dataset.v)));
+$('turn').addEventListener('click', () => { controls.autoRotate = !controls.autoRotate; $('turn').classList.toggle('on', controls.autoRotate); });
+$('simBtn').addEventListener('click', () => (simRunning ? stopSim() : (sim && sim.frame >= MAX_FRAMES && (sim.frame = 0), startSim())));
+$('resetDrape').addEventListener('click', () => rebuildGarment());
+$('toggle2d').addEventListener('click', () => { document.body.classList.toggle('no2d'); $('toggle2d').classList.toggle('on'); setTimeout(resize, 0); });
+addEventListener('keydown', (e) => { if (e.code === 'Space' && e.target === document.body) { e.preventDefault(); $('simBtn').click(); } });
+
+const download = (name, data, type) => {
+  const a = document.createElement('a');
+  a.href = typeof data === 'string' && data.startsWith('data:') ? data : URL.createObjectURL(new Blob([data], { type }));
+  a.download = name; a.click();
+};
+$('snap').addEventListener('click', () => { render(); download('fit-studio-render.png', canvas.toDataURL('image/png')); });
+$('resetBody').addEventListener('click', () => { Object.assign(state.body, BODY_DEFAULTS); renderForms(); scheduleFit(true); setView('front'); });
+$('resetGarment').addEventListener('click', () => { Object.assign(state.garment, GARMENT_DEFAULTS); renderForms(); rebuildGarment(); });
+$('saveJson').addEventListener('click', () => download('body-profile.json', JSON.stringify({ body: state.body, garment: state.garment, look: state.look, fabrics: state.fabrics }, null, 2), 'application/json'));
+$('loadJson').addEventListener('change', async (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  try {
+    const d = JSON.parse(await file.text());
+    Object.assign(state.body, d.body || {}); Object.assign(state.garment, d.garment || {}); Object.assign(state.look, d.look || {});
+    if (d.fabrics) Object.assign(state.fabrics, d.fabrics);
+    updateMaterials(); renderForms(); scheduleFit(true);
+  } catch { alert('Could not read that profile file.'); }
+});
+$('dlSvg').addEventListener('click', () => { lastSvg = patternSVG(patternInputs()); download('patiala-pattern.svg', lastSvg, 'image/svg+xml'); });
+$('dlSpec').addEventListener('click', () => download('patiala-spec.json', JSON.stringify({ body: state.body, avatarMeasured: state.fit?.achieved, garment: state.garment, fabrics: state.fabrics, fit: fitReport(state.body, state.garment), pieces: patternInputs() }, null, 2), 'application/json'));
+$('printPat').addEventListener('click', () => {
   const w = window.open('', '_blank');
-  w.document.write(`<html><head><title>Pattern</title><style>@page{margin:0}body{margin:0}</style></head><body>${lastSvg.replace(/^<\?xml[^>]*>/, '')}</body></html>`);
+  w.document.write(`<html><head><title>Pattern</title><style>@page{margin:0}body{margin:0}</style></head><body>${patternSVG(patternInputs()).replace(/^<\?xml[^>]*>/, '')}</body></html>`);
   w.document.close(); w.focus(); w.print();
 });
 
 function resize() {
   const w = canvas.clientWidth, h = canvas.clientHeight;
   renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+  if (composer) composer.setSize(w, h);
 }
 addEventListener('resize', resize);
+function render() { composer ? composer.render() : renderer.render(scene, camera); }
 
 renderForms();
 resize();
 setView('front');
-renderer.setAnimationLoop(() => { controls.update(); renderer.render(scene, camera); updateLabels(false); });
-status.textContent = 'Loading realistic body model…';
+renderer.setAnimationLoop(() => { controls.update(); simTick(); render(); updateLabels(false); });
 H = await loadHuman('assets/');
 refit();
 document.body.classList.add('ready');
-window.__studio = { state, refit, setView, get B() { return B; }, get garment() { return garmentGroup; } };
+window.__studio = { state, refit, setView, get B() { return B; }, get garment() { return garmentGroup; }, get sim() { return sim; }, get simRunning() { return simRunning; } };
