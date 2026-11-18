@@ -5,7 +5,7 @@ import * as THREE from '../vendor/three.module.js';
 export const FABRICS = {
   cotton: { name: 'Cotton lawn', gsm: 90, weave: 'plain', threadsPerCm: 28, roughness: 0.82, sheen: 0.35, sheenRoughness: 0.7, normalScale: 0.6, anisotropy: 0,
     phys: { bend: 0.35, friction: 0.45, damping: 0.96, gravity: 1.0 } },
-  silk: { name: 'Silk satin', gsm: 75, weave: 'satin', threadsPerCm: 40, roughness: 0.3, sheen: 1, sheenRoughness: 0.22, normalScale: 0.2, anisotropy: 0.75, clearcoat: 0.08,
+  silk: { name: 'Silk satin', gsm: 75, weave: 'satin', threadsPerCm: 40, roughness: 0.42, sheen: 0.9, sheenRoughness: 0.3, normalScale: 0.25, anisotropy: 0.35, clearcoat: 0,
     phys: { bend: 0.12, friction: 0.18, damping: 0.985, gravity: 1.0 } },
   georgette: { name: 'Georgette', gsm: 65, weave: 'crepe', threadsPerCm: 30, roughness: 0.92, sheen: 0.55, sheenRoughness: 0.45, normalScale: 0.9, anisotropy: 0,
     phys: { bend: 0.05, friction: 0.35, damping: 0.975, gravity: 0.9 } },
@@ -228,6 +228,7 @@ export function applyFabric(mat, spec) {
   Object.assign(mat, { roughness: F.roughness, sheen: F.sheen, sheenRoughness: F.sheenRoughness, anisotropy: F.anisotropy, clearcoat: F.clearcoat || 0, clearcoatRoughness: 0.4 });
   mat.sheenColor = new THREE.Color(spec.print === 'solid' ? shade(spec.ground, 1.35) : '#ffffff').lerp(new THREE.Color('#ffffff'), 0.35);
   if (spec.type === 'velvet') mat.sheenColor.set(shade(spec.ground, 1.8));
+  installWrinkles(mat);
   // inner layers lose depth ties against the garment worn over them
   if (spec.layer === 'inner') Object.assign(mat, { polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 4 });
   mat.needsUpdate = true;
@@ -255,4 +256,58 @@ export function swatch(spec, size = 64) {
   g.globalAlpha = 0.35; g.globalCompositeOperation = 'overlay'; g.drawImage(w, 0, 0, 256, 256, 0, 0, size, size);
   g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
   return c;
+}
+
+/**
+ * Compression wrinkles: a per-vertex 'wrinkle' attribute (x = cloth bunched across the grain,
+ * y = bunched along it; 0..1, from the solver) raises procedural fold relief in the shader.
+ * UVs are centimetres, so folds keep a real ~5 cm wavelength.
+ */
+export function installWrinkles(mat) {
+  if (mat.userData.wrinkles) return;
+  mat.userData.wrinkles = true;
+  mat.onBeforeCompile = (sh) => {
+    sh.uniforms.wrinkleStrength = { value: 0.45 };
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nattribute vec2 wrinkle;\nvarying vec2 vWrinkle;\nvarying vec2 vWuv;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWrinkle = wrinkle;\nvWuv = uv;');
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', '#include <common>\nuniform float wrinkleStrength;\nvarying vec2 vWrinkle;\nvarying vec2 vWuv;')
+      .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+      {
+        vec2 wk = clamp(vWrinkle, 0.0, 1.0);
+        if (wk.x + wk.y > 0.01) {
+          float u = vWuv.x, v = vWuv.y;
+          float h = wk.x * (sin(u * 1.15 + 1.8 * sin(v * 0.11)) + 0.35 * sin(u * 2.7 + v * 0.4))
+                  + wk.y * (sin(v * 1.3 + 1.6 * sin(u * 0.15)) + 0.35 * sin(v * 2.9 - u * 0.5));
+          vec3 dpx = dFdx(-vViewPosition), dpy = dFdy(-vViewPosition);
+          float dhx = dFdx(h), dhy = dFdy(h);
+          vec3 r1 = cross(dpy, normal), r2 = cross(normal, dpx);
+          float det = dot(dpx, r1);
+          vec3 grad = sign(det) * (dhx * r1 + dhy * r2) * wrinkleStrength;
+          normal = normalize(abs(det) * normal - grad);
+        }
+      }`);
+  };
+  mat.customProgramCacheKey = () => 'wrinkles';
+}
+
+/** Fill a mesh's 'wrinkle' attribute from how much each edge is shorter than its flat (UV, cm) length. */
+export function computeWrinkles(geo) {
+  const pos = geo.attributes.position.array, uv = geo.attributes.uv.array, idx = geo.index.array, n = pos.length / 3;
+  const acc = new Float32Array(n * 2), cnt = new Float32Array(n * 2);
+  const edge = (a, b) => {
+    const du = uv[a * 2] - uv[b * 2], dv = uv[a * 2 + 1] - uv[b * 2 + 1], luv = Math.hypot(du, dv);
+    if (luv < 0.05) return;
+    const l3 = Math.hypot(pos[a * 3] - pos[b * 3], pos[a * 3 + 1] - pos[b * 3 + 1], pos[a * 3 + 2] - pos[b * 3 + 2]);
+    const ratio = l3 / luv;
+    if (ratio < 0.5) return; // collapsed construction edges (neckline), not cloth compression
+    const c = Math.min(1, Math.max(0, (0.975 - ratio) * 10));
+    const k = Math.abs(du) > Math.abs(dv) ? 0 : 1;
+    acc[a * 2 + k] += c; acc[b * 2 + k] += c; cnt[a * 2 + k]++; cnt[b * 2 + k]++;
+  };
+  for (let t = 0; t < idx.length; t += 3) { edge(idx[t], idx[t + 1]); edge(idx[t + 1], idx[t + 2]); edge(idx[t + 2], idx[t]); }
+  const out = new Float32Array(n * 2);
+  for (let i = 0; i < n * 2; i++) out[i] = cnt[i] ? acc[i] / cnt[i] : 0;
+  geo.setAttribute('wrinkle', new THREE.BufferAttribute(out, 2));
 }

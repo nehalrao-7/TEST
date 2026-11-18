@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three.module.js';
-import { section, perimeter, inflate, scaleTo, smooth, smoothAlong, loftRings, frame, rng, V3 } from './drape.js';
+import { N, section, perimeter, inflate, scaleTo, smooth, smoothAlong, loftRings, frame, rng, V3 } from './drape.js';
 const { add, sub, mul } = V3;
 
 // Garment specs (cm). Ease = garment minus body.
@@ -199,7 +199,81 @@ export function buildGarment(B, m, g, mats, phys) {
     };
     mk(loftRings(lrs, { folds, groups: [{ from: 0, mat: 0 }, { from: cuffFrom, mat: 1 }] }), [mats.salwar, mats.cuff], 'salwar', [0, 1], 0.3);
   }
+  if (phys.dupatta) group.add(buildDupatta(B, mats, phys.dupatta, hemY));
   return { group, hemY };
+}
+
+// ---------------- Dupatta ----------------
+// A folded georgette stole laid over both shoulders and around the back of the neck, ends hanging in front.
+function buildDupatta(B, mats, fabric, hemY) {
+  const torso = B.pick(L.torso);
+  const surf = (y, x, front, gap) => {
+    const s = section(B.P, torso, [0, y, 0], Y, 2.2);
+    if (!s) return [x, y, front ? 12 : -12];
+    let best = null;
+    for (let k = 0; k < N; k++) {
+      const th = (k / N) * Math.PI * 2, px = s.c[0] + s.u[0] * Math.cos(th) * s.r[k] + s.v[0] * Math.sin(th) * s.r[k];
+      const pz = s.c[2] + s.u[2] * Math.cos(th) * s.r[k] + s.v[2] * Math.sin(th) * s.r[k];
+      if ((pz > s.c[2]) !== front) continue;
+      if (!best || Math.abs(px - x) < Math.abs(best[0] - x)) best = [px, pz];
+    }
+    return [x, y, best ? best[1] + (front ? gap : -gap) : 0];
+  };
+  const shoulderTop = (x) => {
+    let top = -1e9;
+    for (const i of torso) if (Math.abs(B.P[i * 3] - x) < 1.6 && Math.abs(B.P[i * 3 + 2]) < 5) top = Math.max(top, B.P[i * 3 + 1]);
+    return top;
+  };
+  const cx = 12.5, width = 19, endY = Math.max(B.kneeY + 12, hemY - 6);
+  const key = [];
+  for (const s of [1, -1]) {
+    const st = shoulderTop(s * 14);
+    const side = [
+      [surf(endY, s * cx, true, 6), [1, 0, 0]],
+      [surf(B.waistY, s * cx, true, 4.5), [1, 0, 0]],
+      [surf(B.bustY, s * cx, true, 3.5), [1, 0, 0]],
+      [surf(st - 5, s * cx, true, 2.5), [1, 0, 0]],
+      [[s * cx, st + 2.2, B.J['neck'][2]], [1, 0, 0]],
+      [surf(st - 4, s * (cx - 3), false, 2.5), [1, -0.6, 0]],
+    ];
+    key.push(s === 1 ? side : side.reverse());
+  }
+  const backC = surf(B.neckY - 10, 0, false, 2.5);
+  const pts = [...key[0], [backC, [0, -1, 0]], ...key[1]];
+  const curve = new THREE.CatmullRomCurve3(pts.map(([p]) => new THREE.Vector3(...p)), false, 'centripetal');
+  const len = curve.getLength(), rows = Math.round(len / 2.5) + 1, C = 12;
+  const pos = new Float32Array(rows * (C + 1) * 3), uv = new Float32Array(rows * (C + 1) * 2);
+  const pin = [];
+  const wAt = (t) => { // interpolate the authored across-width direction along the path
+    const f = t * (pts.length - 1), i = Math.min(pts.length - 2, Math.floor(f)), a = f - i;
+    const A = pts[i][1], Bv = pts[i + 1][1];
+    return new THREE.Vector3(A[0] * (1 - a) + Bv[0] * a, A[1] * (1 - a) + Bv[1] * a, A[2] * (1 - a) + Bv[2] * a);
+  };
+  for (let r = 0; r < rows; r++) {
+    const t = r / (rows - 1), p = curve.getPointAt(t), tan = curve.getTangentAt(t);
+    const w = wAt(curve.getUtoTmapping(t)).normalize();
+    w.sub(tan.clone().multiplyScalar(tan.dot(w))).normalize();
+    for (let c = 0; c <= C; c++) {
+      const o = (r * (C + 1) + c), off = (c / C - 0.5) * width;
+      pos[o * 3] = p.x + w.x * off; pos[o * 3 + 1] = p.y + w.y * off; pos[o * 3 + 2] = p.z + w.z * off;
+      uv[o * 2] = off; uv[o * 2 + 1] = -t * len;
+    }
+    if (p.y > B.neckY - 6 && Math.abs(Math.abs(p.x) - cx) < 2.5 && Math.abs(p.z - B.J['neck'][2]) < 3) pin.push(r);
+  }
+  const body = [], edge = [];
+  for (let r = 0; r < rows - 1; r++) for (let c = 0; c < C; c++) {
+    const a = r * (C + 1) + c, b = a + 1, d = a + C + 1, e = d + 1;
+    (c === 0 || c === C - 1 ? edge : body).push(a, d, b, b, d, e);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+  g.setIndex([...body, ...edge]); g.addGroup(0, body.length, 0); g.addGroup(body.length, edge.length, 1);
+  g.computeVertexNormals();
+  g.userData.rows = rows;
+  const mesh = new THREE.Mesh(g, [mats.dupatta, mats.trim]);
+  mesh.userData = { part: 'dupatta', piece: 'dupatta', pinRows: pin, thickness: (x, y) => (y < B.bustY + 4 ? 3.2 : 2.2), fabric };
+  return mesh;
 }
 
 // Fit report rows: [label, body, garment]

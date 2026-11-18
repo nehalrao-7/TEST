@@ -51,7 +51,7 @@
   .btn.pri { background:var(--acc2); border-color:var(--acc); }
   .chk { display:flex; gap:6px; align-items:center; margin:6px 0; color:var(--mute); }
   /* fabric library */
-  .chips { display:flex; gap:6px; margin:4px 0 8px; }
+  .chips { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin:4px 0 8px; }
   .chips button { flex:1; background:var(--panel2); border:1px solid var(--line); border-radius:6px; padding:6px; cursor:pointer; display:flex; gap:6px; align-items:center; justify-content:center; }
   .chips button.on { border-color:var(--acc); background:#1f3550; }
   .chips canvas { width:18px; height:18px; border-radius:4px; }
@@ -123,7 +123,9 @@
   <div class="pane on" id="pane-body">
     <div class="look">
       <label>Body <select id="look-sex"><option value="female">Female</option><option value="male">Male</option></select></label>
-      <label>Skin tone <select id="look-eth"><option value="asian">Light-medium</option><option value="caucasian">Light</option><option value="african">Deep</option></select></label>
+      <label>Skin tone <select id="look-eth"><option value="southasian">Fair Indian</option><option value="asian">Light-medium</option><option value="caucasian">Light</option><option value="african">Deep</option></select></label>
+      <label>Body shape <select id="look-shape"><option value="hourglass">Hourglass</option><option value="natural">Natural</option></select></label>
+      <label>Pose <select id="look-pose"><option value="relaxed">Relaxed</option><option value="model">Model stance</option><option value="apose">A-pose</option></select></label>
       <label>Hair <select id="look-hair"><option value="long01">Long</option><option value="ponytail01">Ponytail</option><option value="bob02">Bob</option><option value="none">None</option></select></label>
       <label>&nbsp;<span class="chk" style="margin:4px 0"><input type="checkbox" id="vGuides" checked> Tape guides</span></label>
     </div>
@@ -156,7 +158,8 @@
     </div>
     <div class="slider"><input type="range" id="printScale" min="3" max="40" step="0.5"><span id="printScaleVal"></span></div>
     <div class="grp">Trim</div>
-    <label class="chk"><input type="checkbox" id="zari" checked> Gold zari border on neck, hem &amp; sleeves</label>
+    <label class="chk"><input type="checkbox" id="zari" checked> Gold zari border on neck, hem, sleeves &amp; dupatta</label>
+    <label class="chk"><input type="checkbox" id="dupattaOn" checked> Dupatta over both shoulders</label>
   </div>
 </aside>
 <main>

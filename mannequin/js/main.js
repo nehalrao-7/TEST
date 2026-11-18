@@ -9,27 +9,26 @@ import { BODY_FIELDS, BODY_DEFAULTS } from './body.js';
 import { GARMENT_FIELDS, GARMENT_DEFAULTS, buildGarment, bodyContext, fitReport } from './garment.js';
 import { draftPattern, patternSVG } from './pattern.js';
 import { loadHuman, fitHuman, joints, fitProxy } from './human.js';
-import { FABRICS, PRINTS, applyFabric, zariMaterial, swatch, printCanvas } from './fabric.js';
+import { FABRICS, PRINTS, applyFabric, zariMaterial, swatch, printCanvas, installWrinkles, computeWrinkles } from './fabric.js';
 import { ClothSim, BodyCollider, LEGEND, simState } from './sim.js';
+import { poseMesh, POSES } from './pose.js';
+import { PROFILE } from './profile.js';
 
 const $ = (id) => document.getElementById(id);
-const STORE = 'fit-studio-3d-v3';
+const STORE = 'fit-studio-3d-v4';
 const saved = (() => { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } })();
-const FABRIC_DEFAULTS = {
-  kameez: { type: 'cotton', print: 'phulkari', ground: '#7d1435', accent: '#f2b33d', accent2: '#ff7a3d', scale: 14 },
-  salwar: { type: 'silk', print: 'solid', ground: '#e9b949', accent: '#7d1435', accent2: '#ffffff', scale: 10 },
-  cuff: { type: 'cotton', print: 'phulkari', ground: '#7d1435', accent: '#f2b33d', accent2: '#ff7a3d', scale: 8 },
-};
+const FABRIC_DEFAULTS = { dupatta: { type: 'georgette', print: 'phulkari', ground: '#d4a537', accent: '#b3122a', accent2: '#3fa66b', scale: 16 }, ...PROFILE.fabrics };
+const BODY_START = { ...BODY_DEFAULTS, ...PROFILE.body }, GARMENT_START = { ...GARMENT_DEFAULTS, ...PROFILE.garment };
 const state = {
-  body: { ...BODY_DEFAULTS, ...saved.body },
-  garment: { ...GARMENT_DEFAULTS, ...saved.garment },
-  look: { sex: 'female', eth: 'asian', hair: 'long01', ...saved.look },
+  body: { ...BODY_START, ...saved.body },
+  garment: { ...GARMENT_START, ...saved.garment },
+  look: { ...PROFILE.look, ...saved.look },
   fabrics: JSON.parse(JSON.stringify({ ...FABRIC_DEFAULTS, ...saved.fabrics })),
-  zari: saved.zari ?? true,
+  zari: saved.zari ?? true, dupatta: saved.dupatta ?? true,
   part: 'kameez', shading: 'fabric', avatar: 'real', showGarment: true,
   focus: null, fit: null, x: null,
 };
-const persist = () => { try { localStorage.setItem(STORE, JSON.stringify({ body: state.body, garment: state.garment, look: state.look, fabrics: state.fabrics, zari: state.zari })); } catch {} };
+const persist = () => { try { localStorage.setItem(STORE, JSON.stringify({ body: state.body, garment: state.garment, look: state.look, fabrics: state.fabrics, zari: state.zari, dupatta: state.dupatta })); } catch {} };
 
 // ---------------- renderer / studio ----------------
 const canvas = $('c');
@@ -91,12 +90,12 @@ const lashMat = new THREE.MeshStandardMaterial({ map: tex('assets/eyelashes.png'
 const hairMats = {};
 const hairMat = (name) => hairMats[name] ||= new THREE.MeshStandardMaterial({ map: tex(`assets/hair_${name}.png`), alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.55, color: '#6b5444' });
 const skinTex = {};
-const zari = zariMaterial();
+const zari = zariMaterial(); installWrinkles(zari);
 const heatMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75, side: THREE.DoubleSide });
 const hiMat = new THREE.MeshStandardMaterial({ color: '#3d9cf0', emissive: '#12406e', roughness: 0.6, side: THREE.DoubleSide });
 const mats = {};
 function updateMaterials() {
-  for (const part of ['kameez', 'salwar', 'cuff']) mats[part] = applyFabric(mats[part], { ...state.fabrics[part], layer: part === 'kameez' ? 'outer' : 'inner' });
+  for (const part of ['kameez', 'salwar', 'cuff', 'dupatta']) mats[part] = applyFabric(mats[part], { ...state.fabrics[part], layer: part === 'salwar' || part === 'cuff' ? 'inner' : 'outer' });
   mats.trim = state.zari ? zari : mats.kameez;
 }
 updateMaterials();
@@ -149,15 +148,21 @@ function scheduleFit(immediate = false) {
 
 function refit() {
   const t0 = performance.now();
-  const lookKey = state.look.sex + state.look.eth;
-  const fit = fitHuman(H, state.body, { sex: state.look.sex, eth: state.look.eth, x0: lookKey === lastLookKey ? state.x : null });
+  const lookKey = state.look.sex + state.look.eth + state.look.shape;
+  const fit = fitHuman(H, state.body, { sex: state.look.sex, eth: state.look.eth, shape: state.look.shape, x0: lookKey === lastLookKey ? state.x : null });
   lastLookKey = lookKey; state.fit = fit; state.x = fit.x;
-  const P = fit.P;
+  // measurements are fitted in the rest pose; then the rig poses the avatar
+  const P = poseMesh(H, fit.P, state.look.pose, H.rig);
+  const rawPosed = new Float32Array(P.length);
+  for (let i = 0; i < P.length; i += 3) { rawPosed[i] = P[i] / fit.scale; rawPosed[i + 1] = P[i + 1] / fit.scale + fit.floor; rawPosed[i + 2] = P[i + 2] / fit.scale; }
   B = bodyContext(H, P, H.labels, joints(H, P), fit.achieved);
 
   dispose(bodyMesh);
-  const skey = `${state.look.sex}-${state.look.eth}`;
+  const SKIN = { southasian: ['asian', '#f7dcc8'], asian: ['asian', '#ffffff'], caucasian: ['caucasian', '#ffffff'], african: ['african', '#ffffff'] };
+  const [texEth, tint] = SKIN[state.look.eth] || SKIN.asian;
+  const skey = `${state.look.sex}-${texEth}`;
   skin.map = skinTex[skey] ||= tex('assets/' + H.man.skins[skey]);
+  skin.color.set(tint);
   skin.needsUpdate = true;
   bodyMesh = new THREE.Mesh(geometryFrom(P, H.body.orig, H.body.uv, H.body.index), skin);
   bodyMesh.castShadow = bodyMesh.receiveShadow = true;
@@ -173,7 +178,7 @@ function refit() {
   proxyGroup = new THREE.Group();
   const addProxy = (name, mat, shadow = false) => {
     const p = H.proxies[name]; if (!p) return;
-    const ppos = fitProxy(H, p, fit.rawP, fit.scale, fit.floor);
+    const ppos = fitProxy(H, p, rawPosed, fit.scale, fit.floor);
     const n = p.refs.length / 3, ident = new Uint32Array(n).map((_, i) => i);
     const mesh = new THREE.Mesh(geometryFrom(ppos, ident, p.uv, p.index, false), mat);
     mesh.castShadow = shadow; mesh.renderOrder = mat.transparent ? 2 : 0;
@@ -201,7 +206,7 @@ function rebuildGarment({ drape = true } = {}) {
   if (!B) return;
   dispose(garmentGroup);
   const m = { ...state.body, waistHeight: B.achieved.waistHeight };
-  const { group } = buildGarment(B, m, state.garment, mats, { kameez: physFor('kameez'), salwar: physFor('salwar') });
+  const { group } = buildGarment(B, m, state.garment, mats, { kameez: physFor('kameez'), salwar: physFor('salwar'), dupatta: state.dupatta ? physFor('dupatta') : null });
   garmentGroup = group;
   garmentGroup.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.userData.fabricMat = o.material; } });
   garmentGroup.visible = state.showGarment;
@@ -228,6 +233,7 @@ function getWorker() {
       if (m.token !== simToken || !sim) return;
       sim.X.set(m.X); sim.frame = m.frame; sim.motion = m.motion;
       sim.sync();
+      if (m.frame % 6 === 0 || m.done) garmentGroup?.children.forEach((g) => computeWrinkles(g.geometry));
       if (state.shading !== 'fabric' && (m.frame % 6 === 0 || m.done)) applyShading();
       $('simbar').firstElementChild.style.width = Math.min(100, (m.frame / MAX_FRAMES) * 100) + '%';
       status.textContent = `Simulating · frame ${m.frame} · ${sim.n.toLocaleString()} particles`;
@@ -273,7 +279,7 @@ function applyShading() {
 
 function highlightPart(name) {
   if (!garmentGroup) return;
-  const piece = !name ? null : /SLEEVE/.test(name) ? 'sleeve' : /^Kameez/.test(name) ? 'bodice' : 'salwar';
+  const piece = !name ? null : /SLEEVE/.test(name) ? 'sleeve' : /^Kameez/.test(name) ? 'bodice' : /DUPATTA/.test(name) ? 'dupatta' : 'salwar';
   garmentGroup.children.forEach((m) => {
     const p = m.userData.part === 'salwar' ? 'salwar' : m.userData.piece;
     m.material = piece && p === piece ? hiMat : state.shading === 'fabric' ? m.userData.fabricMat : heatMat;
@@ -369,7 +375,7 @@ let lastSvg = '', patTimer = null;
 const patternInputs = () => draftPattern({ ...state.body, waistHeight: B ? B.achieved.waistHeight : state.body.waistHeight }, state.garment);
 function fabricFills() {
   const fills = {};
-  for (const part of ['kameez', 'salwar', 'cuff']) {
+  for (const part of ['kameez', 'salwar', 'cuff', 'dupatta']) {
     const f = state.fabrics[part], src = printCanvas(f.print, f.ground, f.accent, f.accent2), c = document.createElement('canvas');
     c.width = c.height = 256; c.getContext('2d').drawImage(src, 0, 0, 256, 256);
     fills[part] = { url: c.toDataURL('image/jpeg', 0.85), scale: f.print === 'solid' ? 50 : f.scale };
@@ -425,7 +431,7 @@ function buildFields(container, fields, obj, helpEl, isBody) {
 function renderFabricPanel() {
   const spec = state.fabrics[state.part];
   $('partChips').innerHTML = '';
-  for (const part of ['kameez', 'salwar', 'cuff']) {
+  for (const part of ['kameez', 'salwar', 'cuff', 'dupatta']) {
     const b = document.createElement('button');
     b.className = part === state.part ? 'on' : '';
     b.append(swatch(state.fabrics[part], 36), part === 'cuff' ? 'Cuffs' : part[0].toUpperCase() + part.slice(1));
@@ -451,13 +457,13 @@ function renderFabricPanel() {
   }
   $('colGround').value = spec.ground; $('colAccent').value = spec.accent; $('colAccent2').value = spec.accent2;
   $('printScale').value = spec.scale; $('printScaleVal').textContent = spec.scale + ' cm';
-  $('zari').checked = state.zari;
+  $('zari').checked = state.zari; $('dupattaOn').checked = state.dupatta;
 }
 let colorTimer = null;
 function fabricChanged(physics) {
   updateMaterials();
   if (garmentGroup) garmentGroup.children.forEach((m) => {
-    m.userData.fabricMat = m.userData.part === 'salwar' ? [mats.salwar, mats.cuff] : (Array.isArray(m.userData.fabricMat) ? [mats.kameez, mats.trim] : mats.kameez);
+    m.userData.fabricMat = m.userData.part === 'salwar' ? [mats.salwar, mats.cuff] : m.userData.part === 'dupatta' ? [mats.dupatta, mats.trim] : [mats.kameez, mats.trim];
   });
   applyShading();
   renderFabricPanel();
@@ -468,16 +474,17 @@ function fabricChanged(physics) {
 for (const [id, keyName] of [['colGround', 'ground'], ['colAccent', 'accent'], ['colAccent2', 'accent2']])
   $(id).addEventListener('input', (e) => { state.fabrics[state.part][keyName] = e.target.value; clearTimeout(colorTimer); colorTimer = setTimeout(() => fabricChanged(false), 60); });
 $('printScale').addEventListener('input', (e) => { state.fabrics[state.part].scale = +e.target.value; $('printScaleVal').textContent = e.target.value + ' cm'; updateMaterials(); renderPattern(); persist(); });
+$('dupattaOn').addEventListener('change', (e) => { state.dupatta = e.target.checked; rebuildGarment(); persist(); });
 $('zari').addEventListener('change', (e) => { state.zari = e.target.checked; updateMaterials(); rebuildGarment({ drape: false }); persist(); });
 
 // ---------------- UI: wiring ----------------
 const renderForms = () => {
   buildFields($('bodyFields'), BODY_FIELDS, state.body, $('helpBody'), true);
   buildFields($('garmentFields'), GARMENT_FIELDS, state.garment, $('helpGarment'), false);
-  for (const k of ['sex', 'eth', 'hair']) $('look-' + k).value = state.look[k];
+  for (const k of ['sex', 'eth', 'hair', 'shape', 'pose']) $('look-' + k).value = state.look[k];
   renderFabricPanel();
 };
-for (const k of ['sex', 'eth', 'hair']) $('look-' + k).addEventListener('change', (e) => { state.look[k] = e.target.value; k === 'hair' ? refit() : scheduleFit(true); persist(); });
+for (const k of ['sex', 'eth', 'hair', 'shape', 'pose']) $('look-' + k).addEventListener('change', (e) => { state.look[k] = e.target.value; k === 'hair' || k === 'pose' ? refit() : scheduleFit(true); persist(); });
 
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => {
   document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x === b));
@@ -518,8 +525,8 @@ async function download(name, data, type) {
   a.download = name; a.click();
 }
 $('snap').addEventListener('click', () => { render(); canvas.toBlob((b) => b && download('fit-studio-render.png', b, 'image/png'), 'image/png'); });
-$('resetBody').addEventListener('click', () => { Object.assign(state.body, BODY_DEFAULTS); renderForms(); scheduleFit(true); setView('front'); });
-$('resetGarment').addEventListener('click', () => { Object.assign(state.garment, GARMENT_DEFAULTS); renderForms(); rebuildGarment(); });
+$('resetBody').addEventListener('click', () => { Object.assign(state.body, BODY_START); renderForms(); scheduleFit(true); setView('front'); });
+$('resetGarment').addEventListener('click', () => { Object.assign(state.garment, GARMENT_START); renderForms(); rebuildGarment(); });
 $('saveJson').addEventListener('click', () => download('body-profile.json', JSON.stringify({ body: state.body, garment: state.garment, look: state.look, fabrics: state.fabrics }, null, 2), 'application/json'));
 $('loadJson').addEventListener('change', async (e) => {
   const file = e.target.files[0]; if (!file) return;

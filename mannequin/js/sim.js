@@ -171,7 +171,8 @@ export class ClothSim {
           const dx = X[b] - X[a], dy = X[b + 1] - X[a + 1], dz = X[b + 2] - X[a + 2];
           const len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1e-6;
           const r = rest[c];
-          const k = stiff[c];
+          // fabric resists stretch fully; under compression it gives a little and bunches
+      const k = len < rest[c] && this.kind[c] === 0 ? stiff[c] * 0.7 : stiff[c];
           const corr = ((len - r) / len / w) * k * (this.kind[c] ? 1 : omega);
           X[a] += dx * corr * wa; X[a + 1] += dy * corr * wa; X[a + 2] += dz * corr * wa;
           X[b] -= dx * corr * wb; X[b + 1] -= dy * corr * wb; X[b + 2] -= dz * corr * wb;

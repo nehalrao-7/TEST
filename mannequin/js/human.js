@@ -29,6 +29,7 @@ export async function loadHuman(base = 'assets/') {
   const H = {
     man, base: get('base'), n: man.nverts, targets, proxies, labels: get('labels'),
     body: { orig: get('body.orig'), uv: get('body.uv'), index: get('body.index') },
+    rig: man.buffers['skin.bones'] ? { bones: get('skin.bones'), weights: get('skin.weights') } : null,
   };
   // Mirror of the right shoulder-tip vertex for shoulder width.
   const sv = man.rulers['shoulder-dist'][1], b = H.base;
@@ -110,7 +111,9 @@ const FIT_KEYS = ['neck', 'shoulder', 'bust', 'underbust', 'waist', 'hip', 'thig
 
 function weightsFor(sex, eth, height, x) {
   const w = {};
-  w[`${sex}-${eth}`] = 1;
+  // ethnicity blends (MakeHuman ethnic sliders sum to 1); South Asian sits between the presets
+  const ETH = { southasian: { caucasian: 0.5, asian: 0.2, african: 0.3 } };
+  for (const [e, f] of Object.entries(ETH[eth] || { [eth]: 1 })) w[`${sex}-${e}`] = f;
   w[`${sex}-idealproportions`] = 0.5;
   const ref = sex === 'female' ? 166 : 177;
   const h = Math.max(-1, Math.min(1, (height - ref) / 22));
@@ -138,31 +141,38 @@ function solve(A, b) {
 }
 
 /** Fit the mesh to measurements. Returns {P (cm, feet at y=0), scale, achieved, x}. */
-export function fitHuman(H, m, { sex = 'female', eth = 'asian', x0 = null, iters = 30 } = {}) {
+// Shape preferences (a gentle pull, in cm-equivalent weight) used only where measurements
+// leave freedom. 'hourglass': waist made from width, not a forward belly; fuller bust/hip line.
+const SHAPES = {
+  hourglass: [['stomach-pregnant', -0.6, 4], ['torso-scale-depth', -0.3, 2], ['breast', 0.4, 2]],
+  natural: [],
+};
+export function fitHuman(H, m, { sex = 'female', eth = 'asian', x0 = null, iters = 30, shape = 'natural' } = {}) {
+  const prior = (SHAPES[shape] || []).map(([k, t, wt]) => [VARS.indexOf(k), t, wt]).filter(([i]) => i >= 0);
   let x = x0 ? [...x0] : VARS.map(() => 0);
   const evalAt = (xv) => {
     const P = morph(H, weightsFor(sex, eth, m.height, xv));
     const raw = measure(H, P);
     const s = m.height / raw.height; // final uniform scale makes height exact
-    return { P, raw, s, r: FIT_KEYS.map((k) => (m[k] - raw[k] * s) / (k === 'inseam' || k === 'shoulder' ? 2 : 1)) };
+    return { P, raw, s, r: FIT_KEYS.map((k) => (m[k] - raw[k] * s) / (k === 'inseam' || k === 'shoulder' ? 2 : 1)).concat(prior.map(([i, t, wt]) => wt * (t - xv[i]))) };
   };
   let cur = evalAt(x);
   const err = (e) => e.r.reduce((s, v) => s + v * v, 0);
   let lam = 0.05, J = null;
   for (let it = 0; it < iters; it++) {
     if (!J) {
-      J = FIT_KEYS.map(() => new Array(VARS.length).fill(0));
+      J = cur.r.map(() => new Array(VARS.length).fill(0));
       const h = 0.1;
       VARS.forEach((_, k) => {
         const xp = [...x]; xp[k] += x[k] + h > HI[k] ? -h : h;
         const e = evalAt(xp);
-        FIT_KEYS.forEach((_, j) => { J[j][k] = -(e.r[j] - cur.r[j]) / (xp[k] - x[k]); });
+        cur.r.forEach((_, j) => { J[j][k] = -(e.r[j] - cur.r[j]) / (xp[k] - x[k]); });
       });
     }
     const n = VARS.length;
-    const JtJ = Array.from({ length: n }, (_, a) => Array.from({ length: n }, (_, c) => FIT_KEYS.reduce((s, _, j) => s + J[j][a] * J[j][c], 0)));
+    const JtJ = Array.from({ length: n }, (_, a) => Array.from({ length: n }, (_, c) => J.reduce((s, row) => s + row[a] * row[c], 0)));
     const A = JtJ.map((row, a) => row.map((v, c) => v + (a === c ? lam * (1 + JtJ[a][a]) : 0)));
-    const g = Array.from({ length: n }, (_, a) => FIT_KEYS.reduce((s, _, j) => s + J[j][a] * cur.r[j], 0));
+    const g = Array.from({ length: n }, (_, a) => J.reduce((s, row, j) => s + row[a] * cur.r[j], 0));
     const dx = solve(A, g);
     const nx = x.map((v, k) => Math.max(LO[k], Math.min(HI[k], v + dx[k])));
     const ne = evalAt(nx);

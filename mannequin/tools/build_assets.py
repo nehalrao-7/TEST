@@ -140,6 +140,23 @@ for key, f in [('female-asian', 'young_lightskinned_female_diffuse3'), ('female-
     skins[key] = tex(f'{AS}/skins/textures/{f}.png', f'skin_{key}.jpg', 2048, 'JPEG')
 manifest['skins'] = skins
 
+# Skeleton + skin weights (MakeHuman default rig, CC0): top-4 influences per vertex
+RIG = f'{MH}/rigs'
+if os.path.exists(f'{RIG}/default.mhskel'):
+    sk = json.load(open(f'{RIG}/default.mhskel'))
+    names = list(sk['bones'].keys())
+    bones = [{'name': n, 'head': sk['bones'][n]['head'], 'tail': sk['bones'][n]['tail'], 'parent': sk['bones'][n]['parent']} for n in names]
+    manifest['rig'] = {'bones': bones, 'joints': sk['joints']}
+    W = json.load(open(f'{RIG}/default_weights.mhw'))['weights']
+    inf = [[] for _ in range(len(V))]
+    for bi, n in enumerate(names):
+        for v, w in W.get(n, []): inf[v].append((w, bi))
+    bi4 = np.zeros((len(V), 4), np.uint16); w4 = np.zeros((len(V), 4), np.float32)
+    for v, lst in enumerate(inf):
+        lst.sort(reverse=True); lst = lst[:4]; tot = sum(w for w, _ in lst) or 1
+        for k, (w, b) in enumerate(lst): bi4[v, k] = b; w4[v, k] = w / tot
+    put('skin.bones', bi4); put('skin.weights', w4)
+
 # Measurement rulers: vertex polylines from MakeHuman's measurement plugin.
 manifest['rulers'] = json.load(open(os.path.join(os.path.dirname(__file__), 'rulers.json')))
 open(f'{OUT}/human.bin', 'wb').write(blob)
