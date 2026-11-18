@@ -10,12 +10,14 @@ import { GARMENT_FIELDS, GARMENT_DEFAULTS, buildGarment, bodyContext, fitReport 
 import { draftPattern, patternSVG } from './pattern.js';
 import { loadHuman, fitHuman, joints, fitProxy } from './human.js';
 import { FABRICS, PRINTS, applyFabric, zariMaterial, swatch, printCanvas, installWrinkles, computeWrinkles } from './fabric.js';
-import { ClothSim, BodyCollider, LEGEND, simState } from './sim.js';
+import { ClothSim, BodyCollider, LEGEND, simState, legBridge } from './sim.js';
+import { section, N as RING_N } from './drape.js';
 import { poseMesh, POSES } from './pose.js';
 import { PROFILE } from './profile.js';
+import { effectiveBody } from './proportions.js';
 
 const $ = (id) => document.getElementById(id);
-const STORE = 'fit-studio-3d-v6';
+const STORE = 'fit-studio-3d-v7';
 const saved = (() => { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } })();
 const FABRIC_DEFAULTS = { dupatta: { type: 'georgette', print: 'phulkari', ground: '#d4a537', accent: '#b3122a', accent2: '#3fa66b', scale: 16 }, ...PROFILE.fabrics };
 const BODY_START = { ...BODY_DEFAULTS, ...PROFILE.body }, GARMENT_START = { ...GARMENT_DEFAULTS, ...PROFILE.garment };
@@ -24,10 +26,12 @@ const state = {
   garment: { ...GARMENT_START, ...saved.garment },
   look: { ...PROFILE.look, ...saved.look },
   fabrics: JSON.parse(JSON.stringify({ ...FABRIC_DEFAULTS, ...saved.fabrics })),
-  zari: saved.zari ?? true, dupatta: saved.dupatta ?? true, construction: saved.construction ?? 'sewn',
+  zari: saved.zari ?? true, dupatta: saved.dupatta ?? false, construction: saved.construction ?? 'sewn',
   part: 'kameez', shading: 'fabric', avatar: 'real', showGarment: true,
   focus: null, fit: null, x: null,
 };
+// the body the avatar and garment are built for (her measurements, or a proportion mode)
+const eff = () => effectiveBody(state.body, state.look.proportions || 'measured');
 const persist = () => { try { localStorage.setItem(STORE, JSON.stringify({ body: state.body, garment: state.garment, look: state.look, fabrics: state.fabrics, zari: state.zari, dupatta: state.dupatta, construction: state.construction })); } catch {} };
 
 // ---------------- renderer / studio ----------------
@@ -102,7 +106,7 @@ function updateMaterials() {
 updateMaterials();
 const physFor = (part) => (FABRICS[state.fabrics[part].type] || FABRICS.cotton).phys;
 
-let H, bodyMesh, proxyGroup, garmentGroup, guideGroup, guides = {}, B, collider, sim = null, simRunning = false;
+let H, bodyMesh, proxyGroup, garmentGroup, guideGroup, guides = {}, B, collider, bridge = null, sim = null, simRunning = false;
 const labelsEl = $('labels'), labelEls = {}, status = $('status');
 
 function setView(dir) {
@@ -149,8 +153,8 @@ function scheduleFit(immediate = false) {
 
 function refit() {
   const t0 = performance.now();
-  const lookKey = state.look.sex + state.look.eth + state.look.shape + state.look.face;
-  const fit = fitHuman(H, state.body, { sex: state.look.sex, eth: state.look.eth, shape: state.look.shape, face: state.look.face, x0: lookKey === lastLookKey ? state.x : null });
+  const lookKey = state.look.sex + state.look.eth + state.look.shape + state.look.face + state.look.proportions;
+  const fit = fitHuman(H, eff(), { sex: state.look.sex, eth: state.look.eth, shape: state.look.shape, face: state.look.face, x0: lookKey === lastLookKey ? state.x : null });
   lastLookKey = lookKey; state.fit = fit; state.x = fit.x;
   // measurements are fitted in the rest pose; then the rig poses the avatar
   const P = poseMesh(H, fit.P, state.look.pose, H.rig);
@@ -174,6 +178,9 @@ function refit() {
   const seen = new Set(), cp = [], cn = [];
   H.body.orig.forEach((o, k) => { if (seen.has(o)) return; seen.add(o); cp.push(pos[k * 3], pos[k * 3 + 1], pos[k * 3 + 2]); cn.push(nor[k * 3], nor[k * 3 + 1], nor[k * 3 + 2]); });
   collider = new BodyCollider(new Float32Array(cp), new Float32Array(cn));
+  // span the gap between the legs for outer garments
+  const legIdx = B.pick(5, 6, 11, 12);
+  bridge = legBridge(P, legIdx, B.crotchY + 2, Math.max(3, B.kneeY - 22), section, RING_N);
 
   dispose(proxyGroup);
   proxyGroup = new THREE.Group();
@@ -208,14 +215,14 @@ function applyAvatarMode() {
 function rebuildGarment({ drape = true } = {}) {
   if (!B) return;
   dispose(garmentGroup);
-  const m = { ...state.body, waistHeight: B.achieved.waistHeight };
+  const m = { ...eff(), waistHeight: B.achieved.waistHeight };
   const { group } = buildGarment(B, m, state.garment, mats, { kameez: physFor('kameez'), salwar: physFor('salwar'), dupatta: state.dupatta ? physFor('dupatta') : null, sewn: state.construction === 'sewn' });
   garmentGroup = group;
   garmentGroup.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.userData.fabricMat = o.material; } });
   garmentGroup.visible = state.showGarment;
   scene.add(garmentGroup);
   simRunning = false; worker?.postMessage({ type: 'stop' }); simToken++; simStarted = false;
-  sim = new ClothSim(garmentGroup.children, collider);
+  sim = new ClothSim(garmentGroup.children, collider, bridge);
   if (drape) startSim(); else applyShading();
   buildGuides();
   renderFit();
@@ -342,7 +349,7 @@ function updateLabels(refresh) {
     if (!el) { el = labelEls[f.key] = document.createElement('div'); el.className = 'lbl'; labelsEl.appendChild(el); }
     const gd = guides[f.key];
     if (!show || !gd) { el.style.display = 'none'; continue; }
-    if (refresh) el.textContent = `${f.label}: ${state.body[f.key]}`;
+    if (refresh) el.textContent = `${f.label}: ${+eff()[f.key].toFixed(1)}`;
     const hi = f.key === state.focus;
     el.classList.toggle('hi', hi);
     const p = gd.anchor.clone().project(camera);
@@ -359,7 +366,13 @@ function renderAchieved() {
     if (!el || !state.fit) continue;
     const a = state.fit.achieved[f.key];
     if (a === undefined) { el.textContent = ''; continue; }
-    const off = a - state.body[f.key];
+    const target = eff()[f.key], mode = state.look.proportions;
+    if (mode !== 'measured' && f.key !== 'waistHeight' && Math.abs(target - state.body[f.key]) > 0.05) {
+      el.textContent = `→${target.toFixed(0)}`; el.className = 'got';
+      el.title = `Proportion mode shapes the avatar to ${target.toFixed(1)} cm (avatar measures ${a.toFixed(1)}). Choose "Her exact measurements" to use ${state.body[f.key]}.`;
+      continue;
+    }
+    const off = a - target;
     el.textContent = f.key === 'waistHeight' ? a.toFixed(1) : Math.abs(off) < 0.6 ? '✓' : `${off > 0 ? '+' : ''}${off.toFixed(1)}`;
     el.className = 'got ' + (f.key === 'waistHeight' ? '' : Math.abs(off) < 0.6 ? 'ok' : Math.abs(off) < 2 ? 'warn' : 'bad');
     el.title = `Avatar measures ${a.toFixed(1)} cm`;
@@ -367,7 +380,7 @@ function renderAchieved() {
 }
 
 function renderFit() {
-  const rows = fitReport(state.body, state.garment);
+  const rows = fitReport(eff(), state.garment);
   $('fit').innerHTML = `<b>Fit check</b><table><tr><th></th><th>Body</th><th>Garment</th><th>Ease</th><th></th></tr>${rows
     .map((r) => `<tr><td>${r.label}</td><td>${r.body.toFixed(1)}</td><td>${r.garment.toFixed(1)}</td><td>${r.ease >= 0 ? '+' : ''}${r.ease.toFixed(1)}</td><td class="${r.cls}">${r.status}</td></tr>`)
     .join('')}</table>`;
@@ -375,7 +388,7 @@ function renderFit() {
 
 // ---------------- 2D pattern window ----------------
 let lastSvg = '', patTimer = null;
-const patternInputs = () => draftPattern({ ...state.body, waistHeight: B ? B.achieved.waistHeight : state.body.waistHeight }, state.garment);
+const patternInputs = () => draftPattern({ ...eff(), waistHeight: B ? B.achieved.waistHeight : state.body.waistHeight }, state.garment);
 function fabricFills() {
   const fills = {};
   for (const part of ['kameez', 'salwar', 'cuff', 'dupatta']) {
@@ -485,11 +498,11 @@ $('zari').addEventListener('change', (e) => { state.zari = e.target.checked; upd
 const renderForms = () => {
   buildFields($('bodyFields'), BODY_FIELDS, state.body, $('helpBody'), true);
   buildFields($('garmentFields'), GARMENT_FIELDS, state.garment, $('helpGarment'), false);
-  for (const k of ['sex', 'eth', 'hair', 'shape', 'pose', 'face', 'eyes', 'hairColor']) $('look-' + k).value = state.look[k];
+  for (const k of ['sex', 'eth', 'hair', 'shape', 'pose', 'face', 'eyes', 'hairColor', 'proportions']) $('look-' + k).value = state.look[k];
   $('construction').value = state.construction;
   renderFabricPanel();
 };
-for (const k of ['sex', 'eth', 'hair', 'shape', 'pose', 'face', 'eyes', 'hairColor']) $('look-' + k).addEventListener('change', (e) => { state.look[k] = e.target.value; ['hair', 'pose', 'eyes', 'hairColor'].includes(k) ? refit() : scheduleFit(true); persist(); });
+for (const k of ['sex', 'eth', 'hair', 'shape', 'pose', 'face', 'eyes', 'hairColor', 'proportions']) $('look-' + k).addEventListener('change', (e) => { state.look[k] = e.target.value; ['hair', 'pose', 'eyes', 'hairColor'].includes(k) ? refit() : scheduleFit(true); persist(); });
 
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => {
   document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x === b));

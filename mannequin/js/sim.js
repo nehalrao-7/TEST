@@ -45,8 +45,9 @@ export class ClothSim {
   /**
    * meshes: garment meshes; each mesh.userData = { pinRows:[], thickness, fabric:{bend, friction, damping, gravity} }
    */
-  constructor(meshes, collider) {
-    this.meshes = meshes; this.collider = collider;
+  constructor(meshes, collider, bridge = null) {
+    this.meshes = meshes; this.collider = collider; this.bridge = bridge;
+    const bridgeFlags = [];
     const X = [], inv = [], thick = [], fric = [], damp = [], grav = [];
     const ca = [], cb = [], rest = [], stiff = [], kind = [];
     const ta = [], tb = [], tl = [];
@@ -65,6 +66,7 @@ export class ClothSim {
           X.push(pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]);
           const r = Math.floor(v / row);
           inv.push((ud.pinRows || []).includes(r) ? 0 : 1);
+          bridgeFlags.push(ud.bridge ? 1 : 0);
           thick.push(typeof ud.thickness === 'function' ? ud.thickness(pos[v * 3], pos[v * 3 + 1], pos[v * 3 + 2]) : ud.thickness ?? 0.4); fric.push(fab.friction); damp.push(fab.damping); grav.push(fab.gravity);
         } else if ((ud.pinRows || []).includes(Math.floor(v / row))) inv[p] = 0;
         map[v] = p;
@@ -111,6 +113,7 @@ export class ClothSim {
     this.X = new Float32Array(X); this.prev = new Float32Array(X); this.inv = new Float32Array(inv);
     this.thick = new Float32Array(thick); this.fric = new Float32Array(fric); this.damp = new Float32Array(damp); this.grav = new Float32Array(grav);
     this.ca = new Int32Array(ca); this.cb = new Int32Array(cb); this.rest = new Float32Array(rest); this.stiff = new Float32Array(stiff); this.kind = new Uint8Array(kind);
+    this.bridgeMask = new Uint8Array(bridgeFlags);
     this.ta = new Int32Array(ta); this.tb = new Int32Array(tb); this.tl = new Float32Array(tl);
     this.n = this.X.length / 3; this.frame = 0; this.motion = Infinity;
     // particles with no cloth constraints (slit edges, unused seam points) stay put
@@ -120,10 +123,16 @@ export class ClothSim {
   }
 
   collide() {
-    const { X, prev, n, inv, thick, fric, collider } = this;
+    this.collideWith(this.collider, null);
+    // outer garments also rest on a 'bridge' surface spanning the gap between the legs
+    if (this.bridge) this.collideWith(this.bridge, this.bridgeMask);
+  }
+
+  collideWith(collider, mask) {
+    const { X, prev, n, inv, thick, fric } = this;
     const P = collider.P, Nn = collider.N;
     for (let i = 0; i < n; i++) {
-      if (!inv[i]) continue;
+      if (!inv[i] || (mask && !mask[i])) continue;
       const x = X[i * 3], y = X[i * 3 + 1], z = X[i * 3 + 2];
       const b = collider.nearest(x, y, z);
       if (b < 0) continue;
@@ -253,18 +262,44 @@ function rampColor(mode, v, out) {
 }
 
 // ---------- Web Worker transport ----------
-const SIM_FIELDS = ['X', 'prev', 'inv', 'thick', 'fric', 'damp', 'grav', 'ca', 'cb', 'rest', 'stiff', 'kind', 'ta', 'tb', 'tl', 'n'];
+const SIM_FIELDS = ['X', 'prev', 'inv', 'thick', 'fric', 'damp', 'grav', 'ca', 'cb', 'rest', 'stiff', 'kind', 'ta', 'tb', 'tl', 'n', 'bridgeMask'];
 /** Plain-data snapshot of a sim (and its collider) for a worker. */
 export function simState(sim) {
   const st = {}; for (const f of SIM_FIELDS) st[f] = sim[f];
   const c = sim.collider;
-  st.collider = { P: c.P, N: c.N, h: c.h, mask: c.mask, start: c.start, ent: c.ent };
+  const pack = (c) => c && { P: c.P, N: c.N, h: c.h, mask: c.mask, start: c.start, ent: c.ent };
+  st.collider = pack(c); st.bridge = pack(sim.bridge);
   return st;
 }
 export function simFromState(st) {
   const sim = Object.create(ClothSim.prototype);
   for (const f of SIM_FIELDS) sim[f] = st[f];
   sim.collider = Object.assign(Object.create(BodyCollider.prototype), st.collider);
+  sim.bridge = st.bridge ? Object.assign(Object.create(BodyCollider.prototype), st.bridge) : null;
   sim.frame = 0; sim.motion = Infinity;
   return sim;
+}
+
+/**
+ * Bridge collider: the convex outline around both legs from the crotch down, so skirts and
+ * tunics hang across the gap between the legs instead of sinking into it.
+ */
+export function legBridge(P, legIdx, yTop, yBottom, section, N) {
+  const pts = [], nor = [];
+  for (let y = yTop; y >= yBottom; y -= 1) {
+    const s = section(P, legIdx, [0, y, 0], [0, 1, 0], 1.5);
+    if (!s) continue;
+    const ring = [];
+    for (let k = 0; k < N; k++) {
+      const th = (k / N) * Math.PI * 2;
+      ring.push([s.c[0] + s.u[0] * Math.cos(th) * s.r[k] + s.v[0] * Math.sin(th) * s.r[k], y, s.c[2] + s.u[2] * Math.cos(th) * s.r[k] + s.v[2] * Math.sin(th) * s.r[k]]);
+    }
+    for (let k = 0; k < N; k++) {
+      const a = ring[(k + N - 1) % N], b = ring[(k + 1) % N], tx = b[0] - a[0], tz = b[2] - a[2];
+      let nx = tz, nz = -tx; const l = Math.hypot(nx, nz) || 1; nx /= l; nz /= l;
+      if ((ring[k][0] - s.c[0]) * nx + (ring[k][2] - s.c[2]) * nz < 0) { nx = -nx; nz = -nz; }
+      pts.push(...ring[k]); nor.push(nx, 0, nz);
+    }
+  }
+  return pts.length ? new BodyCollider(new Float32Array(pts), new Float32Array(nor), 2.0) : null;
 }

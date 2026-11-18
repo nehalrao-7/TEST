@@ -48,6 +48,7 @@ export const PROFILE = {
     "shape": "hourglass",
     "pose": "scurve",
     "face": "soft",
+    "proportions": "balanced",
     "eyes": "green",
     "hairColor": "#33241c"
   },

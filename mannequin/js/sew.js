@@ -256,7 +256,7 @@ export function buildSewnKameez(B, m, g, mats, fabric, { h = 1.6 } = {}) {
   geo.computeVertexNormals();
   geo.userData.rows = 1;
   const mesh = new THREE.Mesh(geo, [mats.kameez, mats.trim]);
-  mesh.userData = { part: 'kameez', piece: 'bodice', pinRows: [], seams, sewn: true, fabric,
+  mesh.userData = { part: 'kameez', piece: 'bodice', pinRows: [], seams, sewn: true, fabric, bridge: true,
     thickness: (x, y) => (y < B.waistY + 4 ? 1.4 : 0.45) };
   return mesh;
 }

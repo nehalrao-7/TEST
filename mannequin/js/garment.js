@@ -76,7 +76,7 @@ export function buildGarment(B, m, g, mats, phys) {
   const rand = rng(7);
   const mk = (geo, materials, part, pinRows, thickness) => {
     const mesh = new THREE.Mesh(geo, materials);
-    mesh.userData = { part, pinRows, thickness, fabric: phys[part], piece: part === 'salwar' ? 'salwar' : pinRows.length === 1 ? 'bodice' : 'sleeve' };
+    mesh.userData = { part, pinRows, thickness, fabric: phys[part], piece: part === 'salwar' ? 'salwar' : pinRows.length === 1 ? 'bodice' : 'sleeve', bridge: part === 'kameez' };
     group.add(mesh);
     return mesh;
   };
@@ -282,7 +282,7 @@ function buildDupatta(B, mats, fabric, hemY) {
   g.computeVertexNormals();
   g.userData.rows = rows;
   const mesh = new THREE.Mesh(g, [mats.dupatta, mats.trim]);
-  mesh.userData = { part: 'dupatta', piece: 'dupatta', pinRows: pin, thickness: (x, y) => (y < B.bustY + 4 ? 3.2 : 2.2), fabric };
+  mesh.userData = { part: 'dupatta', piece: 'dupatta', bridge: true, pinRows: pin, thickness: (x, y) => (y < B.bustY + 4 ? 3.2 : 2.2), fabric };
   return mesh;
 }
 
