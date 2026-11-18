@@ -92,6 +92,11 @@ export class ClothSim {
         if (d < 1e-3) return;
         ca.push(a); cb.push(b); rest.push(d); stiff.push(k); kind.push(t);
       };
+      // sewing: seam pairs become zero-length constraints (kind 2), ramped in by step()
+      for (const [va, vb] of ud.seams || []) {
+        const a = map[va], b = map[vb];
+        if (a !== b) { ca.push(a); cb.push(b); rest.push(0); stiff.push(1); kind.push(2); }
+      }
       for (let t = 0; t < idx.length; t += 3) {
         const tri = [map[idx[t]], map[idx[t + 1]], map[idx[t + 2]]];
         for (let e = 0; e < 3; e++) {
@@ -153,7 +158,8 @@ export class ClothSim {
 
   step({ substeps = this.substeps ?? 1, iterations = this.iterations ?? 10, dt = 1 / 60, omega = this.omega ?? 1 } = {}) {
     const { X, prev, inv, n, ca, cb, rest, stiff, damp, grav } = this;
-    const h = dt / substeps, g = -981 * h * h;
+    const h = dt / substeps, sewing = this.frame < 24, g = -981 * h * h * (sewing ? 0.1 : 1);
+    const seamK = Math.min(1, (this.frame + 1) / 20);
     let motion = 0;
     for (let s = 0; s < substeps; s++) {
       for (let i = 0; i < n; i++) {
@@ -172,7 +178,8 @@ export class ClothSim {
           const len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1e-6;
           const r = rest[c];
           // fabric resists stretch fully; under compression it gives a little and bunches
-      const k = len < rest[c] && this.kind[c] === 0 ? stiff[c] * 0.7 : stiff[c];
+          const kc = this.kind[c];
+          const k = kc === 2 ? seamK : len < r && kc === 0 ? stiff[c] * 0.7 : stiff[c];
           const corr = ((len - r) / len / w) * k * (this.kind[c] ? 1 : omega);
           X[a] += dx * corr * wa; X[a + 1] += dy * corr * wa; X[a + 2] += dz * corr * wa;
           X[b] -= dx * corr * wb; X[b + 1] -= dy * corr * wb; X[b + 2] -= dz * corr * wb;

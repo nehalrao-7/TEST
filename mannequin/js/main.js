@@ -24,11 +24,11 @@ const state = {
   garment: { ...GARMENT_START, ...saved.garment },
   look: { ...PROFILE.look, ...saved.look },
   fabrics: JSON.parse(JSON.stringify({ ...FABRIC_DEFAULTS, ...saved.fabrics })),
-  zari: saved.zari ?? true, dupatta: saved.dupatta ?? true,
+  zari: saved.zari ?? true, dupatta: saved.dupatta ?? true, construction: saved.construction ?? 'sewn',
   part: 'kameez', shading: 'fabric', avatar: 'real', showGarment: true,
   focus: null, fit: null, x: null,
 };
-const persist = () => { try { localStorage.setItem(STORE, JSON.stringify({ body: state.body, garment: state.garment, look: state.look, fabrics: state.fabrics, zari: state.zari, dupatta: state.dupatta })); } catch {} };
+const persist = () => { try { localStorage.setItem(STORE, JSON.stringify({ body: state.body, garment: state.garment, look: state.look, fabrics: state.fabrics, zari: state.zari, dupatta: state.dupatta, construction: state.construction })); } catch {} };
 
 // ---------------- renderer / studio ----------------
 const canvas = $('c');
@@ -206,7 +206,7 @@ function rebuildGarment({ drape = true } = {}) {
   if (!B) return;
   dispose(garmentGroup);
   const m = { ...state.body, waistHeight: B.achieved.waistHeight };
-  const { group } = buildGarment(B, m, state.garment, mats, { kameez: physFor('kameez'), salwar: physFor('salwar'), dupatta: state.dupatta ? physFor('dupatta') : null });
+  const { group } = buildGarment(B, m, state.garment, mats, { kameez: physFor('kameez'), salwar: physFor('salwar'), dupatta: state.dupatta ? physFor('dupatta') : null, sewn: state.construction === 'sewn' });
   garmentGroup = group;
   garmentGroup.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.userData.fabricMat = o.material; } });
   garmentGroup.visible = state.showGarment;
@@ -221,7 +221,7 @@ function rebuildGarment({ drape = true } = {}) {
 }
 
 // The solver runs in a Web Worker so orbiting stays smooth while the cloth drapes.
-const SIM_PARAMS = { substeps: 2, iterations: 8, omega: 1.5, maxFrames: 140, rest: 0.04 };
+const SIM_PARAMS = { substeps: 4, iterations: 10, omega: 1.5, maxFrames: 150, rest: 0.09 };
 const MAX_FRAMES = SIM_PARAMS.maxFrames;
 let worker = null, simToken = 0, workerFailed = false;
 function getWorker() {
@@ -262,7 +262,7 @@ function simTick() {
   if (state.shading !== 'fabric' && sim.frame % 6 === 0) applyShading();
   $('simbar').firstElementChild.style.width = Math.min(100, (sim.frame / MAX_FRAMES) * 100) + '%';
   status.textContent = `Simulating · frame ${sim.frame} · ${sim.n.toLocaleString()} particles`;
-  if (sim.frame >= MAX_FRAMES || (sim.frame > 40 && sim.motion < 0.04)) { stopSim(); status.textContent = `Draped · ${sim.n.toLocaleString()} particles · ${sim.frame} frames`; }
+  if (sim.frame >= MAX_FRAMES || (sim.frame > 40 && sim.motion < SIM_PARAMS.rest)) { stopSim(); status.textContent = `Draped · ${sim.n.toLocaleString()} particles · ${sim.frame} frames`; }
 }
 
 function applyShading() {
@@ -474,6 +474,7 @@ function fabricChanged(physics) {
 for (const [id, keyName] of [['colGround', 'ground'], ['colAccent', 'accent'], ['colAccent2', 'accent2']])
   $(id).addEventListener('input', (e) => { state.fabrics[state.part][keyName] = e.target.value; clearTimeout(colorTimer); colorTimer = setTimeout(() => fabricChanged(false), 60); });
 $('printScale').addEventListener('input', (e) => { state.fabrics[state.part].scale = +e.target.value; $('printScaleVal').textContent = e.target.value + ' cm'; updateMaterials(); renderPattern(); persist(); });
+$('construction').addEventListener('change', (e) => { state.construction = e.target.value; rebuildGarment(); persist(); });
 $('dupattaOn').addEventListener('change', (e) => { state.dupatta = e.target.checked; rebuildGarment(); persist(); });
 $('zari').addEventListener('change', (e) => { state.zari = e.target.checked; updateMaterials(); rebuildGarment({ drape: false }); persist(); });
 
@@ -482,6 +483,7 @@ const renderForms = () => {
   buildFields($('bodyFields'), BODY_FIELDS, state.body, $('helpBody'), true);
   buildFields($('garmentFields'), GARMENT_FIELDS, state.garment, $('helpGarment'), false);
   for (const k of ['sex', 'eth', 'hair', 'shape', 'pose']) $('look-' + k).value = state.look[k];
+  $('construction').value = state.construction;
   renderFabricPanel();
 };
 for (const k of ['sex', 'eth', 'hair', 'shape', 'pose']) $('look-' + k).addEventListener('change', (e) => { state.look[k] = e.target.value; k === 'hair' || k === 'pose' ? refit() : scheduleFit(true); persist(); });

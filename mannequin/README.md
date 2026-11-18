@@ -40,3 +40,15 @@ Assets are prebuilt in `assets/`. To rebuild them: `python3 tools/build_assets.p
   UVs are in real centimetres, so a 14 cm repeat is 14 cm on the garment and on the pattern.
 - **2D window**: the live pattern, filled with the chosen fabric at true scale. Hover a piece to highlight it in 3D.
 - **Rendering**: ambient occlusion (GTAO), soft shadows, a studio backdrop, a turntable, and a PNG render button.
+
+## Pattern-to-3D sewing, pose and dupatta
+- **Sewn construction** (default): the drafted kameez front, back and sleeves are triangulated (Delaunay) from
+  the 2D pattern, arranged on cylinders around the avatar and sewn by seam constraints: shoulder, side (down to
+  the slit), armhole to sleeve cap, and sleeve underarm. Edit the pattern and the garment re-sews. UVs are the
+  pattern coordinates, so prints follow the grainline. "Fitted shell" keeps the faster tube construction.
+- **Pose**: MakeHuman's default rig (163 bones, CC0 skin weights) with linear-blend skinning. Measurements are
+  fitted in the rest pose, then the avatar is posed (Relaxed, Model stance, or A-pose).
+- **Body shape**: a "Hourglass" preference steers the free choices of the measurement solver (a flatter belly,
+  with the waist made from width) without changing the measured numbers.
+- **Dupatta**: a folded georgette stole simulated over both shoulders, with zari edges.
+- **Wrinkles**: where cloth is shorter than its flat pattern length, a shader adds fold relief at a real ~5 cm scale.

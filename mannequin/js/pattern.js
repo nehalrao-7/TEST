@@ -44,7 +44,9 @@ export function draftPattern(m, g) {
     pts.push([W / 4, wY], ...quad([W / 4, wY], [Hp / 4, wY + (hY - wY) * 0.4], [Hp / 4, hY], 8));
     pts.push([Hp / 4 + (hemX - Hp / 4) * ((slitY - hY) / Math.max(1, L - hY)), slitY]);
     pts.push([hemX, L], [0, L]);
+    const slitPt = [Hp / 4 + (hemX - Hp / 4) * ((slitY - hY) / Math.max(1, L - hY)), slitY];
     pieces.push({ name, note: `Cut 1 on fold · slit ${g.slitLength} cm from hem`, pts: dedupe(pts), fold: true,
+      keys: { neck: [neckW, 0], shoulder: [shX, shDrop], underarm: [B / 4, ah], slit: slitPt, hem: [hemX, L] }, dims: { L, ah, shDrop },
       marks: [{ y: wY, label: 'waist' }, { y: hY, label: 'hip' }, { y: slitY, label: 'slit ▸' }] });
   };
   bodice('Kameez FRONT', g.frontNeckDepth, 2.5);
@@ -56,7 +58,8 @@ export function draftPattern(m, g) {
   sp.push(...cubic([-sw / 2, capH], [-sw / 4, capH * 0.85], [-sw / 6, 0], [0, 0]));
   sp.push(...cubic([0, 0], [sw / 6, 0], [sw / 4, capH * 0.75], [sw / 2, capH]));
   sp.push([op / 2, sL], [-op / 2, sL]);
-  pieces.push({ name: 'SLEEVE', note: 'Cut 2 (mirror pair)', pts: dedupe(sp), marks: [] });
+  pieces.push({ name: 'SLEEVE', note: 'Cut 2 (mirror pair)', pts: dedupe(sp), marks: [],
+    keys: { leftUnder: [-sw / 2, capH], top: [0, 0], rightUnder: [sw / 2, capH], rightHem: [op / 2, sL], leftHem: [-op / 2, sL] }, dims: { sw, capH, sL, op } });
 
   // Patiala salwar leg panel (cut 2): wide top pleated into half the waist.
   const rise = m.waistHeight - m.inseam + g.crotchDrop;

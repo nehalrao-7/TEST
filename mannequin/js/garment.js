@@ -1,4 +1,5 @@
 import * as THREE from '../vendor/three.module.js';
+import { buildSewnKameez } from './sew.js';
 import { N, section, perimeter, inflate, scaleTo, smooth, smoothAlong, loftRings, frame, rng, V3 } from './drape.js';
 const { add, sub, mul } = V3;
 
@@ -130,13 +131,14 @@ export function buildGarment(B, m, g, mats, phys) {
   };
   const kCut = (i, th, p) => p[1] < slitTop && Math.abs(Math.sin(th)) < 0.045;
   // material 0 = body fabric, 1 = zari trim (neck piping + 3 cm hem border)
-  mk(loftRings(smoothedK, { folds: kFolds, cut: kCut, clampY: neckCurve, groups: [{ from: 0, mat: 1 }, { from: 1, mat: 0 }, { from: smoothedK.length - 2, mat: 1 }] }),
+  if (phys.sewn) group.add(buildSewnKameez(B, m, g, mats, phys.kameez));
+  else mk(loftRings(smoothedK, { folds: kFolds, cut: kCut, clampY: neckCurve, groups: [{ from: 0, mat: 1 }, { from: 1, mat: 0 }, { from: smoothedK.length - 2, mat: 1 }] }),
     [mats.kameez, mats.trim], 'kameez', [0],
     // layered over the salwar from the waistband down: keep a salwar-thick gap
     (x, y) => (y < B.waistY + 4 ? 1.4 : 0.4));
 
   // ---------------- Sleeves ----------------
-  for (const side of ['l', 'r']) {
+  for (const side of phys.sewn ? [] : ['l', 'r']) {
     const sh = B.J[`${side}-shoulder`], el = B.J[`${side}-elbow`], wr = B.J[`${side}-hand`];
     const upper = B.pick(side === 'l' ? L.lUpper : L.rUpper), fore = B.pick(side === 'l' ? L.lFore : L.rFore);
     const segA = Math.hypot(...sub(el, sh)), segB = Math.hypot(...sub(wr, el));
@@ -169,7 +171,8 @@ export function buildGarment(B, m, g, mats, phys) {
     const s = hsection(B, y > B.crotchY + 3 ? hipIdx : legsIdx.concat(hipIdx), y);
     if (s) upperRings.push(inflate(smooth(s, 2), 0, 0.12));
   }
-  if (upperRings.length > 1) mk(loftRings(smoothAlong(upperRings, 2)), [mats.salwar], 'salwar', [0, 1], 0.15);
+  // hidden under the kameez: held in place (no need to simulate what can't be seen)
+  if (upperRings.length > 1) mk(loftRings(smoothAlong(upperRings, 2)), [mats.salwar], 'salwar', upperRings.map((_, i) => i), 0.15);
   const fullness = Math.max(1, g.fullness);
   for (const side of ['l', 'r']) {
     const idx = B.pick(side === 'l' ? L.lThigh : L.rThigh, side === 'l' ? L.lShin : L.rShin);
@@ -197,7 +200,8 @@ export function buildGarment(B, m, g, mats, phys) {
       const a = smoothstep(hemY + 4, hemY - 10, y) * (1 - smoothstep(cuffTop + 4, cuffTop, y));
       return a * (0.05 * Math.sin((g.pleats + 1) * th + ph[0] + y * 0.015) + 0.04 * Math.sin(4 * th + ph[1] - y * 0.02) + 0.012 * Math.sin(11 * th + ph[2]));
     };
-    mk(loftRings(lrs, { folds, groups: [{ from: 0, mat: 0 }, { from: cuffFrom, mat: 1 }] }), [mats.salwar, mats.cuff], 'salwar', [0, 1], 0.3);
+    const hidden = lrs.map((r, i) => (r.c[1] > hemY - 3 ? i : -1)).filter((i) => i >= 0);
+    mk(loftRings(lrs, { folds, groups: [{ from: 0, mat: 0 }, { from: cuffFrom, mat: 1 }] }), [mats.salwar, mats.cuff], 'salwar', hidden.length ? hidden : [0, 1], 0.3);
   }
   if (phys.dupatta) group.add(buildDupatta(B, mats, phys.dupatta, hemY));
   return { group, hemY };
