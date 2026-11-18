@@ -46,7 +46,7 @@ export const PROFILE = {
     "eth": "southasian",
     "hair": "long01",
     "shape": "hourglass",
-    "pose": "clasped",
+    "pose": "scurve",
     "face": "soft",
     "eyes": "green",
     "hairColor": "#33241c"

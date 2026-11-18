@@ -15,7 +15,7 @@ import { poseMesh, POSES } from './pose.js';
 import { PROFILE } from './profile.js';
 
 const $ = (id) => document.getElementById(id);
-const STORE = 'fit-studio-3d-v5';
+const STORE = 'fit-studio-3d-v6';
 const saved = (() => { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } })();
 const FABRIC_DEFAULTS = { dupatta: { type: 'georgette', print: 'phulkari', ground: '#d4a537', accent: '#b3122a', accent2: '#3fa66b', scale: 16 }, ...PROFILE.fabrics };
 const BODY_START = { ...BODY_DEFAULTS, ...PROFILE.body }, GARMENT_START = { ...GARMENT_DEFAULTS, ...PROFILE.garment };
