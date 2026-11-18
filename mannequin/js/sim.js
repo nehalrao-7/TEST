@@ -151,7 +151,7 @@ export class ClothSim {
     }
   }
 
-  step({ substeps = 1, iterations = 10, dt = 1 / 60 } = {}) {
+  step({ substeps = this.substeps ?? 1, iterations = this.iterations ?? 10, dt = 1 / 60, omega = this.omega ?? 1 } = {}) {
     const { X, prev, inv, n, ca, cb, rest, stiff, damp, grav } = this;
     const h = dt / substeps, g = -981 * h * h;
     let motion = 0;
@@ -171,10 +171,8 @@ export class ClothSim {
           const dx = X[b] - X[a], dy = X[b + 1] - X[a + 1], dz = X[b + 2] - X[a + 2];
           const len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1e-6;
           const r = rest[c];
-          // cloth resists stretching strongly, compression only by bending
-          let k = stiff[c];
-          if (len < r && this.kind[c] === 0) k *= 0.3;
-          const corr = ((len - r) / len / w) * k;
+          const k = stiff[c];
+          const corr = ((len - r) / len / w) * k * (this.kind[c] ? 1 : omega);
           X[a] += dx * corr * wa; X[a + 1] += dy * corr * wa; X[a + 2] += dz * corr * wa;
           X[b] -= dx * corr * wb; X[b + 1] -= dy * corr * wb; X[b + 2] -= dz * corr * wb;
         }
@@ -244,4 +242,21 @@ function rampColor(mode, v, out) {
     return out.copy(ca.set(s[i - 1][1])).lerp(cb.set(s[i][1]), t);
   }
   return out.set(s[s.length - 1][1]);
+}
+
+// ---------- Web Worker transport ----------
+const SIM_FIELDS = ['X', 'prev', 'inv', 'thick', 'fric', 'damp', 'grav', 'ca', 'cb', 'rest', 'stiff', 'kind', 'ta', 'tb', 'tl', 'n'];
+/** Plain-data snapshot of a sim (and its collider) for a worker. */
+export function simState(sim) {
+  const st = {}; for (const f of SIM_FIELDS) st[f] = sim[f];
+  const c = sim.collider;
+  st.collider = { P: c.P, N: c.N, h: c.h, mask: c.mask, start: c.start, ent: c.ent };
+  return st;
+}
+export function simFromState(st) {
+  const sim = Object.create(ClothSim.prototype);
+  for (const f of SIM_FIELDS) sim[f] = st[f];
+  sim.collider = Object.assign(Object.create(BodyCollider.prototype), st.collider);
+  sim.frame = 0; sim.motion = Infinity;
+  return sim;
 }

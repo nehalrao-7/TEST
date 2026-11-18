@@ -75,7 +75,7 @@ export function buildGarment(B, m, g, mats, phys) {
   const rand = rng(7);
   const mk = (geo, materials, part, pinRows, thickness) => {
     const mesh = new THREE.Mesh(geo, materials);
-    mesh.userData = { part, pinRows, thickness, fabric: phys[part] };
+    mesh.userData = { part, pinRows, thickness, fabric: phys[part], piece: part === 'salwar' ? 'salwar' : pinRows.length === 1 ? 'bodice' : 'sleeve' };
     group.add(mesh);
     return mesh;
   };
@@ -131,7 +131,7 @@ export function buildGarment(B, m, g, mats, phys) {
   const kCut = (i, th, p) => p[1] < slitTop && Math.abs(Math.sin(th)) < 0.045;
   // material 0 = body fabric, 1 = zari trim (neck piping + 3 cm hem border)
   mk(loftRings(smoothedK, { folds: kFolds, cut: kCut, clampY: neckCurve, groups: [{ from: 0, mat: 1 }, { from: 1, mat: 0 }, { from: smoothedK.length - 2, mat: 1 }] }),
-    [mats.kameez, mats.trim], 'kameez', [0], 0.55);
+    [mats.kameez, mats.trim], 'kameez', [0], 0.4);
 
   // ---------------- Sleeves ----------------
   for (const side of ['l', 'r']) {
@@ -141,7 +141,7 @@ export function buildGarment(B, m, g, mats, phys) {
     const len = Math.min(g.sleeveLength, segA + segB - 1);
     const sr = [];
     const ds = [];
-    for (let d = -6; d < len - 2.5; d += 1.5) ds.push(d);
+    for (let d = -2.5; d < len - 2.5; d += 1.5) ds.push(d);
     ds.push(len - 2, len);
     for (const d of ds) {
       const onA = d <= segA;
@@ -153,10 +153,10 @@ export function buildGarment(B, m, g, mats, phys) {
       if (!s) continue;
       s = smooth(s, 3);
       const k = d / len;
-      const C = (m.upperArm + g.sleeveEase) * (1 - smoothstep(0.35, 1, k)) + g.sleeveOpening * smoothstep(0.35, 1, k) + (d < 0 ? 1.5 : 0);
+      const C = (m.upperArm + g.sleeveEase) * (1 - smoothstep(0.35, 1, k)) + g.sleeveOpening * smoothstep(0.35, 1, k) + (d < 0 ? 0.8 : 0);
       sr.push(inflate(s, C, 0.5));
     }
-    if (sr.length > 2) mk(loftRings(smoothAlong(sr, 3), { groups: [{ from: 0, mat: 0 }, { from: sr.length - 2, mat: 1 }] }), [mats.kameez, mats.trim], 'kameez', [0, 1, 2], 0.45);
+    if (sr.length > 2) mk(loftRings(smoothAlong(sr, 3), { groups: [{ from: 0, mat: 0 }, { from: sr.length - 2, mat: 1 }] }), [mats.kameez, mats.trim], 'kameez', [0, 1], 0.35);
   }
 
   // ---------------- Patiala salwar ----------------

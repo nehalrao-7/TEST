@@ -10,7 +10,7 @@ import { GARMENT_FIELDS, GARMENT_DEFAULTS, buildGarment, bodyContext, fitReport 
 import { draftPattern, patternSVG } from './pattern.js';
 import { loadHuman, fitHuman, joints, fitProxy } from './human.js';
 import { FABRICS, PRINTS, applyFabric, zariMaterial, swatch, printCanvas } from './fabric.js';
-import { ClothSim, BodyCollider, LEGEND } from './sim.js';
+import { ClothSim, BodyCollider, LEGEND, simState } from './sim.js';
 
 const $ = (id) => document.getElementById(id);
 const STORE = 'fit-studio-3d-v3';
@@ -206,6 +206,7 @@ function rebuildGarment({ drape = true } = {}) {
   garmentGroup.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.userData.fabricMat = o.material; } });
   garmentGroup.visible = state.showGarment;
   scene.add(garmentGroup);
+  simRunning = false; worker?.postMessage({ type: 'stop' }); simToken++; simStarted = false;
   sim = new ClothSim(garmentGroup.children, collider);
   if (drape) startSim(); else applyShading();
   buildGuides();
@@ -214,14 +215,43 @@ function rebuildGarment({ drape = true } = {}) {
   persist();
 }
 
-function startSim() { if (!sim) return; simRunning = true; updateSimBtn(); }
-function stopSim() { simRunning = false; updateSimBtn(); $('simbar').firstElementChild.style.width = '0'; applyShading(); }
+// The solver runs in a Web Worker so orbiting stays smooth while the cloth drapes.
+const SIM_PARAMS = { substeps: 2, iterations: 8, omega: 1.5, maxFrames: 140, rest: 0.04 };
+const MAX_FRAMES = SIM_PARAMS.maxFrames;
+let worker = null, simToken = 0, workerFailed = false;
+function getWorker() {
+  if (worker || workerFailed) return worker;
+  try {
+    worker = new Worker(new URL('./simworker.js', import.meta.url), { type: 'module' });
+    worker.onmessage = (e) => {
+      const m = e.data;
+      if (m.token !== simToken || !sim) return;
+      sim.X.set(m.X); sim.frame = m.frame; sim.motion = m.motion;
+      sim.sync();
+      if (state.shading !== 'fabric' && (m.frame % 6 === 0 || m.done)) applyShading();
+      $('simbar').firstElementChild.style.width = Math.min(100, (m.frame / MAX_FRAMES) * 100) + '%';
+      status.textContent = `Simulating · frame ${m.frame} · ${sim.n.toLocaleString()} particles`;
+      if (m.done) { simRunning = false; updateSimBtn(); $('simbar').firstElementChild.style.width = '0'; applyShading(); status.textContent = `Draped · ${sim.n.toLocaleString()} particles · ${m.frame} frames`; }
+    };
+    worker.onerror = () => { workerFailed = true; worker = null; };
+  } catch { workerFailed = true; }
+  return worker;
+}
+let simStarted = false;
+function startSim() {
+  if (!sim) return;
+  simRunning = true; updateSimBtn();
+  const w = getWorker();
+  if (!w) return; // fallback: main-thread ticks in simTick()
+  if (!simStarted) { simToken++; simStarted = true; w.postMessage({ type: 'init', token: simToken, state: simState(sim), params: SIM_PARAMS }); }
+  else w.postMessage({ type: 'resume' });
+}
+function stopSim() { simRunning = false; worker?.postMessage({ type: 'stop' }); updateSimBtn(); $('simbar').firstElementChild.style.width = '0'; applyShading(); }
 function updateSimBtn() { const b = $('simBtn'); b.classList.toggle('on', simRunning); b.textContent = simRunning ? '❚❚ Pause' : '▶ Simulate'; }
-const MAX_FRAMES = 140;
 function simTick() {
-  if (!simRunning || !sim) return;
+  if (!simRunning || !sim || (worker && !workerFailed)) return;
   const t0 = performance.now();
-  do { sim.step(); } while (performance.now() - t0 < 14 && sim.frame < MAX_FRAMES);
+  do { sim.step(SIM_PARAMS); } while (performance.now() - t0 < 14 && sim.frame < MAX_FRAMES);
   sim.sync();
   if (state.shading !== 'fabric' && sim.frame % 6 === 0) applyShading();
   $('simbar').firstElementChild.style.width = Math.min(100, (sim.frame / MAX_FRAMES) * 100) + '%';
@@ -245,7 +275,7 @@ function highlightPart(name) {
   if (!garmentGroup) return;
   const piece = !name ? null : /SLEEVE/.test(name) ? 'sleeve' : /^Kameez/.test(name) ? 'bodice' : 'salwar';
   garmentGroup.children.forEach((m) => {
-    const p = m.userData.part === 'salwar' ? 'salwar' : m.userData.pinRows.length === 3 ? 'sleeve' : 'bodice';
+    const p = m.userData.part === 'salwar' ? 'salwar' : m.userData.piece;
     m.material = piece && p === piece ? hiMat : state.shading === 'fabric' ? m.userData.fabricMat : heatMat;
   });
 }
@@ -469,7 +499,7 @@ $('vGarmentBtn').addEventListener('click', () => {
 });
 document.querySelectorAll('#views button').forEach((b) => b.addEventListener('click', () => setView(b.dataset.v)));
 $('turn').addEventListener('click', () => { controls.autoRotate = !controls.autoRotate; $('turn').classList.toggle('on', controls.autoRotate); });
-$('simBtn').addEventListener('click', () => (simRunning ? stopSim() : (sim && sim.frame >= MAX_FRAMES && (sim.frame = 0), startSim())));
+$('simBtn').addEventListener('click', () => (simRunning ? stopSim() : (sim && !worker && sim.frame >= MAX_FRAMES && (sim.frame = 0), startSim())));
 $('resetDrape').addEventListener('click', () => rebuildGarment());
 $('toggle2d').addEventListener('click', () => { document.body.classList.toggle('no2d'); $('toggle2d').classList.toggle('on'); setTimeout(resize, 0); });
 addEventListener('keydown', (e) => { if (e.code === 'Space' && e.target === document.body) { e.preventDefault(); $('simBtn').click(); } });
