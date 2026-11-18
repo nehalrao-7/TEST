@@ -6,6 +6,7 @@ export const POSES = {
   apose: { label: 'A-pose (MakeHuman rest)' },
   relaxed: { label: 'Relaxed, arms down', armFromVertical: 21, elbow: 8, clavicle: 5 },
   model: { label: 'Model stance', armFromVertical: 26, elbow: 24, clavicle: 4 },
+  clasped: { label: 'Hands clasped at waist', armFromVertical: 10, armForward: 9, elbow: 74, inward: 46, clavicle: 5 },
 };
 
 function jointPositions(H, P) {
@@ -32,16 +33,17 @@ export function poseMesh(H, P, poseName, rig) {
     const head = J[b.head], dir = J[b.tail].clone().sub(head).normalize();
     const now = Math.acos(THREE.MathUtils.clamp(dir.dot(down), -1, 1));
     const axis = dir.clone().cross(down).normalize();
-    local[ua] = { head, q: new THREE.Quaternion().setFromAxisAngle(axis, now - THREE.MathUtils.degToRad(pose.armFromVertical)) };
+    const qa = new THREE.Quaternion().setFromAxisAngle(axis, now - THREE.MathUtils.degToRad(pose.armFromVertical));
+    // swing the upper arm forward (about the body's left-right axis)
+    if (pose.armForward) qa.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -THREE.MathUtils.degToRad(pose.armForward)));
+    local[ua] = { head, q: qa };
     // relax the shoulder girdle a little
     const cl = index.get(`clavicle.${side}`), cb = bones[cl];
     const cdir = J[cb.tail].clone().sub(J[cb.head]).normalize();
     local[cl] = { head: J[cb.head], q: new THREE.Quaternion().setFromAxisAngle(cdir.clone().cross(down).normalize(), THREE.MathUtils.degToRad(pose.clavicle)) };
-    // soft elbow bend, forearm swinging forward
+    // elbow: bend forward and turn inward, defined in the already-posed frame (applied in build())
     const la = index.get(`lowerarm01.${side}`), lb = bones[la];
-    const fdir = J[lb.tail].clone().sub(J[lb.head]).normalize();
-    const bendAxis = fdir.clone().cross(new THREE.Vector3(0, 0, 1)).normalize();
-    local[la] = { head: J[lb.head], q: new THREE.Quaternion().setFromAxisAngle(bendAxis, THREE.MathUtils.degToRad(pose.elbow)) };
+    local[la] = { head: J[lb.head], tail: J[lb.tail], shoulder: J[bones[ua].head], posed: true, elbow: pose.elbow, inward: pose.inward || 0 };
   }
   // world matrices, parents first
   const world = bones.map(() => null);
@@ -49,10 +51,21 @@ export function poseMesh(H, P, poseName, rig) {
   const build = (i) => {
     if (world[i]) return world[i];
     const b = bones[i], parent = b.parent != null && index.has(b.parent) ? build(index.get(b.parent)) : new THREE.Matrix4();
-    const m = parent.clone();
-    if (local[i]) {
-      const h = local[i].head;
-      m.multiply(T.makeTranslation(h.x, h.y, h.z)).multiply(R.makeRotationFromQuaternion(local[i].q)).multiply(Ti.makeTranslation(-h.x, -h.y, -h.z));
+    let m = parent.clone();
+    const L = local[i];
+    if (L && L.posed) {
+      // rotate about the posed joint, with axes measured on the posed limb
+      const h = L.head.clone().applyMatrix4(parent), t = L.tail.clone().applyMatrix4(parent);
+      const f = t.sub(h).normalize(), z = new THREE.Vector3(0, 0, 1);
+      // target: continue the upper arm's line, bend it forward by the elbow angle, then turn it inward
+      const u = h.clone().sub(L.shoulder.clone().applyMatrix4(parent)).normalize();
+      const target = u.clone().applyAxisAngle(u.clone().cross(z).normalize(), THREE.MathUtils.degToRad(L.elbow));
+      if (L.inward) target.applyAxisAngle(new THREE.Vector3(0, 1, 0), -(Math.sign(h.x) || 1) * THREE.MathUtils.degToRad(L.inward));
+      const q = new THREE.Quaternion().setFromUnitVectors(f, target.normalize());
+      m = new THREE.Matrix4().makeTranslation(h.x, h.y, h.z).multiply(R.makeRotationFromQuaternion(q)).multiply(Ti.makeTranslation(-h.x, -h.y, -h.z)).multiply(parent);
+    } else if (L) {
+      const h = L.head;
+      m.multiply(T.makeTranslation(h.x, h.y, h.z)).multiply(R.makeRotationFromQuaternion(L.q)).multiply(Ti.makeTranslation(-h.x, -h.y, -h.z));
     }
     return (world[i] = m);
   };

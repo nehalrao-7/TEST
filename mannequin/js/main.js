@@ -15,7 +15,7 @@ import { poseMesh, POSES } from './pose.js';
 import { PROFILE } from './profile.js';
 
 const $ = (id) => document.getElementById(id);
-const STORE = 'fit-studio-3d-v4';
+const STORE = 'fit-studio-3d-v5';
 const saved = (() => { try { return JSON.parse(localStorage.getItem(STORE)) || {}; } catch { return {}; } })();
 const FABRIC_DEFAULTS = { dupatta: { type: 'georgette', print: 'phulkari', ground: '#d4a537', accent: '#b3122a', accent2: '#3fa66b', scale: 16 }, ...PROFILE.fabrics };
 const BODY_START = { ...BODY_DEFAULTS, ...PROFILE.body }, GARMENT_START = { ...GARMENT_DEFAULTS, ...PROFILE.garment };
@@ -84,11 +84,12 @@ const texLoader = new THREE.TextureLoader();
 const tex = (url, srgb = true) => { const t = texLoader.load(url); if (srgb) t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return t; };
 const skin = new THREE.MeshPhysicalMaterial({ roughness: 0.5, sheen: 0.4, sheenRoughness: 0.5, sheenColor: new THREE.Color('#ff9a85'), clearcoat: 0.08, clearcoatRoughness: 0.45, specularIntensity: 0.5 });
 const formMat = new THREE.MeshStandardMaterial({ color: '#bdb8b0', roughness: 0.75, metalness: 0 });
-const eyeMat = new THREE.MeshPhysicalMaterial({ map: tex('assets/eye_brown.png'), alphaTest: 0.5, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.03 });
-const browMat = new THREE.MeshStandardMaterial({ map: tex('assets/eyebrows.png'), transparent: true, alphaTest: 0.05, depthWrite: false, roughness: 0.9, side: THREE.DoubleSide });
+const eyeTex = {};
+const eyeMat = new THREE.MeshPhysicalMaterial({ map: (eyeTex.brown = tex('assets/eye_brown.png')), alphaTest: 0.5, roughness: 0.12, clearcoat: 1, clearcoatRoughness: 0.03 });
+const browMat = new THREE.MeshStandardMaterial({ color: '#5a4a42', map: tex('assets/eyebrows.png'), transparent: true, alphaTest: 0.05, depthWrite: false, roughness: 0.9, side: THREE.DoubleSide });
 const lashMat = new THREE.MeshStandardMaterial({ map: tex('assets/eyelashes.png'), transparent: true, alphaTest: 0.05, depthWrite: false, roughness: 0.9, side: THREE.DoubleSide });
 const hairMats = {};
-const hairMat = (name) => hairMats[name] ||= new THREE.MeshStandardMaterial({ map: tex(`assets/hair_${name}.png`), alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.55, color: '#6b5444' });
+const hairMat = (name) => hairMats[name] ||= new THREE.MeshStandardMaterial({ map: tex(`assets/hair_${name}.png`), alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.5, color: '#33241c' });
 const skinTex = {};
 const zari = zariMaterial(); installWrinkles(zari);
 const heatMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.75, side: THREE.DoubleSide });
@@ -148,8 +149,8 @@ function scheduleFit(immediate = false) {
 
 function refit() {
   const t0 = performance.now();
-  const lookKey = state.look.sex + state.look.eth + state.look.shape;
-  const fit = fitHuman(H, state.body, { sex: state.look.sex, eth: state.look.eth, shape: state.look.shape, x0: lookKey === lastLookKey ? state.x : null });
+  const lookKey = state.look.sex + state.look.eth + state.look.shape + state.look.face;
+  const fit = fitHuman(H, state.body, { sex: state.look.sex, eth: state.look.eth, shape: state.look.shape, face: state.look.face, x0: lookKey === lastLookKey ? state.x : null });
   lastLookKey = lookKey; state.fit = fit; state.x = fit.x;
   // measurements are fitted in the rest pose; then the rig poses the avatar
   const P = poseMesh(H, fit.P, state.look.pose, H.rig);
@@ -158,7 +159,7 @@ function refit() {
   B = bodyContext(H, P, H.labels, joints(H, P), fit.achieved);
 
   dispose(bodyMesh);
-  const SKIN = { southasian: ['asian', '#f7dcc8'], asian: ['asian', '#ffffff'], caucasian: ['caucasian', '#ffffff'], african: ['african', '#ffffff'] };
+  const SKIN = { southasian: ['asian', '#efc6a4'], asian: ['asian', '#ffffff'], caucasian: ['caucasian', '#ffffff'], african: ['african', '#ffffff'] };
   const [texEth, tint] = SKIN[state.look.eth] || SKIN.asian;
   const skey = `${state.look.sex}-${texEth}`;
   skin.map = skinTex[skey] ||= tex('assets/' + H.man.skins[skey]);
@@ -184,6 +185,8 @@ function refit() {
     mesh.castShadow = shadow; mesh.renderOrder = mat.transparent ? 2 : 0;
     proxyGroup.add(mesh);
   };
+  eyeMat.map = eyeTex[state.look.eyes] ||= tex(`assets/eye_${state.look.eyes}.png`); eyeMat.needsUpdate = true;
+  hairMat(state.look.hair).color?.set(state.look.hairColor);
   addProxy('eyes', eyeMat); addProxy('eyebrows', browMat); addProxy('eyelashes', lashMat);
   if (state.look.hair !== 'none') addProxy('hair-' + state.look.hair, hairMat(state.look.hair), true);
   scene.add(proxyGroup);
@@ -482,11 +485,11 @@ $('zari').addEventListener('change', (e) => { state.zari = e.target.checked; upd
 const renderForms = () => {
   buildFields($('bodyFields'), BODY_FIELDS, state.body, $('helpBody'), true);
   buildFields($('garmentFields'), GARMENT_FIELDS, state.garment, $('helpGarment'), false);
-  for (const k of ['sex', 'eth', 'hair', 'shape', 'pose']) $('look-' + k).value = state.look[k];
+  for (const k of ['sex', 'eth', 'hair', 'shape', 'pose', 'face', 'eyes', 'hairColor']) $('look-' + k).value = state.look[k];
   $('construction').value = state.construction;
   renderFabricPanel();
 };
-for (const k of ['sex', 'eth', 'hair', 'shape', 'pose']) $('look-' + k).addEventListener('change', (e) => { state.look[k] = e.target.value; k === 'hair' || k === 'pose' ? refit() : scheduleFit(true); persist(); });
+for (const k of ['sex', 'eth', 'hair', 'shape', 'pose', 'face', 'eyes', 'hairColor']) $('look-' + k).addEventListener('change', (e) => { state.look[k] = e.target.value; ['hair', 'pose', 'eyes', 'hairColor'].includes(k) ? refit() : scheduleFit(true); persist(); });
 
 document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => {
   document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x === b));

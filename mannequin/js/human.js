@@ -109,8 +109,15 @@ const HI = VARS.map((v) => (MACRO.has(v) ? 1 : 1.8));
 const FIT_KEYS = ['neck', 'shoulder', 'bust', 'underbust', 'waist', 'hip', 'thigh', 'knee', 'calf', 'ankle', 'upperArm', 'wrist',
   'armLength', 'backLength', 'waistToHip', 'inseam'];
 
-function weightsFor(sex, eth, height, x) {
-  const w = {};
+// Face presets: MakeHuman face-shape morphs (don't affect body measurements).
+export const FACES = {
+  soft: { 'head-round': 0.4, 'head-oval': 0.4, 'head-fat-incr': 0.1, 'l-cheek-volume-incr': 0.4, 'r-cheek-volume-incr': 0.4,
+    'l-cheek-bones-decr': 0.15, 'r-cheek-bones-decr': 0.15, 'chin-prominent-decr': 0.25, 'chin-width-incr': 0.15,
+    'mouth-upperlip-volume-incr': 0.35, 'mouth-lowerlip-volume-incr': 0.45, 'mouth-scale-horiz-incr': 0.1 },
+  default: {},
+};
+function weightsFor(sex, eth, height, x, face = 'default') {
+  const w = { ...(FACES[face] || {}) };
   // ethnicity blends (MakeHuman ethnic sliders sum to 1); South Asian sits between the presets
   const ETH = { southasian: { caucasian: 0.5, asian: 0.2, african: 0.3 } };
   for (const [e, f] of Object.entries(ETH[eth] || { [eth]: 1 })) w[`${sex}-${e}`] = f;
@@ -144,14 +151,14 @@ function solve(A, b) {
 // Shape preferences (a gentle pull, in cm-equivalent weight) used only where measurements
 // leave freedom. 'hourglass': waist made from width, not a forward belly; fuller bust/hip line.
 const SHAPES = {
-  hourglass: [['stomach-pregnant', -0.6, 4], ['torso-scale-depth', -0.3, 2], ['breast', 0.4, 2]],
+  hourglass: [['stomach-pregnant', -0.6, 4], ['torso-scale-depth', -0.3, 2], ['breast', 0.85, 6]],
   natural: [],
 };
-export function fitHuman(H, m, { sex = 'female', eth = 'asian', x0 = null, iters = 30, shape = 'natural' } = {}) {
+export function fitHuman(H, m, { sex = 'female', eth = 'asian', x0 = null, iters = 30, shape = 'natural', face = 'default' } = {}) {
   const prior = (SHAPES[shape] || []).map(([k, t, wt]) => [VARS.indexOf(k), t, wt]).filter(([i]) => i >= 0);
   let x = x0 ? [...x0] : VARS.map(() => 0);
   const evalAt = (xv) => {
-    const P = morph(H, weightsFor(sex, eth, m.height, xv));
+    const P = morph(H, weightsFor(sex, eth, m.height, xv, face));
     const raw = measure(H, P);
     const s = m.height / raw.height; // final uniform scale makes height exact
     return { P, raw, s, r: FIT_KEYS.map((k) => (m[k] - raw[k] * s) / (k === 'inseam' || k === 'shoulder' ? 2 : 1)).concat(prior.map(([i, t, wt]) => wt * (t - xv[i]))) };

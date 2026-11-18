@@ -211,6 +211,7 @@ export function buildGarment(B, m, g, mats, phys) {
 // A folded georgette stole laid over both shoulders and around the back of the neck, ends hanging in front.
 function buildDupatta(B, mats, fabric, hemY) {
   const torso = B.pick(L.torso);
+  const cx = 12.5, width = 19;
   const surf = (y, x, front, gap) => {
     const s = section(B.P, torso, [0, y, 0], Y, 2.2);
     if (!s) return [x, y, front ? 12 : -12];
@@ -221,14 +222,19 @@ function buildDupatta(B, mats, fabric, hemY) {
       if ((pz > s.c[2]) !== front) continue;
       if (!best || Math.abs(px - x) < Math.abs(best[0] - x)) best = [px, pz];
     }
-    return [x, y, best ? best[1] + (front ? gap : -gap) : 0];
+    let z = best ? best[1] + (front ? gap : -gap) : 0;
+    if (front) { // hang in front of forearms/hands when they are in front of the body (clasped pose)
+      for (const i of armIdx) if (Math.abs(B.P[i * 3] - x) < width * 0.6 && Math.abs(B.P[i * 3 + 1] - y) < 7) z = Math.max(z, B.P[i * 3 + 2] + 3);
+    }
+    return [x, y, z];
   };
+  const armIdx = B.pick(3, 4, 9, 10);
   const shoulderTop = (x) => {
     let top = -1e9;
     for (const i of torso) if (Math.abs(B.P[i * 3] - x) < 1.6 && Math.abs(B.P[i * 3 + 2]) < 5) top = Math.max(top, B.P[i * 3 + 1]);
     return top;
   };
-  const cx = 12.5, width = 19, endY = Math.max(B.kneeY + 12, hemY - 6);
+  const endY = Math.max(B.kneeY + 12, hemY - 6);
   const key = [];
   for (const s of [1, -1]) {
     const st = shoulderTop(s * 14);

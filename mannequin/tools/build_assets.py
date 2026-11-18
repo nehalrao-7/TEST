@@ -81,6 +81,12 @@ for f in sorted(os.listdir(f'{T}/measure')):
     add_target(f[:-7], f'{T}/measure/{f}')
 for f in ('stomach/stomach-pregnant-decr.target', 'stomach/stomach-pregnant-incr.target', 'torso/torso-scale-depth-decr.target', 'torso/torso-scale-depth-incr.target'):
     add_target(os.path.basename(f)[:-7], f'{T}/{f}')
+FACE = ['head/head-round', 'head/head-oval', 'head/head-fat-incr', 'cheek/l-cheek-volume-incr', 'cheek/r-cheek-volume-incr',
+        'cheek/l-cheek-bones-decr', 'cheek/r-cheek-bones-decr', 'chin/chin-prominent-decr', 'chin/chin-width-incr',
+        'mouth/mouth-upperlip-volume-incr', 'mouth/mouth-lowerlip-volume-incr', 'mouth/mouth-scale-horiz-incr',
+        'neck/neck-double-incr']
+for f in FACE:
+    if os.path.exists(f'{T}/{f}.target'): add_target(os.path.basename(f), f'{T}/{f}.target')
 for f in ('breast/female-young-averagemuscle-averageweight-maxcup-averagefirmness.target',
           'breast/female-young-averagemuscle-averageweight-mincup-averagefirmness.target'):
     if os.path.exists(f'{T}/{f}'): add_target(os.path.basename(f)[:-7].replace('female-young-averagemuscle-averageweight-', 'breast-'), f'{T}/{f}')
@@ -128,6 +134,8 @@ def tex(src, dst, size, fmt):
     return dst
 
 proxy('eyes', f'{MH}/eyes/high-poly/high-poly.mhclo', f'{MH}/eyes/high-poly/high-poly.obj', tex(f'{MH}/eyes/materials/brown_eye.png', 'eye_brown.png', 512, 'PNG'))
+for col in ('green', 'bluegreen', 'grey', 'brownlight'):
+    if os.path.exists(f'{AS}/eyes/materials/{col}_eye.png'): tex(f'{AS}/eyes/materials/{col}_eye.png', f'eye_{col}.png', 512, 'PNG')
 proxy('eyebrows', f'{AS}/eyebrows/eyebrow001/eyebrow001.mhclo', f'{AS}/eyebrows/eyebrow001/eyebrow001.obj', tex(f'{AS}/eyebrows/eyebrow001/eyebrow001.png', 'eyebrows.png', 512, 'PNG'))
 proxy('eyelashes', f'{AS}/eyelashes/eyelashes01/eyelashes01.mhclo', f'{AS}/eyelashes/eyelashes01/eyelashes01.obj', tex(f'{AS}/eyelashes/eyelashes01/eyelashes01.png', 'eyelashes.png', 512, 'PNG'))
 for h in ('long01', 'ponytail01', 'bob02'):
