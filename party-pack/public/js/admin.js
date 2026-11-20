@@ -39,7 +39,7 @@
     try {
       const res = await fetch('/api/admin/stats', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key }), cache: 'no-store' });
       if (res.status === 401) { store.del(); return login('That key is not right.'); }
-      if (res.status === 404) { store.del(); return app.innerHTML = head() + '<div class="panel"><b>The dashboard is switched off.</b><p class="muted" style="margin-top:6px">Set an <code>ADMIN_KEY</code> (16 or more characters) in the server’s environment settings and redeploy.</p></div>'; }
+      if (res.status === 404) { store.del(); return app.innerHTML = head() + '<div class="panel"><b>The dashboard is switched off.</b><p class="muted" style="margin-top:6px">Set an <code>ADMIN_KEY</code> (10 or more characters) in the server’s environment settings and redeploy.</p></div>'; }
       if (!res.ok) throw new Error('bad status');
       data = await res.json();
       lastOk = Date.now();
