@@ -211,11 +211,21 @@ function postgresStore() {
   });
   const q = (text, params) => ready.then(() => pool.query(text, params));
   // Party history is optional: if this login may not create tables, the app plays on without it.
-  let histOk = null;
-  const history = () => histOk || (histOk = q(`
+  // A "no" is only remembered for a minute, so adding the table later needs no redeploy.
+  let histOk = null, histTried = 0;
+  const history = () => {
+    if (histOk && (histOk.value !== false || Date.now() - histTried < 60000)) return histOk.p;
+    histTried = Date.now();
+    const holder = { value: null };
+    // Look first: a limited login may be unable to CREATE even when the table already exists.
+    holder.p = q(`SELECT to_regclass('public.${PFX}_history') AS t`)
+      .then((r) => (r.rows[0] && r.rows[0].t ? null : q(`
     CREATE TABLE IF NOT EXISTS ${PFX}_history (id text PRIMARY KEY, ended_at bigint NOT NULL, data jsonb NOT NULL);
     CREATE INDEX IF NOT EXISTS ${PFX}_history_ended ON ${PFX}_history (ended_at DESC);
-  `).then(() => true, () => false));
+  `))).then(() => true, () => false).then((ok) => { holder.value = ok; return ok; });
+    histOk = holder;
+    return holder.p;
+  };
   const withClient = async (fn) => {
     await ready;
     const client = await pool.connect();
