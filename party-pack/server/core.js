@@ -18,6 +18,7 @@ const { phoneHash } = require('./privacy');
 const { mailEnabled, sendRejoinCode } = require('./mail');
 const M = require('./minis');
 const T = require('./themes');
+const H = require('./history');
 
 const st = () => S.state;
 let ONLINE = new Set();
@@ -59,8 +60,21 @@ function roomShouldExpire(meta, now) {
   if (!stamp) return humans === 0;
   return now - stamp > (humans > 0 ? LIVE_ROOM_MS : EMPTY_ROOM_MS);
 }
+// Before a room is thrown away, keep a count-only record of it if it ever got as far as a game.
+async function keepRecord(store, code) {
+  try {
+    const { room } = await store.loadRoom(code);
+    if (!room || room.recorded) return;
+    const rec = H.summarize(room, false, code);
+    if (H.worthKeeping(rec)) await store.recordParty(rec);
+  } catch (e) { console.error('[history]', e.message); }
+}
 async function reapExpired(store, now) {
-  for (const row of await store.listRooms()) if (roomShouldExpire(row, now)) await store.deleteRoom(row.code);
+  for (const row of await store.listRooms()) {
+    if (!roomShouldExpire(row, now)) continue;
+    if (row.humans > 0) await keepRecord(store, row.code);
+    await store.deleteRoom(row.code);
+  }
 }
 async function freeSlot(store) {
   let rows = await store.listRooms();
@@ -613,6 +627,13 @@ function run(store, roomCode, mutate, opts = {}) {
       let result, error = null;
       try { result = await mutate(); } catch (e) { error = e; S.setState(JSON.parse(afterTick)); }
       st().code = code;
+      // The party just reached the podium: keep a record of it (written once the save below succeeds).
+      let finishedRec = null;
+      if (st().flow && st().flow.stage === 'podium' && !st().recorded) {
+        st().recorded = true;
+        const rec = H.summarize(st(), true, code);
+        if (H.worthKeeping(rec)) finishedRec = rec;
+      }
       if (opts.touch) st().activeAt = Date.now();
       await flushHistory(store);
       const after = JSON.stringify(st());
@@ -622,6 +643,7 @@ function run(store, roomCode, mutate, opts = {}) {
         const v = await store.saveRoom(code, loaded.version, st());
         if (v == null) { await sleep(20 + Math.random() * 60 * (attempt + 1)); continue; }
         version = v;
+        if (finishedRec) await store.recordParty(finishedRec).catch((e) => console.error('[history]', e.message));
         if (store.nudge) await store.nudge(code, v).catch(() => {});
       }
       if (error) throw error;
@@ -661,6 +683,25 @@ async function createRoom(store, body) {
   });
 }
 
+// ---------------- admin dashboard ----------------
+// Counts only. Switched off unless ADMIN_KEY (16+ characters) is set; the key is compared in constant time.
+const keysEqual = (a, b) => crypto.timingSafeEqual(crypto.createHash('sha256').update(String(a || '')).digest(), crypto.createHash('sha256').update(String(b || '')).digest());
+async function adminStats(store) {
+  const now = Date.now();
+  const [facts, hist] = await Promise.all([store.liveRooms(), store.listHistory(1000)]);
+  const rooms = facts.map((f) => H.liveInfo(f, now)).filter((r) => r.players + r.bots > 0);
+  return {
+    now,
+    live: {
+      rooms,
+      roomsLive: rooms.filter((r) => r.state === 'live').length,
+      playersOnline: rooms.reduce((n, r) => n + Math.min(r.online, r.players), 0),
+      playersJoined: rooms.filter((r) => r.state !== 'idle').reduce((n, r) => n + r.players, 0),
+    },
+    history: { enabled: hist.enabled, recent: hist.rows.slice(0, 60), ...H.aggregate(hist.rows, now) },
+  };
+}
+
 async function handle(store, method, path, body = {}, query = {}) {
   path = String(path || '').replace(/^\/+|\/+$/g, '');
   try {
@@ -676,6 +717,13 @@ async function handle(store, method, path, body = {}, query = {}) {
         themes: { north: T.autoPack(today, false), south: T.autoPack(today, true) } } };
     }
     if (method !== 'POST') return { status: 405, json: { error: 'Method not allowed' } };
+
+    if (path === 'admin/stats') {
+      const key = String(process.env.ADMIN_KEY || '');
+      if (key.length < 16) return { status: 404, json: { error: 'Not found' } };
+      if (!keysEqual(body.key, key)) { await sleep(700); return { status: 401, json: { error: 'That key is not right.' } }; }
+      return { json: await adminStats(store) };
+    }
     const origin = String(body.origin || '').replace(/[^a-zA-Z0-9:/._-]/g, '').slice(0, 100);
 
     if (path === 'room/create') {

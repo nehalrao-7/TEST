@@ -45,6 +45,18 @@ Each pack is a set of colours plus its own drifting weather (petals, leaves, sno
 confetti colours. To add one: add an entry to `server/themes.js`, a `[data-pack="id"]` block of
 tokens in `public/css/ui.css`, and a line in `AMBIENT` in `public/js/common.js`.
 
+## Live dashboard
+
+`/admin` shows who is playing right now (rooms, players connected, what game they're on) and past
+parties (when, how many players, which games and theme, finished or left early), plus parties per
+day, most-played games and themes. It auto-refreshes every few seconds.
+
+- Switched on by setting `ADMIN_KEY` (16+ characters). Without it `/admin` says it is off and the API returns 404.
+- Counts only: no names, emails or answers are stored or shown.
+- History is one small row per party in `<prefix>_history`, written when a party reaches the podium, or when an
+  unfinished room expires. The server creates the table itself if its database login allows;
+  otherwise run `migrations/003_history.sql` once. History starts from the day it is switched on.
+
 ## Run locally
 ```bash
 npm install
@@ -60,6 +72,7 @@ GAME_SPEED=8 npm start    # every clock 8× faster, for testing
 | `PHONE_PEPPER` | Secret mixed into email fingerprints |
 | `SUPABASE_URL`, `SUPABASE_KEY` | Optional live "refresh" nudges |
 | `RESEND_API_KEY`, `MAIL_FROM` | Optional: email rejoin codes via Resend |
+| `ADMIN_KEY` | Turns on the live dashboard at `/admin`. 16+ characters; leave unset to keep it off |
 | `GAME_SPEED` | Test only. Never set in production |
 
 ## Files

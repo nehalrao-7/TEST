@@ -48,6 +48,7 @@ function fileStore() {
   const indexFile = path.join(roomsDir, 'index.json');
   const bookFile = path.join(dir, 'book.json');
   const histFile = path.join(dir, 'qseen.json');
+  const partyFile = path.join(dir, 'history.json');
   const seenAt = new Map();
   fs.mkdirSync(roomsDir, { recursive: true });
 
@@ -133,6 +134,31 @@ function fileStore() {
       return next;
     },
     async seen(id) { seenAt.set(id, Date.now()); },
+    // Finished and abandoned parties, newest last in the file.
+    async recordParty(rec) {
+      const all = readJson(partyFile) || [];
+      const i = all.findIndex((r) => r.id === rec.id);
+      if (i >= 0) all[i] = rec; else all.push(rec);
+      writeJson(partyFile, all.slice(-2000));
+    },
+    async listHistory(limit) {
+      const all = readJson(partyFile) || [];
+      return { enabled: true, rows: [...all].sort((x, y) => y.endedAt - x.endedAt).slice(0, limit) };
+    },
+    // Plain facts about every room, for the dashboard.
+    async liveRooms() {
+      const out = [];
+      for (const code of Object.keys(readIndex())) {
+        const rec = readJson(path.join(roomsDir, code + '.json'));
+        const room = rec && rec.room;
+        if (!room) continue;
+        const ps = Object.values(room.players || {});
+        out.push({ code, createdAt: room.createdAt, activeAt: room.activeAt, stage: room.flow && room.flow.stage, order: room.flow && room.flow.order, idx: room.flow && room.flow.idx,
+          gameId: room.live && room.live.gameId, theme: room.settings && room.settings.theme, south: room.settings && room.settings.south,
+          players: ps.length, bots: ps.filter((p) => p && p.bot).length, online: onlineFor(code).length });
+      }
+      return out.sort((a, b) => (Number(b.activeAt) || 0) - (Number(a.activeAt) || 0));
+    },
     // Question history per email hash: { [hash]: { [qid]: seenAt } }
     async qHistory(hashes) {
       const all = readJson(histFile) || {};
@@ -184,6 +210,12 @@ function postgresStore() {
     throw err;
   });
   const q = (text, params) => ready.then(() => pool.query(text, params));
+  // Party history is optional: if this login may not create tables, the app plays on without it.
+  let histOk = null;
+  const history = () => histOk || (histOk = q(`
+    CREATE TABLE IF NOT EXISTS ${PFX}_history (id text PRIMARY KEY, ended_at bigint NOT NULL, data jsonb NOT NULL);
+    CREATE INDEX IF NOT EXISTS ${PFX}_history_ended ON ${PFX}_history (ended_at DESC);
+  `).then(() => true, () => false));
   const withClient = async (fn) => {
     await ready;
     const client = await pool.connect();
@@ -309,6 +341,35 @@ function postgresStore() {
          ON CONFLICT (email_hash, qid) DO UPDATE SET seen_at = EXCLUDED.seen_at`,
         [hashes, ids, Date.now()]
       );
+    },
+    async recordParty(rec) {
+      if (!(await history())) return;
+      await q(
+        `INSERT INTO ${PFX}_history (id, ended_at, data) VALUES ($1, $2, $3::jsonb)
+         ON CONFLICT (id) DO UPDATE SET ended_at = EXCLUDED.ended_at, data = EXCLUDED.data`,
+        [rec.id, rec.endedAt, JSON.stringify(rec)]
+      );
+    },
+    async listHistory(limit) {
+      if (!(await history())) return { enabled: false, rows: [] };
+      const r = await q(`SELECT data FROM ${PFX}_history ORDER BY ended_at DESC LIMIT $1`, [limit]);
+      return { enabled: true, rows: r.rows.map((x) => x.data) };
+    },
+    // Facts about every room, pulled out in SQL so we never download whole rooms.
+    async liveRooms() {
+      const players = `CASE WHEN jsonb_typeof(r.data->'players') = 'object' THEN r.data->'players' ELSE '{}'::jsonb END`;
+      const [rooms, seen] = await Promise.all([
+        q(`SELECT r.code, r.created_at, r.active_at,
+             r.data #>> '{flow,stage}' AS stage, r.data #> '{flow,order}' AS ord, r.data #>> '{flow,idx}' AS idx,
+             r.data #>> '{live,gameId}' AS game_id, r.data #>> '{settings,theme}' AS theme, r.data #>> '{settings,south}' AS south,
+             (SELECT count(*) FROM jsonb_each(${players})) AS players,
+             (SELECT count(*) FROM jsonb_each(${players}) e WHERE e.value->>'bot' = 'true') AS bots
+           FROM ${PFX}_room r ORDER BY r.active_at DESC LIMIT 100`),
+        q(`SELECT split_part(player_id, ':', 1) AS code, count(*) AS n FROM ${PFX}_seen WHERE seen_at >= $1 GROUP BY 1`, [Date.now() - 25000]),
+      ]);
+      const online = Object.fromEntries(seen.rows.map((x) => [x.code, Number(x.n)]));
+      return rooms.rows.map((r) => ({ code: r.code, createdAt: Number(r.created_at), activeAt: Number(r.active_at), stage: r.stage, order: r.ord, idx: r.idx,
+        gameId: r.game_id, theme: r.theme, south: r.south, players: Number(r.players), bots: Number(r.bots), online: online[r.code] || 0 }));
     },
     async seen(id) {
       await q(
