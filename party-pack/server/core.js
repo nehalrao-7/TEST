@@ -684,7 +684,7 @@ async function createRoom(store, body) {
 }
 
 // ---------------- admin dashboard ----------------
-// Counts only. Switched off unless ADMIN_KEY (16+ characters) is set; the key is compared in constant time.
+// Counts only. Switched off unless ADMIN_KEY (10+ characters) is set; the key is compared in constant time.
 const keysEqual = (a, b) => crypto.timingSafeEqual(crypto.createHash('sha256').update(String(a || '')).digest(), crypto.createHash('sha256').update(String(b || '')).digest());
 async function adminStats(store) {
   const now = Date.now();
@@ -720,7 +720,7 @@ async function handle(store, method, path, body = {}, query = {}) {
 
     if (path === 'admin/stats') {
       const key = String(process.env.ADMIN_KEY || '');
-      if (key.length < 16) return { status: 404, json: { error: 'Not found' } };
+      if (key.length < 10) return { status: 404, json: { error: 'Not found' } };
       if (!keysEqual(body.key, key)) { await sleep(700); return { status: 401, json: { error: 'That key is not right.' } }; }
       return { json: await adminStats(store) };
     }
