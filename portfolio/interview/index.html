@@ -1,0 +1,234 @@
+<title>Nehal's World Interview</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Caveat:wght@500&family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single reading column with a sticky section rail; each question is a numbered field card on a field-notebook ground. */
+:root {
+  --bg: #f3f1ec; --surface: #fbfaf7; --ink: #1c1b19; --ink-2: #5d5a54; --line: rgba(28,27,25,.13);
+  --accent: #d94a12; --accent-soft: rgba(217,74,18,.1); --ok: #2f7d4f;
+  --display: "Instrument Serif", Georgia, serif; --body: "Inter Tight", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace; --hand: "Caveat", "Comic Sans MS", cursive;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0d0d0e; --surface: #151517; --ink: #ecebe6; --ink-2: #a3a29c; --line: rgba(236,235,230,.13);
+  --accent: #ff5a1f; --accent-soft: rgba(255,90,31,.12); --ok: #3dff8a; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0d0d0e; --surface: #151517; --ink: #ecebe6; --ink-2: #a3a29c; --line: rgba(236,235,230,.13);
+  --accent: #ff5a1f; --accent-soft: rgba(255,90,31,.12); --ok: #3dff8a; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 16px/1.55 var(--body); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 80px; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 1060px; margin: 0 auto; display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 56px; }
+.mono { font-family: var(--mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+
+header.top { max-width: 1060px; margin: 0 auto; padding: 48px 0 36px; display: grid; gap: 14px; }
+.top h1 { font: 400 clamp(44px, 7vw, 80px)/0.95 var(--display); margin: 0; letter-spacing: -.02em; text-wrap: balance; }
+.top h1 em { color: var(--accent); }
+.top p { margin: 0; max-width: 62ch; color: var(--ink-2); font-size: 17px; }
+.status { display: flex; flex-wrap: wrap; gap: 10px 22px; align-items: center; margin-top: 6px; }
+.meter { width: 220px; max-width: 100%; height: 4px; background: var(--line); border-radius: 4px; overflow: hidden; }
+.meter span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .5s; }
+.sync { color: var(--ink-2); }
+.sync.is-warn { color: var(--accent); }
+
+nav.rail { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 24px); align-self: start; display: grid; gap: 4px; }
+nav.rail a { display: flex; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: 8px; color: var(--ink-2); text-decoration: none; font-size: 14px; }
+nav.rail a:hover { background: var(--accent-soft); color: var(--ink); }
+nav.rail a b { font: 500 11px var(--mono); color: var(--ink-2); }
+nav.rail a.done b { color: var(--ok); }
+
+section.part { display: grid; gap: 18px; padding-top: 12px; margin-bottom: 44px; scroll-margin-top: 20px; }
+.part h2 { font: 400 34px/1.05 var(--display); margin: 0; display: flex; gap: 14px; align-items: baseline; text-wrap: balance; }
+.part h2 .mono { color: var(--accent); }
+.part > p { margin: 0 0 4px; color: var(--ink-2); max-width: 62ch; }
+
+.q { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; display: grid; gap: 10px; min-width: 0; }
+.q.is-done { border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+.q label { font-weight: 500; font-size: 18px; line-height: 1.35; display: flex; gap: 12px; }
+.q label .n { font: 500 12px var(--mono); color: var(--accent); padding-top: 5px; flex: 0 0 auto; }
+.why { margin: 0; color: var(--ink-2); font-size: 14px; }
+.why b { font-weight: 500; color: var(--ink); }
+textarea, input[type=text] { width: 100%; font: 16px/1.5 var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; resize: vertical; }
+textarea { min-height: 96px; }
+textarea:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+textarea::placeholder, input::placeholder { color: var(--ink-2); opacity: .7; font-family: var(--hand); font-size: 20px; }
+.foot { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.saved { color: var(--ink-2); font-size: 11px; }
+.saved.ok { color: var(--ok); }
+.saved.err { color: var(--accent); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips button { font: 14px var(--body); color: var(--ink); background: transparent; border: 1px solid var(--line); border-radius: 99px; padding: 7px 14px; cursor: pointer; }
+.chips button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chips button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.end { border-top: 1px solid var(--line); padding-top: 24px; color: var(--ink-2); }
+.end strong { color: var(--ink); font-weight: 500; }
+
+@media (max-width: 820px) {
+  .wrap { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+  nav.rail { position: static; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-bottom: 18px; }
+}
+@media (prefers-reduced-motion: reduce) { .meter span { transition: none; } }
+</style>
+
+<header class="top">
+  <p class="mono">Nehal's World · refinement interview</p>
+  <h1>Tell me the <em>real</em> story.</h1>
+  <p>The site is built on placeholders and good guesses. Your answers replace them and sharpen the copy, the places and the hidden notes. Answer in your own words; rough is fine. Everything saves as you type, and you can come back any time.</p>
+  <div class="status">
+    <div class="meter" aria-hidden="true"><span id="meter"></span></div>
+    <span class="mono" id="count">0 of 24 answered</span>
+    <span class="mono sync" id="sync">Connecting…</span>
+  </div>
+</header>
+
+<div class="wrap">
+  <nav class="rail" aria-label="Parts" id="rail"></nav>
+  <main id="form"></main>
+</div>
+
+<script>
+const PARTS = [
+  { id: "facts", title: "The real story", blurb: "These replace the invented details on the site. Specifics beat adjectives: names, numbers, years.", qs: [
+    { id: "q01", q: "What's your current title at BOLO, and what does BOLO do, in one sentence?", why: "<b>Used for:</b> the Lighthouse and the 'Now' dot. Both are placeholders today.", ph: "e.g. Product designer — BOLO builds…", short: false },
+    { id: "q02", q: "The work at BOLO you're proudest of: what was the problem, what did you do, and what changed?", why: "<b>Used for:</b> a new BOLO place or panel. Numbers help: time saved, revenue, users, speed." },
+    { id: "q03", q: "At Elevety, name a real product you designed. What made it hard, and what changed because of you?", why: "<b>Used for:</b> the Workshop. 'Lumen' is a stand-in. Say if the real one can't be named." },
+    { id: "q04", q: "At Weston Foods, what did you actually improve on the line? Any measurable result?", why: "<b>Used for:</b> the Line. The 'changeover' story and its numbers are invented." },
+    { id: "q05", q: "HackPrinceton: what did your team build, which year, and what was your part?", why: "<b>Used for:</b> the Hack Lab. 'Wayfinder' is invented." },
+    { id: "q06", q: "VEX Team 356 or Solus Robots: one mechanism, match or moment you still think about.", why: "<b>Used for:</b> the Arena. A real anecdote beats a résumé line." },
+    { id: "q07", q: "What's missing from the résumé? Side projects, freelance, teaching, awards, things you've built for fun.", why: "<b>Used for:</b> possibly a new island." },
+  ]},
+  { id: "think", title: "How you think and work", blurb: "This is the gap the site exists to close: what visitors can't get from the résumé.", qs: [
+    { id: "q08", q: "Walk me through the first 48 hours of a brand-new problem. What do you actually do?", why: "<b>Used for:</b> the Observatory's four moves, rewritten in your real process." },
+    { id: "q09", q: "Tell me about a time you were wrong. How did you find out, and what did you change?", why: "<b>Used for:</b> credibility. Hiring managers trust people who can say this." },
+    { id: "q10", q: "How do you use AI and automation in your work today? Name tools, workflows and one concrete example.", why: "<b>Used for:</b> the Studio. AI is never named on the site, but this shapes what the world shows off." },
+    { id: "q11", q: "What do teammates come to you for?", why: "<b>Used for:</b> the 'Bilingual' and 'force multiplier' claims. Your version will be truer." },
+    { id: "q12", q: "A design or engineering decision you'd defend even if the whole room disagreed. Why?", why: "<b>Used for:</b> a field note or a panel line. Shows judgement." },
+    { id: "q13", q: "What will you never compromise on in your work?", why: "<b>Used for:</b> the tone of the whole site." },
+  ]},
+  { id: "aim", title: "What you're aiming for", blurb: "The site is a tool for getting hired, so it should point at the jobs you want.", qs: [
+    { id: "q14", q: "Which roles are you going after? Pick all that apply, then add detail.", why: "<b>Used for:</b> the lenses on the intro screen and their routes.", chips: ["Industrial designer", "Mechanical engineer", "Product designer", "Design engineer", "Creative technologist", "Product manager", "Hardware PM", "Founding / generalist"] },
+    { id: "q15", q: "Dream companies, or the kind of team you want to join?", why: "<b>Used for:</b> tuning the copy and examples toward their world." },
+    { id: "q16", q: "Location: city, relocation, remote or hybrid, and when you could start.", why: "<b>Used for:</b> the Dot and the Lighthouse. The site currently says 'willing to relocate'.", short: true, ph: "e.g. Toronto, open to NYC / SF, hybrid, 4 weeks' notice" },
+    { id: "q17", q: "Who will open this link most, and what should they feel in the first 10 seconds?", why: "<b>Used for:</b> the intro screen and what gets cut." },
+  ]},
+  { id: "voice", title: "Your voice and your world", blurb: "The details that make the world feel like yours, not a template.", qs: [
+    { id: "q18", q: "Three words colleagues or friends would use to describe you.", why: "<b>Used for:</b> the voice of every line.", short: true, ph: "e.g. calm, relentless, funny" },
+    { id: "q19", q: "Principles you actually live by. Write a few field notes in your own words.", why: "<b>Used for:</b> the six hidden notes. The current ones are my guesses." },
+    { id: "q20", q: "Something human to hide in the world: a hobby, a place, an obsession, a pet.", why: "<b>Used for:</b> a secret island or an easter egg people tell others about." },
+    { id: "q21", q: "What real visuals do you have? Sketches, CAD renders, prototype photos, videos. Roughly how many?", why: "<b>Used for:</b> replacing the generated process frames with real work. This is the biggest upgrade available." },
+    { id: "q22", q: "Which line on the current site sounds most like you, and which sounds least like you?", why: "<b>Used for:</b> calibrating the copy." },
+    { id: "q23", q: "Anything in the world that feels wrong, too much, or that you'd cut?", why: "<b>Used for:</b> the next pass." },
+    { id: "q24", q: "Contact details to publish: email, LinkedIn, résumé, portfolio domain. Anything you want kept private?", why: "<b>Used for:</b> the Lighthouse. The current email is a placeholder.", short: true, ph: "e.g. nehal@… · linkedin.com/in/… · keep phone private" },
+  ]},
+];
+const ALL = PARTS.flatMap((p) => p.qs);
+const state = {}; // id -> {text, choices}
+let db = null, writable = true;
+const timers = {}, inflight = {}, pending = {};
+
+const $ = (s, c = document) => c.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// ---------- render ----------
+$("#rail").innerHTML = PARTS.map((p) => `<a href="#${p.id}" data-part="${p.id}">${esc(p.title)} <b></b></a>`).join("");
+$("#form").innerHTML = PARTS.map((p, pi) => `
+  <section class="part" id="${p.id}">
+    <h2><span class="mono">Part ${pi + 1}</span>${esc(p.title)}</h2>
+    <p>${esc(p.blurb)}</p>
+    ${p.qs.map((q) => `
+      <div class="q" id="card-${q.id}">
+        <label for="${q.id}"><span class="n">${q.id.slice(1)}</span><span>${esc(q.q)}</span></label>
+        <p class="why">${q.why}</p>
+        ${q.chips ? `<div class="chips" role="group" aria-label="Roles">${q.chips.map((c) => `<button type="button" data-q="${q.id}" data-chip="${esc(c)}" aria-pressed="false">${esc(c)}</button>`).join("")}</div>` : ""}
+        ${q.short ? `<input type="text" id="${q.id}" placeholder="${esc(q.ph || "")}" autocomplete="off">`
+                  : `<textarea id="${q.id}" rows="4" placeholder="${esc(q.ph || "Type your answer…")}"></textarea>`}
+        <div class="foot"><span class="saved mono" id="saved-${q.id}"></span></div>
+      </div>`).join("")}
+  </section>`).join("") + `<p class="end"><strong>That's everything.</strong> When you're done, tell me in the chat and I'll read your answers and update the world.</p>`;
+
+function answered(id) { const s = state[id]; return !!s && ((s.text || "").trim().length > 0 || (s.choices || []).length > 0); }
+function refreshProgress() {
+  const n = ALL.filter((q) => answered(q.id)).length;
+  $("#count").textContent = `${n} of ${ALL.length} answered`;
+  $("#meter").style.width = (n / ALL.length) * 100 + "%";
+  PARTS.forEach((p) => {
+    const k = p.qs.filter((q) => answered(q.id)).length;
+    const a = $(`[data-part="${p.id}"]`);
+    a.querySelector("b").textContent = `${k}/${p.qs.length}`;
+    a.classList.toggle("done", k === p.qs.length);
+  });
+  ALL.forEach((q) => $("#card-" + q.id).classList.toggle("is-done", answered(q.id)));
+}
+function fill(id) {
+  const s = state[id] || {}, el = document.getElementById(id);
+  if (el && document.activeElement !== el && !pending[id]) el.value = s.text || "";
+  document.querySelectorAll(`[data-q="${id}"]`).forEach((b) => b.setAttribute("aria-pressed", String((s.choices || []).includes(b.dataset.chip))));
+}
+function mark(id, cls, text) { const el = $("#saved-" + id); el.className = "saved mono " + cls; el.textContent = text; }
+
+// ---------- local draft (fallback + safety net) ----------
+const LKEY = "nehal-interview-draft";
+function saveLocal() { try { localStorage.setItem(LKEY, JSON.stringify(state)); } catch {} }
+try { Object.assign(state, JSON.parse(localStorage.getItem(LKEY) || "{}")); } catch {}
+ALL.forEach((q) => fill(q.id)); refreshProgress();
+
+// ---------- saving ----------
+async function persist(id) {
+  if (!db || !writable) { mark(id, "", db ? "Read-only" : "Saved on this device"); return; }
+  if (inflight[id]) { pending[id] = true; return; }
+  inflight[id] = true; pending[id] = false;
+  mark(id, "", "Saving…");
+  const q = ALL.find((x) => x.id === id), s = state[id] || {};
+  try {
+    await db.doc("answers/" + id).set({ question: q.q, text: s.text || "", choices: s.choices || [], updatedAt: new Date().toISOString() });
+    mark(id, "ok", "Saved");
+  } catch (e) {
+    if (e && e.code === "invalid_argument") { writable = false; mark(id, "err", "Only Nehal can save answers here"); }
+    else mark(id, "err", "Not saved yet — kept on this device");
+  } finally {
+    inflight[id] = false;
+    if (pending[id]) persist(id);
+  }
+}
+function change(id, patch) {
+  state[id] = { ...(state[id] || {}), ...patch };
+  saveLocal(); refreshProgress();
+  mark(id, "", "Editing…");
+  clearTimeout(timers[id]);
+  timers[id] = setTimeout(() => persist(id), 900);
+}
+document.addEventListener("input", (e) => { const id = e.target.id; if (/^q\d\d$/.test(id)) change(id, { text: e.target.value }); });
+document.addEventListener("focusout", (e) => { const id = e.target.id; if (/^q\d\d$/.test(id) && timers[id]) { clearTimeout(timers[id]); timers[id] = null; persist(id); } });
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-chip]"); if (!b) return;
+  const id = b.dataset.q, cur = new Set((state[id] || {}).choices || []);
+  cur.has(b.dataset.chip) ? cur.delete(b.dataset.chip) : cur.add(b.dataset.chip);
+  b.setAttribute("aria-pressed", String(cur.has(b.dataset.chip)));
+  change(id, { choices: [...cur] });
+});
+
+// ---------- connect ----------
+(async () => {
+  const sync = $("#sync");
+  try { db = window.claude ? await window.claude.use("db") : null; } catch { db = null; }
+  if (!db) { sync.textContent = "Saving on this device only"; sync.classList.add("is-warn"); return; }
+  const slow = setTimeout(() => { sync.textContent = "Can't reach saved answers yet — still trying"; sync.classList.add("is-warn"); }, 10000);
+  db.collection("answers").onSnapshot((snap) => {
+    if (!snap.metadata.fromCache) { clearTimeout(slow); sync.textContent = "Saved privately — only you can see these"; sync.classList.remove("is-warn"); }
+    snap.docs.forEach((d) => {
+      const v = d.data() || {};
+      const local = state[d.id];
+      // keep a newer local draft (e.g. typed offline); otherwise take the stored answer
+      if (local && (local.text || "") !== (v.text || "") && !v.text) return;
+      state[d.id] = { text: typeof v.text === "string" ? v.text : "", choices: Array.isArray(v.choices) ? v.choices.map(String) : [] };
+      fill(d.id);
+    });
+    saveLocal(); refreshProgress();
+  }, () => { clearTimeout(slow); sync.textContent = "Saved answers unavailable — saving on this device"; sync.classList.add("is-warn"); });
+  // push any answers typed before the store connected
+  ALL.forEach((q) => { if (answered(q.id)) persist(q.id); });
+})();
+</script>
