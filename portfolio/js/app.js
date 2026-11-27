@@ -6,6 +6,10 @@ import { PLACES, BYKEY, LENSES, DOTS, NOTES, ask } from "./places.js";
 import { initDots, initTolerance, initWipe, initGears } from "./toys.js";
 import { initProduct } from "./product.js";
 import { frame } from "./art.js";
+import { createAudio } from "./audio.js";
+
+const audio = createAudio();
+window.gsap.ticker.lagSmoothing(0); // keep camera flights on time even when a frame is slow
 
 const $ = (s, c = document) => c.querySelector(s);
 const $$ = (s, c = document) => [...c.querySelectorAll(s)];
@@ -22,7 +26,7 @@ try {
     places: PLACES, notes: NOTES, labelsEl: $(".labels"), reduced,
     onSelect: (k) => openPlace(k),
     onNote: (i) => openNote(i),
-    onHover: (kind) => setCursor(kind === "place" ? "Enter" : kind === "note" ? "Read" : null),
+    onHover: (kind, key) => { setCursor(kind === "place" ? "Enter" : kind === "note" ? "Read" : null); if (key) audio.hover(PLACES.findIndex((p) => p.key === key)); },
   });
 } catch (e) {
   console.warn("WebGL unavailable — showing the index instead.", e);
@@ -30,7 +34,7 @@ try {
 }
 
 // on wide screens the intro text sits left, so park the world to the right
-if (world && !isSmall()) world.setPanelOffset(-innerWidth * 0.2, 0);
+if (world && !isSmall()) world.setPanelOffset(-innerWidth * 0.24, 0);
 
 // ---------- loader ----------
 (function loader() {
@@ -106,6 +110,7 @@ function openPlace(key) {
   if (!state.entered) enter(null);
   state.cleanup.forEach((f) => f && f()); state.cleanup = [];
   state.current = key;
+  audio.select(PLACES.indexOf(p));
   const first = !state.visited.has(key);
   state.visited.add(key);
   world?.focus(key);
@@ -268,7 +273,7 @@ document.addEventListener("click", async (e) => {
 const noteEl = $(".note");
 function openNote(i) {
   const first = !state.notes.has(i);
-  state.notes.add(i); world?.markNote(i); updateProgress();
+  state.notes.add(i); world?.markNote(i); updateProgress(); audio.note();
   $(".note__count", noteEl).textContent = `Field note ${i + 1} of ${NOTES.length} · found ${state.notes.size}`;
   $(".note__text", noteEl).textContent = NOTES[i];
   noteEl.hidden = false;
@@ -355,6 +360,11 @@ document.addEventListener("keydown", (e) => {
     openPlace(PLACES[(i + (e.key === "]" ? 1 : PLACES.length - 1)) % PLACES.length].key);
   }
 });
+
+// ---------- sound ----------
+function syncSound() { $$("[data-sound]").forEach((b) => { b.setAttribute("aria-pressed", String(audio.on)); $(".sound__state", b).textContent = audio.on ? "on" : "off"; }); }
+$$("[data-sound]").forEach((b) => b.addEventListener("click", async (e) => { e.stopPropagation(); await audio.toggle(); syncSound(); }));
+syncSound();
 
 // ---------- small things ----------
 const toastEl = $(".toast"); let toastT = 0;

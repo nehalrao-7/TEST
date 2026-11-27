@@ -439,3 +439,16 @@ body.no-webgl .index__close { display: none; }
 @media (hover: none), (pointer: coarse) { .cursor { display: none; } }
 
 @media (prefers-reduced-motion: reduce) { .grain, .cd-dot.is-next .cd-pt, .rattle, .ask__thinking span { animation: none; } }
+
+/* ---------- sound toggle ---------- */
+.sound { display: inline-flex; align-items: center; gap: 8px; margin-left: 14px; padding: 6px 12px; border: 1px solid var(--line); border-radius: 99px; color: var(--ink-2); font-size: 10px; vertical-align: middle; transition: border-color .3s, color .3s; }
+.sound:hover, .sound[aria-pressed="true"] { border-color: var(--accent); color: var(--ink); }
+.sound--bar { margin-left: 0; padding: 10px 12px; background: var(--glass); backdrop-filter: blur(10px); }
+.sound__bars { display: inline-flex; align-items: flex-end; gap: 2px; height: 10px; }
+.sound__bars i { width: 2px; height: 3px; background: currentColor; border-radius: 1px; }
+.sound[aria-pressed="true"] .sound__bars i { background: var(--accent); animation: bars 1s ease-in-out infinite; }
+.sound[aria-pressed="true"] .sound__bars i:nth-child(2) { animation-delay: .2s; }
+.sound[aria-pressed="true"] .sound__bars i:nth-child(3) { animation-delay: .4s; }
+.sound[aria-pressed="true"] .sound__bars i:nth-child(4) { animation-delay: .1s; }
+@keyframes bars { 0%, 100% { height: 3px; } 50% { height: 10px; } }
+@media (max-width: 760px) { .sound--bar { padding: 9px 10px; } .sound--bar .sound__state { display: none; } }
