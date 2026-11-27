@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Nehal Rao — Engineer who designs. Designer who ships.</title>
+  <meta name="description" content="Nehal Rao — mechanical engineer, industrial designer and product builder in Toronto. A decade of connecting the dots between robots, products, production lines and the people who use them." />
+  <meta name="theme-color" content="#0a0a0b" />
+  <meta property="og:title" content="Nehal Rao — Connecting the dots" />
+  <meta property="og:description" content="Engineer who designs. Designer who ships. Toronto, CA." />
+  <meta property="og:type" content="website" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0a0b'/%3E%3Ccircle cx='20' cy='42' r='6' fill='%23ff5a1f'/%3E%3Ccircle cx='44' cy='22' r='6' fill='%23ecebe6'/%3E%3Cpath d='M20 42 44 22' stroke='%23ff5a1f' stroke-width='3'/%3E%3C/svg%3E" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+  </script>
+</head>
+<body class="is-loading">
+
+  <!-- ============ PRELOADER ============ -->
+  <div class="loader" aria-hidden="true">
+    <div class="loader__inner">
+      <span class="loader__label mono">Connecting the dots</span>
+      <span class="loader__count"><span data-count>000</span></span>
+    </div>
+    <div class="loader__bar"><span></span></div>
+  </div>
+
+  <!-- ============ FIXED LAYERS ============ -->
+  <canvas id="webgl" aria-hidden="true"></canvas>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="cursor" aria-hidden="true"><span class="cursor__dot"></span><span class="cursor__ring"><em class="cursor__text"></em></span></div>
+
+  <header class="nav">
+    <a href="#top" class="nav__logo" aria-label="Nehal Rao — home">
+      <svg viewBox="0 0 40 40" width="32" height="32" aria-hidden="true"><circle cx="11" cy="28" r="4.5" fill="var(--accent)"/><circle cx="29" cy="12" r="4.5" fill="currentColor"/><path d="M11 28 29 12" stroke="var(--accent)" stroke-width="2"/></svg>
+      <span>Nehal Rao</span>
+    </a>
+    <nav class="nav__links" aria-label="Primary">
+      <a href="#story" data-magnetic>Story</a>
+      <a href="#work" data-magnetic>Work</a>
+      <a href="#toolkit" data-magnetic>Toolkit</a>
+      <a href="#contact" data-magnetic>Contact</a>
+    </nav>
+    <a href="#contact" class="nav__status" data-magnetic><span class="pulse"></span>Open to new roles</a>
+  </header>
+
+  <aside class="hud mono" aria-hidden="true">
+    <span class="hud__index">00</span>
+    <span class="hud__track"><span class="hud__fill"></span></span>
+    <span class="hud__label">The premise</span>
+  </aside>
+
+  <main id="top">
+
+    <!-- ============ HERO ============ -->
+    <section class="hero" data-section="0" data-label="Hello">
+      <div class="hero__meta mono">
+        <span>Portfolio — Edition 2026</span>
+        <span>Toronto, CA &nbsp;43.65° N, 79.38° W</span>
+      </div>
+
+      <h1 class="hero__title">
+        <span class="line"><span class="word">Nehal</span></span>
+        <span class="line line--indent"><span class="word"><em>Rao</em></span><span class="hero__dot"></span></span>
+      </h1>
+
+      <div class="hero__bottom">
+        <p class="hero__claim reveal-lines">
+          Engineer who designs.<br/>
+          Designer who <em>ships.</em>
+        </p>
+        <p class="hero__lead reveal-lines">
+          I turn half‑formed ideas into things people can hold, use and buy —
+          robots, consumer products, production lines, and the stories that sell them.
+        </p>
+        <a href="#story" class="hero__scroll mono" data-magnetic>
+          <span>Scroll to connect the dots</span>
+          <span class="hero__scroll-line"></span>
+        </a>
+      </div>
+    </section>
+
+    <!-- ============ PREMISE ============ -->
+    <section class="premise" id="story" data-section="1" data-label="The premise">
+      <p class="eyebrow mono"><span>00</span> The premise</p>
+      <p class="premise__text split-words">
+        They say you can only connect the dots looking backwards.
+        I've spent a decade collecting them <em>on purpose</em> — gears, grids, code, customers —
+        so when the next hard problem shows up, the line is already drawn.
+      </p>
+      <div class="premise__facts">
+        <div class="fact">
+          <span class="fact__num mono">B.Eng</span>
+          <span class="fact__txt">Ryerson University (now Toronto Metropolitan). Trained to make things that don't break.</span>
+        </div>
+        <div class="fact">
+          <span class="fact__num mono">10+ yrs</span>
+          <span class="fact__txt">Turning CAD files, sketches and whiteboard arrows into physical reality.</span>
+        </div>
+        <div class="fact">
+          <span class="fact__num mono">4 worlds</span>
+          <span class="fact__txt">Robotics. Consumer products. Food manufacturing. Startups. Fluent in each one's dialect.</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TIMELINE / THE DOTS ============ -->
+    <section class="dots" data-section="2" data-label="The dots">
+      <div class="dots__head">
+        <p class="eyebrow mono"><span>01</span> The dots</p>
+        <h2 class="h2">Every dot was a skill<br/>I'd <em>need later.</em></h2>
+      </div>
+
+      <div class="dots__pin">
+        <div class="dots__track">
+          <div class="dots__rail" aria-hidden="true"><span class="dots__rail-fill"></span></div>
+
+          <article class="dot-card">
+            <span class="dot-card__node" aria-hidden="true"></span>
+            <p class="dot-card__year mono">2014</p>
+            <h3 class="dot-card__title">The robot years</h3>
+            <p class="dot-card__role mono">VEX Robotics — Team 356</p>
+            <p class="dot-card__body">Part of the winning alliance at the 2014 Ontario Provincial VEX Robotics Championship. Built, broke and rebuilt drivetrains between matches.</p>
+            <p class="dot-card__lesson"><span class="mono">Lesson 01</span> A design isn't done until it survives contact with an opponent.</p>
+          </article>
+
+          <article class="dot-card">
+            <span class="dot-card__node" aria-hidden="true"></span>
+            <p class="dot-card__year mono">2015</p>
+            <h3 class="dot-card__title">First real machine</h3>
+            <p class="dot-card__role mono">Mechanical Designer — Solus Robots</p>
+            <p class="dot-card__body">Designed mechanisms and enclosures for robots that left the lab and went to work. First time my CAD had a customer.</p>
+            <p class="dot-card__lesson"><span class="mono">Lesson 02</span> Tolerances are a love language.</p>
+          </article>
+
+          <article class="dot-card">
+            <span class="dot-card__node" aria-hidden="true"></span>
+            <p class="dot-card__year mono">2016</p>
+            <h3 class="dot-card__title">Startup speed</h3>
+            <p class="dot-card__role mono">Design Associate — iBoost, Ryerson</p>
+            <p class="dot-card__body">Embedded with early‑stage founders in Ryerson's accelerator, turning pitch decks into prototypes in days, not quarters.</p>
+            <p class="dot-card__lesson"><span class="mono">Lesson 03</span> Momentum is a feature. Ship it.</p>
+          </article>
+
+          <article class="dot-card">
+            <span class="dot-card__node" aria-hidden="true"></span>
+            <p class="dot-card__year mono">2016 →</p>
+            <h3 class="dot-card__title">Shape &amp; substance</h3>
+            <p class="dot-card__role mono">Industrial Designer — Elevety</p>
+            <p class="dot-card__body">Owned products from first sketch to factory floor. SolidWorks, CATIA, CNC, body engineering, and a lot of conversations with suppliers.</p>
+            <p class="dot-card__lesson"><span class="mono">Lesson 04</span> Beautiful and buildable are the same problem.</p>
+          </article>
+
+          <article class="dot-card">
+            <span class="dot-card__node" aria-hidden="true"></span>
+            <p class="dot-card__year mono">2017</p>
+            <h3 class="dot-card__title">10,000 units an hour</h3>
+            <p class="dot-card__role mono">Production Engineering — Weston Foods</p>
+            <p class="dot-card__body">Worked the floor of one of Canada's largest bakeries: line studies, changeovers, fixtures, and the real meaning of "uptime".</p>
+            <p class="dot-card__lesson"><span class="mono">Lesson 05</span> Nothing humbles a design like a production line.</p>
+          </article>
+
+          <article class="dot-card">
+            <span class="dot-card__node" aria-hidden="true"></span>
+            <p class="dot-card__year mono">36 hrs</p>
+            <h3 class="dot-card__title">Best Overall Hack</h3>
+            <p class="dot-card__role mono">HackPrinceton</p>
+            <p class="dot-card__body">One weekend, one team, hardware and software stitched together on no sleep — and the top prize out of the whole field.</p>
+            <p class="dot-card__lesson"><span class="mono">Lesson 06</span> Constraints aren't walls. They're rocket fuel.</p>
+          </article>
+
+          <article class="dot-card dot-card--now">
+            <span class="dot-card__node" aria-hidden="true"></span>
+            <p class="dot-card__year mono">Now</p>
+            <h3 class="dot-card__title">The line ahead</h3>
+            <p class="dot-card__role mono">BOLO — Toronto</p>
+            <!-- PLACEHOLDER: replace with current title + one-line description of the BOLO work -->
+            <p class="dot-card__body">Bringing an engineer's rigour and a designer's eye to everything BOLO builds — where every dot before this one starts paying compound interest.</p>
+            <p class="dot-card__lesson"><span class="mono">Lesson 07</span> The next dot is wherever you are. <a href="#contact">Let's talk →</a></p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ WORK ============ -->
+    <section class="work" id="work" data-section="3" data-label="Selected work">
+      <div class="work__head">
+        <p class="eyebrow mono"><span>02</span> Selected work</p>
+        <h2 class="h2">Proof,<br/><em>not promises.</em></h2>
+        <p class="work__intro">Four projects, four very different rooms. Same habit in each: find the real constraint, design around it, and leave the numbers better than I found them.</p>
+      </div>
+
+      <!-- PLACEHOLDER CASE STUDIES: names, metrics and details below are illustrative — replace with real ones -->
+      <div class="cases">
+        <article class="case" data-cursor="Read">
+          <div class="case__inner">
+            <div class="case__text">
+              <p class="case__meta mono"><span>01</span> Elevety · Industrial Design · 2018</p>
+              <h3 class="case__title">Project Lumen</h3>
+              <p class="case__line">Redesigning a flagship consumer product so it could actually be built at scale — without losing the thing that made people want it.</p>
+              <dl class="case__pmo">
+                <div><dt class="mono">Problem</dt><dd>A beloved design with 61 parts, three suppliers and an assembly line that dreaded it.</dd></div>
+                <div><dt class="mono">Move</dt><dd>Re‑architected the housing in SolidWorks around snap‑fits and a single CNC‑machined core.</dd></div>
+                <div><dt class="mono">Outcome</dt><dd>Same silhouette. Half the headaches. On shelves in nine months.</dd></div>
+              </dl>
+            </div>
+            <div class="case__visual" data-shape="0" aria-hidden="true"><svg class="blueprint" viewBox="0 0 400 400"></svg></div>
+          </div>
+          <ul class="case__stats">
+            <li><strong data-countup="38">0</strong><span>% fewer parts</span></li>
+            <li><strong data-countup="52">0</strong><span>% faster assembly</span></li>
+            <li><strong data-countup="9">0</strong><span>months to retail</span></li>
+          </ul>
+        </article>
+
+        <article class="case" data-cursor="Read">
+          <div class="case__inner">
+            <div class="case__text">
+              <p class="case__meta mono"><span>02</span> Weston Foods · Production Eng. · 2017</p>
+              <h3 class="case__title">Line 4</h3>
+              <p class="case__line">A changeover study on a high‑speed bakery line, where every idle minute is measured in thousands of loaves.</p>
+              <dl class="case__pmo">
+                <div><dt class="mono">Problem</dt><dd>Product changeovers were eating a full shift of capacity every week.</dd></div>
+                <div><dt class="mono">Move</dt><dd>Time‑studied every step, then designed quick‑release fixtures and a colour‑coded tooling cart.</dd></div>
+                <div><dt class="mono">Outcome</dt><dd>Faster changeovers, happier operators, and a process the plant adopted on other lines.</dd></div>
+              </dl>
+            </div>
+            <div class="case__visual" data-shape="1" aria-hidden="true"><svg class="blueprint" viewBox="0 0 400 400"></svg></div>
+          </div>
+          <ul class="case__stats">
+            <li><strong data-countup="22">0</strong><span>% less downtime</span></li>
+            <li><strong data-countup="180" data-prefix="$" data-suffix="K">0</strong><span>projected yearly savings</span></li>
+            <li><strong data-countup="3">0</strong><span>lines adopted it</span></li>
+          </ul>
+        </article>
+
+        <article class="case" data-cursor="Read">
+          <div class="case__inner">
+            <div class="case__text">
+              <p class="case__meta mono"><span>03</span> HackPrinceton · Hardware + Software · 36h</p>
+              <h3 class="case__title">Wayfinder</h3>
+              <p class="case__line">A haptic navigation wearable, prototyped from zero in a single weekend, that took home Best Overall Hack.</p>
+              <dl class="case__pmo">
+                <div><dt class="mono">Problem</dt><dd>Turn‑by‑turn directions demand your eyes. What if your wrist could guide you instead?</dd></div>
+                <div><dt class="mono">Move</dt><dd>Microcontroller, vibration motors, a 3D‑printed band and a phone app — integrated by hour 30.</dd></div>
+                <div><dt class="mono">Outcome</dt><dd>A working demo the judges could wear — and the top prize of the event.</dd></div>
+              </dl>
+            </div>
+            <div class="case__visual" data-shape="2" aria-hidden="true"><svg class="blueprint" viewBox="0 0 400 400"></svg></div>
+          </div>
+          <ul class="case__stats">
+            <li><strong data-countup="36">0</strong><span>hours, start to demo</span></li>
+            <li><strong data-countup="1" data-prefix="#">0</strong><span>Best Overall Hack</span></li>
+            <li><strong data-countup="0">0</strong><span>hours of sleep (approx.)</span></li>
+          </ul>
+        </article>
+
+        <article class="case" data-cursor="Read">
+          <div class="case__inner">
+            <div class="case__text">
+              <p class="case__meta mono"><span>04</span> BOLO · Current · 2024 →</p>
+              <h3 class="case__title">From fog to roadmap</h3>
+              <p class="case__line">Taking a fuzzy brief and turning it into something a team can build, a customer can use and a CFO can love.</p>
+              <dl class="case__pmo">
+                <div><dt class="mono">Problem</dt><dd>[Replace] The ambiguous, important thing BOLO needed solved.</dd></div>
+                <div><dt class="mono">Move</dt><dd>[Replace] What Nehal designed, built or reorganised to solve it.</dd></div>
+                <div><dt class="mono">Outcome</dt><dd>[Replace] The measurable result — revenue, speed, quality, growth.</dd></div>
+              </dl>
+            </div>
+            <div class="case__visual" data-shape="3" aria-hidden="true"><svg class="blueprint" viewBox="0 0 400 400"></svg></div>
+          </div>
+          <ul class="case__stats">
+            <li><strong data-countup="3" data-suffix="×">0</strong><span>[metric placeholder]</span></li>
+            <li><strong data-countup="40" data-suffix="%">0</strong><span>[metric placeholder]</span></li>
+            <li><strong data-countup="12">0</strong><span>[metric placeholder]</span></li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- ============ TOOLKIT ============ -->
+    <section class="toolkit" id="toolkit" data-section="4" data-label="The toolkit">
+      <div class="toolkit__head">
+        <p class="eyebrow mono"><span>03</span> The toolkit</p>
+        <h2 class="h2">Fluent in atoms<br/><em>and</em> pixels.</h2>
+      </div>
+
+      <div class="marquee" aria-label="Engineering skills">
+        <div class="marquee__row" data-dir="-1">
+          <span>SolidWorks</span><i></i><span>CATIA V5</span><i></i><span>CNC Machining</span><i></i><span>Body Engineering</span><i></i><span>DFM / DFA</span><i></i><span>GD&amp;T</span><i></i><span>Rapid Prototyping</span><i></i><span>Injection Moulding</span><i></i><span>Lean Manufacturing</span><i></i>
+        </div>
+      </div>
+      <div class="marquee marquee--alt" aria-label="Product and people skills">
+        <div class="marquee__row" data-dir="1">
+          <span>Product Strategy</span><i></i><span>HTML &amp; CSS</span><i></i><span>Three.js</span><i></i><span>User Research</span><i></i><span>Storytelling</span><i></i><span>Growth</span><i></i><span>Supplier Negotiation</span><i></i><span>Stakeholder Whispering</span><i></i>
+        </div>
+      </div>
+
+      <div class="powers">
+        <article class="power">
+          <span class="power__num mono">01</span>
+          <h3 class="power__title">Bilingual</h3>
+          <p>I translate between engineering, design and business, so nothing gets lost between the whiteboard and the warehouse.</p>
+        </article>
+        <article class="power">
+          <span class="power__num mono">02</span>
+          <h3 class="power__title">Finisher</h3>
+          <p>Prototypes are cheap. Shipping is rare. I'd rather be measured on the second one — and I am.</p>
+        </article>
+        <article class="power">
+          <span class="power__num mono">03</span>
+          <h3 class="power__title">Force multiplier</h3>
+          <p>I leave teams with clearer specs, better processes and fewer 2 a.m. surprises than when I arrived.</p>
+        </article>
+      </div>
+
+      <div class="numbers">
+        <div class="number"><strong data-countup="10" data-suffix="+">0</strong><span>years building real things</span></div>
+        <div class="number"><strong data-countup="7">0</strong><span>dots connected (so far)</span></div>
+        <div class="number"><strong data-countup="1">0</strong><span>provincial robotics title</span></div>
+        <div class="number"><strong data-countup="1">0</strong><span>Best Overall Hack</span></div>
+      </div>
+    </section>
+
+    <!-- ============ VOICES ============ -->
+    <!-- PLACEHOLDER TESTIMONIALS: replace with real quotes (with permission) before publishing -->
+    <section class="voices" data-section="4" data-label="Word on the floor">
+      <p class="eyebrow mono"><span>04</span> Word on the floor</p>
+      <div class="voices__list">
+        <figure class="voice">
+          <blockquote>"Nehal is the rare engineer you can put in a room with a supplier, a designer and a CEO — and everyone walks out agreeing."</blockquote>
+          <figcaption class="mono">Former Manager — Elevety</figcaption>
+        </figure>
+        <figure class="voice">
+          <blockquote>"Gave him a problem on Monday. Had a prototype on my desk by Thursday. Had a better problem by Friday."</blockquote>
+          <figcaption class="mono">Founder — iBoost cohort</figcaption>
+        </figure>
+        <figure class="voice">
+          <blockquote>"He didn't just fix the line. He taught the line how to fix itself."</blockquote>
+          <figcaption class="mono">Plant Supervisor — Weston Foods</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- ============ CONTACT ============ -->
+    <section class="contact" id="contact" data-section="5" data-label="The next dot">
+      <p class="eyebrow mono"><span>05</span> The next dot</p>
+      <h2 class="contact__title">
+        <span class="line"><span class="word">You're the</span></span>
+        <span class="line"><span class="word"><em>next dot.</em></span></span>
+      </h2>
+      <p class="contact__lead">I'm looking for a team that builds real things and needs someone who can take them from sketch to ship. If that sounds like you, let's draw the line.</p>
+
+      <!-- PLACEHOLDER: swap in the real email address -->
+      <button class="contact__cta" data-magnetic data-email="hello@nehalrao.com" data-cursor="Copy">
+        <span class="contact__cta-label">hello@nehalrao.com</span>
+        <span class="contact__cta-hint mono">Click to copy</span>
+      </button>
+
+      <div class="contact__links">
+        <a href="https://ca.linkedin.com/in/nehalrao" target="_blank" rel="noopener" data-magnetic>LinkedIn ↗</a>
+        <!-- PLACEHOLDER: add resume PDF at portfolio/assets/Nehal-Rao-Resume.pdf -->
+        <a href="assets/Nehal-Rao-Resume.pdf" target="_blank" rel="noopener" data-magnetic>Résumé ↗</a>
+        <a href="mailto:hello@nehalrao.com" data-magnetic>Email ↗</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer mono">
+    <span>© 2026 Nehal Rao</span>
+    <span>Toronto — <span data-clock>--:--</span></span>
+    <span>Designed &amp; engineered with care</span>
+    <a href="#top" data-magnetic>Back to top ↑</a>
+  </footer>
+
+  <div class="toast mono" role="status" aria-live="polite"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
