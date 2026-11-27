@@ -161,7 +161,7 @@ const morphChunk = /* glsl */ `
     vec2 d = ndc - uMouse; d.x *= uAspect;
     float dist = length(d);
     float f = smoothstep(0.38, 0.0, dist) * uMouseForce;
-    mv.xy += normalize(d + 1e-5) * f * 0.45;
+    mv.xy += normalize(d + 1e-5) * f * 0.12;
     return f;
   }
 `;
@@ -216,10 +216,10 @@ const linesVert = /* glsl */ `
 `;
 
 const linesFrag = /* glsl */ `
-  uniform vec3 uAccent; uniform vec3 uInk; uniform float uLineAlpha;
+  uniform vec3 uAccent; uniform vec3 uInk; uniform float uLineAlpha; uniform float uOpacity;
   varying float vAlpha;
   void main() {
-    gl_FragColor = vec4(mix(uInk, uAccent, 0.55), vAlpha * uLineAlpha);
+    gl_FragColor = vec4(mix(uInk, uAccent, 0.55), vAlpha * uLineAlpha * uOpacity);
   }
 `;
 
@@ -332,8 +332,9 @@ export function initScene(canvas, { reducedMotion = false } = {}) {
   const target = { x: stage[0].x, y: stage[0].y, morph: 0, line: lineStrength[0] };
 
   // ---------- input ----------
-  const mouse = { x: 0, y: 0, tx: 0, ty: 0, active: false };
+  const mouse = { x: 0, y: 0, tx: 0, ty: 0, px: -999, py: -999, active: false };
   window.addEventListener("pointermove", (e) => {
+    mouse.px = e.clientX; mouse.py = e.clientY;
     mouse.tx = (e.clientX / window.innerWidth) * 2 - 1;
     mouse.ty = -(e.clientY / window.innerHeight) * 2 + 1;
     mouse.active = e.pointerType === "mouse";
@@ -341,8 +342,56 @@ export function initScene(canvas, { reducedMotion = false } = {}) {
   document.addEventListener("pointerleave", () => (mouse.active = false));
 
   let scrollVel = 0;
+  let opacityTarget = 0, dim = 1, frames = 0;
+
+  // ---------- cursor → dots overlay ----------
+  const linkCanvas = document.getElementById("links");
+  const lctx = linkCanvas?.getContext("2d");
+  const SAMPLE = Array.from({ length: isSmall ? 0 : 900 }, (_, k) => Math.floor((k * N) / 900));
+  const pv = new THREE.Vector3();
+  function sizeLinks() {
+    if (!linkCanvas) return;
+    linkCanvas.width = window.innerWidth * PR; linkCanvas.height = window.innerHeight * PR;
+    lctx.setTransform(PR, 0, 0, PR, 0, 0);
+  }
+  sizeLinks();
+  let linksDrawn = false;
+  function drawLinks() {
+    if (!lctx) return;
+    const m = uniforms.uMorph.value, k = Math.round(m);
+    const ready = mouse.active && !reducedMotion && Math.abs(m - k) < 0.03 && uniforms.uOpacity.value > 0.45 && SAMPLE.length;
+    if (!ready) { if (linksDrawn) { lctx.clearRect(0, 0, window.innerWidth, window.innerHeight); linksDrawn = false; } return; }
+    const w = window.innerWidth, h = window.innerHeight, R = 150;
+    const src = shapes[k], hits = [];
+    for (const i of SAMPLE) {
+      pv.set(src[i * 3], src[i * 3 + 1], src[i * 3 + 2]).applyMatrix4(group.matrixWorld).project(camera);
+      if (pv.z > 1) continue;
+      const sx = (pv.x + 1) / 2 * w, sy = (1 - pv.y) / 2 * h;
+      const d = Math.hypot(sx - mouse.px, sy - mouse.py);
+      if (d < R) hits.push([d, sx, sy]);
+    }
+    hits.sort((a, b) => a[0] - b[0]);
+    lctx.clearRect(0, 0, w, h);
+    const top = hits.slice(0, 10);
+    lctx.lineWidth = 1;
+    for (let a = 0; a < top.length; a++) {
+      const [d, x, y] = top[a];
+      const al = (1 - d / R) * 0.75 * uniforms.uOpacity.value;
+      lctx.strokeStyle = `rgba(255,90,31,${al})`;
+      lctx.beginPath(); lctx.moveTo(mouse.px, mouse.py); lctx.lineTo(x, y); lctx.stroke();
+      lctx.fillStyle = `rgba(236,235,230,${al})`;
+      lctx.beginPath(); lctx.arc(x, y, 2.2, 0, Math.PI * 2); lctx.fill();
+      if (a > 0) { // chain neighbours so it reads as a constellation, not a starburst
+        const [, px, py] = top[a - 1];
+        lctx.strokeStyle = `rgba(236,235,230,${al * 0.35})`;
+        lctx.beginPath(); lctx.moveTo(px, py); lctx.lineTo(x, y); lctx.stroke();
+      }
+    }
+    linksDrawn = true;
+  }
 
   function resize() {
+    sizeLinks();
     const w = window.innerWidth, h = window.innerHeight;
     renderer.setSize(w, h);
     camera.aspect = w / h;
@@ -390,7 +439,11 @@ export function initScene(canvas, { reducedMotion = false } = {}) {
     group.rotation.y = spin + mouse.x * 0.25 + sway;
     group.rotation.x = -mouse.y * 0.15 + (reducedMotion ? 0 : Math.sin(t * 0.2) * 0.05);
 
+    uniforms.uOpacity.value += (opacityTarget * dim - uniforms.uOpacity.value) * k * 0.35;
+    group.updateMatrixWorld();
+    drawLinks();
     renderer.render(scene, camera);
+    frames++;
     requestAnimationFrame(tick);
   }
   tick();
@@ -405,6 +458,8 @@ export function initScene(canvas, { reducedMotion = false } = {}) {
       target.line = lineStrength[i];
     },
     setVelocity(v) { scrollVel = v; },
-    fadeIn() { uniforms.uOpacity.value = 1; },
+    fadeIn() { opacityTarget = 1; },
+    setDim(v) { dim = v; },
+    get stats() { return { particles: N, lines: L / 2, calls: renderer.info.render.calls, frames }; },
   };
 }
