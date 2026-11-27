@@ -173,3 +173,56 @@ export function initWipe(wrap) {
   set(50);
   return { set };
 }
+
+// ---------- 04 · Gear ratio (Arena) ----------
+function gearPath(teeth, r) {
+  const a = (Math.PI * 2) / teeth, ro = r + 5, ri = r - 5;
+  let d = "";
+  for (let k = 0; k < teeth; k++) {
+    const a0 = k * a;
+    const p = [[ri, a0], [ro, a0 + a * 0.22], [ro, a0 + a * 0.48], [ri, a0 + a * 0.7]];
+    p.forEach(([rr, aa], i) => { d += (k === 0 && i === 0 ? "M" : "L") + (Math.cos(aa) * rr).toFixed(1) + " " + (Math.sin(aa) * rr).toFixed(1) + " "; });
+  }
+  return d + "Z";
+}
+export function initGears(svg, stage) {
+  if (!svg) return () => {};
+  const range = stage.querySelector(".gear__range");
+  const out = stage.querySelector(".gear__ratio");
+  const verdict = stage.querySelector(".gear__verdict");
+  const T1 = 12, M = 3.1, cy = 132;
+  let T2 = +range.value, raf = 0, a1 = 0;
+  function draw() {
+    const r1 = T1 * M, r2 = T2 * M, cx1 = 26 + r1 + 8, cx2 = cx1 + r1 + r2;
+    svg.innerHTML = `
+      <g class="gear gear--drive" transform="translate(${cx1} ${cy})"><path d="${gearPath(T1, r1)}"/><circle r="${r1 * 0.28}"/><line x1="0" y1="0" x2="${r1 * 0.7}" y2="0"/></g>
+      <g class="gear gear--driven" transform="translate(${cx2} ${cy})"><path d="${gearPath(T2, r2)}"/><circle r="${r2 * 0.22}"/><line x1="0" y1="0" x2="${r2 * 0.75}" y2="0"/></g>
+      <text class="ttxt" x="${cx1}" y="${cy + r1 + 26}" text-anchor="middle">MOTOR · ${T1}T</text>
+      <text class="ttxt" x="${cx2}" y="${Math.min(254, cy + r2 + 22)}" text-anchor="middle">WHEEL · ${T2}T</text>`;
+  }
+  function update() {
+    T2 = +range.value; draw();
+    const ratio = T2 / T1;
+    out.textContent = `1 : ${ratio.toFixed(2)}  ·  speed ×${(1 / ratio).toFixed(2)}  ·  torque ×${ratio.toFixed(2)}`;
+    let s, txt;
+    if (ratio < 0.8) { s = "warn"; txt = "Fast and weak: it'll spin a flywheel but stall on a ramp."; }
+    else if (ratio <= 1.7) { s = "good"; txt = "Balanced: the competition drivetrain sweet spot. ✓"; }
+    else if (ratio <= 2.4) { s = "warn"; txt = "Strong: it'll push other robots around, slowly."; }
+    else { s = "bad"; txt = "All torque: it can lift the robot, but the match will be over first."; }
+    stage.dataset.state = s; verdict.textContent = txt;
+    range.style.setProperty("--p", ((T2 - +range.min) / (+range.max - +range.min)) * 100 + "%");
+  }
+  function spin() {
+    a1 += 1.6;
+    const r1 = T1 * M, r2 = T2 * M, cx1 = 26 + r1 + 8, cx2 = cx1 + r1 + r2;
+    const g1 = svg.querySelector(".gear--drive"), g2 = svg.querySelector(".gear--driven");
+    if (g1 && g2) {
+      g1.setAttribute("transform", `translate(${cx1} ${cy}) rotate(${a1})`);
+      g2.setAttribute("transform", `translate(${cx2} ${cy}) rotate(${-a1 * (T1 / T2) + 180 / T2 + 7})`);
+    }
+    raf = requestAnimationFrame(spin);
+  }
+  range.addEventListener("input", update);
+  update(); spin();
+  return () => cancelAnimationFrame(raf);
+}

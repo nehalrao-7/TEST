@@ -3,24 +3,37 @@
 A single-page portfolio built around one idea from Nehal's own LinkedIn headline: **connecting the dots**.
 A Three.js field of ~4,000 connected particles reshapes as you scroll through the story:
 
-The site is built to show **how Nehal thinks and works**, not to re-list the résumé:
+## Nehal's World
 
-| Section | What it does |
-|---|---|
-| Hero | Particle network; lines reach from the cursor to the nearest dots |
-| How I think | Pinned scroll: a procedural product (Lumen) goes sketch → blueprint → exploded view → finished solid |
-| Working style | Three playable habits: connect-the-dots (vision), tolerance slider (precision), prototype→final wipe (iteration) |
-| The dots | Horizontal timeline over a particle helix, with lessons as the headlines |
-| Work, unfolded | Project list → drawer with sketch / model / prototype / shipped frames and question / approach / lesson |
-| Spec mode (press **S**) | The page shows its own working drawings: grid, type specs, design notes, live render stats |
+The portfolio is an **explorable 3D world** instead of a scrolling page. One screen says what it is and asks what the visitor is looking for. Then they wander.
+
+- **Lenses** (Industrial design, Engineering, Creative tech, Product) light up a route through the most relevant places.
+- **Eight islands**, each a facet of the work, with a panel holding the story and something to play with:
+
+| Place | About | Interactive |
+|---|---|---|
+| The Dot | Who Nehal is, the career timeline | Clickable career dots |
+| The Workshop | Industrial design (Elevety) | Lumen: sketch → blueprint → exploded → solid |
+| The Line | Production engineering (Weston Foods) | Tolerance / fit toy |
+| The Arena | Robotics (VEX, Solus Robots) | Gear-ratio toy |
+| The Hack Lab | iBoost, HackPrinceton | Process frames + prototype→final wipe |
+| The Studio | Creative technology, this world | Regrow the world from a new seed, blueprint render, live stats |
+| The Observatory | How Nehal thinks | Connect-the-dots |
+| The Lighthouse | Now (BOLO) and contact | Copy email, LinkedIn, résumé |
+
+- **Ask anything** (`/`): a question box that answers from a local knowledge base (`js/places.js`) and flies you to the right place.
+- **Six hidden field notes** float between islands. A counter tracks places explored and notes found.
+- **Index**: the whole world as plain text, for hurried readers (and the fallback without WebGL).
+- Keys: `/` ask · `H` home · `I` index · `[` `]` previous/next place · `Esc` close.
 
 ## Files
-- `js/scene.js`: background particle field (GLSL morphing across six shapes) and cursor links
-- `js/product.js`: the procedural exploded-view object
-- `js/toys.js`: the three habit toys
-- `js/work.js`: project data, list, preview and drawer (**edit project stories here**)
-- `js/art.js`: tiny drawing engine (hand-drawn and clean renderers) for toys and project frames
-- `js/main.js`: scroll choreography, spec mode, cursor
+- `js/places.js`: **all content**: places, lenses, timeline, notes, ask knowledge base (edit here)
+- `js/world.js`: the procedural world (seeded islands, landmarks, paths, notes, camera)
+- `js/app.js`: UI: intro, lenses/routes, panels, ask, notes, index, keyboard
+- `js/product.js`: the Lumen exploded-view object
+- `js/toys.js`: tolerance, gears, connect-the-dots, wipe
+- `js/art.js`: hand-drawn/clean drawing engine for toys and frames
+- `css/world.css`: all styles
 
 ## Run locally
 
@@ -47,9 +60,10 @@ VEX Team 356 (2014 Ontario provincial winning alliance), HackPrinceton Best Over
 and skills (SolidWorks, CATIA, CNC, body engineering, CSS).
 
 **Invented to set the tone. Check or replace:**
-- [ ] **Email** `hello@nehalrao.com` (index.html) and **résumé PDF** at `assets/Nehal-Rao-Resume.pdf`
-- [ ] **Project stories** in `js/work.js`: Lumen, Line 4 and Wayfinder details, plus the BOLO entry (marked `[Replace]`)
+- [ ] **Email** `hello@nehalrao.com` (`EMAIL` in js/app.js) and **résumé PDF** at `assets/Nehal-Rao-Resume.pdf`
+- [ ] **Place copy** in `js/places.js`: Lumen, Line 4 and Wayfinder specifics, plus the BOLO role at the Lighthouse
+- [ ] **Field notes** and **ask answers** in `js/places.js`. Make sure they sound like you.
 - [ ] **Process frames** are generated illustrations. Swap in real sketches, CAD and photos where possible.
 - [ ] **Lumen** (the exploded object) is an illustrative concept. Rename it, or tie it to a real project.
-- [ ] **Timeline one-liners** for each role
+- [ ] **Timeline one-liners** (`DOTS` in js/places.js)
 - [ ] **Toolkit**: keep only what's true (Three.js, GLSL, Figma etc.)

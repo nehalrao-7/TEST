@@ -2,359 +2,127 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Nehal Rao — Portfolio</title>
-  <meta name="description" content="Nehal Rao — industrial designer, engineer and creative developer in Toronto. You've read the résumé. This is the sketchbook." />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Nehal's World</title>
+  <meta name="description" content="Nehal Rao — engineer, industrial designer and creative technologist. An explorable world, built by one person. Wander and find what you're looking for." />
   <meta name="theme-color" content="#0a0a0b" />
-  <meta property="og:title" content="Nehal Rao — I think with my hands" />
-  <meta property="og:description" content="Sketch, model, break, rebuild — in aluminium, plastic and code." />
-  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Nehal's World" />
+  <meta property="og:description" content="Every island, object and line of code built by one person. Come wander." />
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0a0b'/%3E%3Ccircle cx='20' cy='42' r='6' fill='%23ff5a1f'/%3E%3Ccircle cx='44' cy='22' r='6' fill='%23ecebe6'/%3E%3Cpath d='M20 42 44 22' stroke='%23ff5a1f' stroke-width='3'/%3E%3C/svg%3E" />
-
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=Instrument+Serif:ital@0;1&family=Inter+Tight:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/style.css" />
-
+  <link rel="stylesheet" href="css/world.css" />
   <script type="importmap">
-    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+    { "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+    } }
   </script>
 </head>
-<body class="is-loading">
+<body>
+  <canvas id="world" aria-label="Nehal's world: floating islands you can explore. Use the place list or the Index for a text version."></canvas>
+  <div class="labels" aria-label="Places"></div>
+  <div class="vignette" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="parking" aria-hidden="true"></div>
 
-  <!-- ============ PRELOADER ============ -->
+  <!-- loader -->
   <div class="loader" aria-hidden="true">
-    <div class="loader__inner">
-      <span class="loader__label mono">Connecting the dots</span>
-      <span class="loader__count"><span data-count>000</span></span>
-    </div>
+    <div class="loader__row"><span class="mono">Growing the world</span><span class="loader__count" data-count>000</span></div>
     <div class="loader__bar"><span></span></div>
   </div>
 
-  <!-- ============ FIXED LAYERS ============ -->
-  <canvas id="webgl" aria-hidden="true"></canvas>
-  <canvas id="links" aria-hidden="true"></canvas>
-  <div class="grain" aria-hidden="true"></div>
-  <div class="cursor" aria-hidden="true"><span class="cursor__dot"></span><span class="cursor__ring"><em class="cursor__text"></em></span></div>
+  <!-- intro -->
+  <section class="intro" aria-labelledby="intro-title">
+    <p class="mono intro__k">A world by</p>
+    <h1 class="intro__title" id="intro-title">Nehal <em>Rao</em><span class="intro__dot"></span></h1>
+    <p class="intro__roles">Engineer · Industrial designer · Creative technologist</p>
+    <p class="intro__lead">Every island, object and line of code here was designed and built by one person. <span>What are you looking for?</span></p>
+    <div class="intro__lenses">
+      <button type="button" data-lens="design"><span class="mono">01</span>Industrial design</button>
+      <button type="button" data-lens="engineering"><span class="mono">02</span>Engineering</button>
+      <button type="button" data-lens="creative"><span class="mono">03</span>Creative tech</button>
+      <button type="button" data-lens="product"><span class="mono">04</span>Product &amp; innovation</button>
+      <button type="button" class="intro__wander" data-lens="">Just let me wander →</button>
+    </div>
+    <p class="intro__hint mono">Drag to look around · Scroll to zoom · Click anything that glows</p>
+  </section>
 
-  <!-- Spec mode layers -->
-  <div class="spec-grid" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></div>
-  <div class="spec-panel mono" aria-hidden="true">
-    <p class="spec-panel__title">Spec mode <span>— press S to exit</span></p>
-    <dl>
-      <div><dt>Frame</dt><dd data-stat="fps">—</dd></div>
-      <div><dt>Particles</dt><dd data-stat="particles">—</dd></div>
-      <div><dt>Segments</dt><dd data-stat="lines">—</dd></div>
-      <div><dt>Draw calls</dt><dd data-stat="calls">—</dd></div>
-      <div><dt>Viewport</dt><dd data-stat="vp">—</dd></div>
-      <div><dt>Grid</dt><dd>12 col · var(--gutter)</dd></div>
-    </dl>
-    <p class="spec-panel__swatches"><i style="--c:#0a0a0b"></i><i style="--c:#ecebe6"></i><i style="--c:#ff5a1f"></i> Graphite · Bone · Safety orange</p>
-  </div>
-
-  <header class="nav">
-    <a href="#top" class="nav__logo" aria-label="Nehal Rao — home">
-      <svg viewBox="0 0 40 40" width="32" height="32" aria-hidden="true"><circle cx="11" cy="28" r="4.5" fill="var(--accent)"/><circle cx="29" cy="12" r="4.5" fill="currentColor"/><path d="M11 28 29 12" stroke="var(--accent)" stroke-width="2"/></svg>
-      <span>Nehal Rao</span>
-    </a>
-    <nav class="nav__links" aria-label="Primary">
-      <a href="#thinking" data-magnetic>Thinking</a>
-      <a href="#habits" data-magnetic>Habits</a>
-      <a href="#work" data-magnetic>Work</a>
-      <a href="#contact" data-magnetic>Contact</a>
-    </nav>
-    <div class="nav__right">
-      <button class="spec-toggle mono" aria-pressed="false" data-magnetic>
-        <span class="spec-toggle__track"><span></span></span>Spec <kbd>S</kbd>
-      </button>
-      <a href="#contact" class="nav__status" data-magnetic><span class="pulse"></span>Open to roles</a>
+  <!-- top bar -->
+  <header class="bar">
+    <button type="button" class="bar__logo" data-home aria-label="Back to the whole world">
+      <svg viewBox="0 0 40 40" width="28" height="28" aria-hidden="true"><circle cx="11" cy="28" r="4.5" fill="#ff5a1f"/><circle cx="29" cy="12" r="4.5" fill="#ecebe6"/><path d="M11 28 29 12" stroke="#ff5a1f" stroke-width="2"/></svg>
+      <span>Nehal's World</span>
+    </button>
+    <div class="bar__lenses" role="group" aria-label="What are you looking for?">
+      <span class="mono">Looking for</span>
+      <button type="button" data-setlens="design">Design</button>
+      <button type="button" data-setlens="engineering">Engineering</button>
+      <button type="button" data-setlens="creative">Creative tech</button>
+      <button type="button" data-setlens="product">Product</button>
+      <button type="button" data-setlens="">Everything</button>
+    </div>
+    <div class="bar__right">
+      <button type="button" class="bar__ask" data-ask><span class="bar__ask-ico" aria-hidden="true"></span><span class="bar__ask-txt">Ask anything about Nehal</span><kbd>/</kbd></button>
+      <button type="button" class="bar__index mono" data-index>Index</button>
     </div>
   </header>
 
-  <aside class="hud mono" aria-hidden="true">
-    <span class="hud__index">00</span>
-    <span class="hud__track"><span class="hud__fill"></span></span>
-    <span class="hud__label">The premise</span>
-  </aside>
+  <!-- dock: places + progress -->
+  <nav class="dock" aria-label="Places">
+    <div class="dock__places"></div>
+    <p class="progress mono">Explored <b class="progress__places">0/8</b> · Notes <b class="progress__notes">0/6</b></p>
+  </nav>
 
-  <main id="top">
+  <div class="route" hidden>
+    <span class="mono route__k">Your route — <span class="route__label"></span></span>
+    <div class="route__steps"></div>
+  </div>
 
-    <!-- ============ HERO ============ -->
-    <section class="hero" data-section="0" data-label="Hello">
-      <div class="hero__meta mono">
-        <span data-spec="Meta · JetBrains Mono 12 · +4% tracking">Industrial designer — Engineer — Creative developer</span>
-        <span>Toronto, CA &nbsp;43.65° N, 79.38° W</span>
-      </div>
+  <p class="hint mono" aria-hidden="true"><span>Drag</span> look around <span>Scroll</span> zoom <span>Click</span> step inside <span>/</span> ask</p>
 
-      <h1 class="hero__title" data-spec="H1 · Inter Tight 400 / Instrument Serif · 23vw · −6% tracking">
-        <span class="line"><span class="word">Nehal</span></span>
-        <span class="line line--indent"><span class="word"><em>Rao</em></span><span class="hero__dot"></span></span>
-      </h1>
-
-      <div class="hero__bottom">
-        <p class="hero__claim" data-spec="Claim · 40px · lh 1.05">I think with<br/>my <em>hands.</em></p>
-        <p class="hero__lead">Sketch, model, break, rebuild — in aluminium, plastic and code. You've read the résumé. <span class="ink">This is the sketchbook.</span></p>
-        <div class="hero__hints mono">
-          <span><i class="hint-dot"></i>Move to connect the dots</span>
-          <span>Press <kbd>S</kbd> to see how this page was designed</span>
-        </div>
-      </div>
-
-      <p class="spec-note" style="--x: 58%; --y: 16%;">Why orange? It's safety orange — the colour that means <u>pay attention</u> on every shop floor I've worked on.</p>
-      <p class="spec-note" style="--x: 4%; --y: 66%;">Name at 23vw — big enough to be architecture, not text.</p>
-    </section>
-
-    <!-- ============ PREMISE ============ -->
-    <section class="premise" id="story" data-section="1" data-label="The premise">
-      <p class="eyebrow mono"><span>00</span> The premise</p>
-      <p class="premise__text split-words" data-spec="Display · 72px · words reveal on scroll">
-        They say you can only connect the dots looking backwards.
-        I've spent a decade collecting them <em>on purpose</em> — gears, grids, code, customers —
-        so when the next hard problem shows up, the line is already drawn.
-      </p>
-      <p class="spec-note" style="--x: 66%; --y: 72%;">Words light up as you read. Pacing is a design material too.</p>
-    </section>
-
-    <!-- ============ HOW I THINK — exploded object ============ -->
-    <section class="lens" id="thinking" data-section="1" data-dim="0.18" data-label="How I think">
-      <div class="lens__pin">
-        <div class="lens__copy">
-          <p class="eyebrow mono"><span>01</span> How I think</p>
-          <div class="lens__steps">
-            <article class="lens__step is-active">
-              <p class="mono lens__num">01 <span>/ Sketch</span></p>
-              <h3>Start with a feeling, <em>not a feature.</em></h3>
-              <p>Before CAD, before specs, I sketch what it should feel like to use. Loose lines are cheap — they let ten bad ideas die so one good one can live.</p>
-            </article>
-            <article class="lens__step">
-              <p class="mono lens__num">02 <span>/ Engineer</span></p>
-              <h3>Then make it <em>honest.</em></h3>
-              <p>Every line gets a number: dimensions, tolerances, materials, cost. If a sketch can't survive a spreadsheet, it doesn't deserve a factory.</p>
-            </article>
-            <article class="lens__step">
-              <p class="mono lens__num">03 <span>/ Explode</span></p>
-              <h3>Take it apart <em>before the world does.</em></h3>
-              <p>I design the disassembly as carefully as the product — how it's built, serviced, repaired. Fewer parts, fewer screws, fewer ways to fail.</p>
-            </article>
-            <article class="lens__step">
-              <p class="mono lens__num">04 <span>/ Ship</span></p>
-              <h3>Then make it <em>real.</em></h3>
-              <p>The finish is where trust is earned — the click of a bezel, the weight in a hand. Engineering gets it working. Craft gets it loved.</p>
-            </article>
-          </div>
-          <div class="lens__progress" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
-        </div>
-        <div class="lens__stage" data-spec="Procedural Three.js · 9 parts · 0 imported models">
-          <canvas class="lens__canvas" aria-label="A lamp-speaker concept moving from sketch to blueprint to exploded view to finished product"></canvas>
-          <svg class="lens__dims" aria-hidden="true"></svg>
-          <div class="lens__labels" aria-hidden="true"></div>
-          <p class="lens__caption mono">Object — <span>Lumen</span>, a lamp + speaker concept · drawn live in your browser</p>
-        </div>
-      </div>
-      <p class="spec-note" style="--x: 60%; --y: 8%;">Every part is generated in code: cylinders, tori, a lathe. No models were imported.</p>
-    </section>
-
-    <!-- ============ HABITS — playable principles ============ -->
-    <section class="habits" id="habits" data-section="1" data-dim="0.35" data-label="Working style">
-      <div class="habits__head">
-        <p class="eyebrow mono"><span>02</span> Working style</p>
-        <h2 class="h2">Three habits.<br/><em>Try them yourself.</em></h2>
-      </div>
-
-      <article class="toy">
-        <div class="toy__copy">
-          <p class="mono toy__kicker">Habit 01 — Vision</p>
-          <h3 class="toy__title">See the shape <em>before it exists.</em></h3>
-          <p>Every project starts as scattered dots: a complaint from a customer, a constraint from a supplier, a weird idea at 2 a.m. My job is to see the line through them before anyone else can.</p>
-          <p class="toy__instr mono">Connect the dots, 1 → 13</p>
-        </div>
-        <div class="toy__stage toy__stage--dots" data-cursor="Draw">
-          <svg id="toy-dots" viewBox="0 0 400 400" role="img" aria-label="Connect-the-dots puzzle"></svg>
-          <p class="toy__done"><span class="hand">There it is.</span> That's the job — seeing the idea before it's drawn.</p>
-          <button class="toy__reset mono" type="button">Reset ↺</button>
-        </div>
-      </article>
-
-      <article class="toy toy--flip">
-        <div class="toy__copy">
-          <p class="mono toy__kicker">Habit 02 — Precision</p>
-          <h3 class="toy__title">Tight isn't better. <em>Right is better.</em></h3>
-          <p>Every tolerance is a trade between cost, feel and how it'll be built. Too tight and it won't assemble. Too loose and it rattles by Tuesday. I care about the hundredths of a millimetre so users never have to.</p>
-          <p class="toy__instr mono">Drag to set the clearance</p>
-        </div>
-        <div class="toy__stage toy__stage--tol">
-          <svg id="toy-tol" viewBox="0 0 400 300" role="img" aria-label="A shaft inside a hole, showing clearance"></svg>
-          <div class="tol">
-            <input class="tol__range" type="range" min="-10" max="30" value="22" step="1" aria-label="Clearance in hundredths of a millimetre" />
-            <div class="tol__readout">
-              <output class="tol__value mono">+0.22 mm</output>
-              <span class="tol__verdict">Loose — it'll rattle by Tuesday</span>
-            </div>
-          </div>
-        </div>
-      </article>
-
-      <article class="toy">
-        <div class="toy__copy">
-          <p class="mono toy__kicker">Habit 03 — Iteration</p>
-          <h3 class="toy__title">Prototype ugly. <em>Finish beautiful.</em></h3>
-          <p>The first version should be fast and a little embarrassing — cardboard, hot glue, a note that says "button??". The last one should feel quiet and inevitable. Everything in between is listening.</p>
-          <p class="toy__instr mono">Drag the handle: v0.3 → v4.0</p>
-        </div>
-        <div class="toy__stage toy__stage--wipe">
-          <div class="wipe" data-cursor="Drag">
-            <svg class="wipe__rough" viewBox="0 0 400 300" aria-hidden="true"></svg>
-            <div class="wipe__clean"><svg viewBox="0 0 400 300" aria-hidden="true"></svg></div>
-            <div class="wipe__handle" role="slider" tabindex="0" aria-label="Compare prototype and final" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50"><span>⟷</span></div>
-            <span class="wipe__tag wipe__tag--l mono">v0.3 · cardboard · 2 hrs</span>
-            <span class="wipe__tag wipe__tag--r mono">v4.0 · production</span>
-          </div>
-        </div>
-      </article>
-      <p class="spec-note" style="--x: 64%; --y: 4%;">Toys, not paragraphs. People remember what they've touched.</p>
-    </section>
-
-    <!-- ============ THE DOTS (timeline, lessons first) ============ -->
-    <section class="dots" data-section="2" data-label="The dots">
-      <div class="dots__head">
-        <p class="eyebrow mono"><span>03</span> The dots</p>
-        <h2 class="h2">Every job left<br/><em>a lesson.</em></h2>
-      </div>
-
-      <div class="dots__pin">
-        <div class="dots__track">
-          <div class="dots__rail" aria-hidden="true"><span class="dots__rail-fill"></span></div>
-
-          <article class="dot-card">
-            <span class="dot-card__node" aria-hidden="true"></span>
-            <p class="dot-card__meta mono"><span>2014</span> VEX Robotics · Team 356</p>
-            <h3 class="dot-card__lesson">A design isn't done until it survives contact with an opponent.</h3>
-            <p class="dot-card__body">Ontario provincial championship, winning alliance. Rebuilt drivetrains between matches.</p>
-          </article>
-
-          <article class="dot-card">
-            <span class="dot-card__node" aria-hidden="true"></span>
-            <p class="dot-card__meta mono"><span>2015</span> Solus Robots · Mechanical design</p>
-            <h3 class="dot-card__lesson">Tolerances are a love language.</h3>
-            <p class="dot-card__body">The first time my CAD had a customer — and the customer had opinions.</p>
-          </article>
-
-          <article class="dot-card">
-            <span class="dot-card__node" aria-hidden="true"></span>
-            <p class="dot-card__meta mono"><span>2016</span> iBoost, Ryerson · Design</p>
-            <h3 class="dot-card__lesson">Momentum is a feature.</h3>
-            <p class="dot-card__body">Pitch decks to prototypes in days. Founders don't need perfect; they need Friday.</p>
-          </article>
-
-          <article class="dot-card">
-            <span class="dot-card__node" aria-hidden="true"></span>
-            <p class="dot-card__meta mono"><span>2016 →</span> Elevety · Industrial design</p>
-            <h3 class="dot-card__lesson">Beautiful and buildable are the same problem.</h3>
-            <p class="dot-card__body">Sketch to factory floor. SolidWorks, CATIA, CNC — and a lot of supplier calls.</p>
-          </article>
-
-          <article class="dot-card">
-            <span class="dot-card__node" aria-hidden="true"></span>
-            <p class="dot-card__meta mono"><span>2017</span> Weston Foods · Production</p>
-            <h3 class="dot-card__lesson">Nothing humbles a design like a production line.</h3>
-            <p class="dot-card__body">10,000 units an hour teaches you what "uptime" really means.</p>
-          </article>
-
-          <article class="dot-card">
-            <span class="dot-card__node" aria-hidden="true"></span>
-            <p class="dot-card__meta mono"><span>36 hrs</span> HackPrinceton</p>
-            <h3 class="dot-card__lesson">Constraints aren't walls. They're rocket fuel.</h3>
-            <p class="dot-card__body">Best Overall Hack, built on no sleep and a lot of hallway testing.</p>
-          </article>
-
-          <article class="dot-card dot-card--now">
-            <span class="dot-card__node" aria-hidden="true"></span>
-            <!-- PLACEHOLDER: current title -->
-            <p class="dot-card__meta mono"><span>Now</span> BOLO · Toronto</p>
-            <h3 class="dot-card__lesson">The next dot is wherever you are.</h3>
-            <p class="dot-card__body">Every dot before this one, paying compound interest. <a href="#contact">Let's talk →</a></p>
-          </article>
-        </div>
-      </div>
-      <p class="spec-note spec-note--fixedish" style="--x: 62%; --y: 6%;">Horizontal = time moving forward. On phones it goes vertical, because thumbs.</p>
-    </section>
-
-    <!-- ============ WORK, UNFOLDED ============ -->
-    <section class="work" id="work" data-section="3" data-dim="0.45" data-label="Work, unfolded">
-      <div class="work__head">
-        <p class="eyebrow mono"><span>04</span> Work, unfolded</p>
-        <h2 class="h2">Not the results.<br/><em>The process.</em></h2>
-        <p class="work__intro">Each project, opened up: the question I asked, how I worked it, and what stuck with me. Pick one.</p>
-      </div>
-
-      <ol class="projects" data-spec="List · hover preview · click opens drawer">
-        <!-- Rows are populated from js/work.js -->
-      </ol>
-      <div class="preview" aria-hidden="true"><div class="preview__inner"></div></div>
-      <p class="spec-note" style="--x: 62%; --y: 10%;">Process over polish. Recruiters have seen the outcomes; this is the part they never get to see.</p>
-    </section>
-
-    <!-- ============ TOOLS ============ -->
-    <section class="tools" data-section="4" data-label="Tools in hand">
-      <p class="eyebrow mono tools__eyebrow"><span>05</span> Tools in hand — atoms &amp; pixels</p>
-      <div class="marquee" aria-label="Engineering tools">
-        <div class="marquee__row" data-dir="-1">
-          <span>SolidWorks</span><i></i><span>CATIA V5</span><i></i><span>CNC</span><i></i><span>Body Engineering</span><i></i><span>DFM / DFA</span><i></i><span>GD&amp;T</span><i></i><span>Rapid Prototyping</span><i></i><span>Injection Moulding</span><i></i>
-        </div>
-      </div>
-      <div class="marquee marquee--alt" aria-label="Design and development tools">
-        <div class="marquee__row" data-dir="1">
-          <span>Sketching</span><i></i><span>HTML &amp; CSS</span><i></i><span>Three.js</span><i></i><span>GLSL</span><i></i><span>Figma</span><i></i><span>User research</span><i></i><span>Storytelling</span><i></i>
-        </div>
-      </div>
-    </section>
-
-    <!-- ============ CONTACT ============ -->
-    <section class="contact" id="contact" data-section="5" data-label="The next dot">
-      <p class="eyebrow mono"><span>06</span> The next dot</p>
-      <h2 class="contact__title">
-        <span class="line"><span class="word">You're the</span></span>
-        <span class="line"><span class="word"><em>next dot.</em></span></span>
-      </h2>
-      <p class="contact__lead">I'm looking for a team that builds real things — on shelves or on screens — and wants someone who can take them from sketch to ship. If that's you, let's draw the line.</p>
-
-      <!-- PLACEHOLDER: swap in the real email address -->
-      <button class="contact__cta" data-magnetic data-email="hello@nehalrao.com" data-cursor="Copy">
-        <span class="contact__cta-label">hello@nehalrao.com</span>
-        <span class="contact__cta-hint mono">Click to copy</span>
-      </button>
-
-      <div class="contact__links">
-        <a href="https://ca.linkedin.com/in/nehalrao" target="_blank" rel="noopener" data-magnetic>LinkedIn ↗</a>
-        <!-- PLACEHOLDER: add resume PDF at portfolio/assets/Nehal-Rao-Resume.pdf -->
-        <a href="assets/Nehal-Rao-Resume.pdf" target="_blank" rel="noopener" data-magnetic>Résumé ↗</a>
-        <a href="mailto:hello@nehalrao.com" data-magnetic>Email ↗</a>
-      </div>
-      <p class="spec-note" style="--x: 60%; --y: 14%;">One action, no forms. Respect the visitor's time.</p>
-    </section>
-  </main>
-
-  <footer class="footer mono">
-    <span>© 2026 Nehal Rao</span>
-    <span>Toronto — <span data-clock>--:--</span></span>
-    <span>Designed &amp; engineered by hand. Press <kbd>S</kbd>.</span>
-    <a href="#top" data-magnetic>Back to top ↑</a>
-  </footer>
-
-  <!-- Project drawer -->
-  <aside class="drawer" aria-hidden="true">
-    <div class="drawer__scrim" data-close></div>
-    <div class="drawer__panel" role="dialog" aria-modal="true" aria-labelledby="drawer-title" data-lenis-prevent>
-      <button class="drawer__close mono" type="button" data-close>Close ✕</button>
-      <div class="drawer__content"></div>
+  <!-- place panel -->
+  <aside class="panel" aria-hidden="true" aria-label="Place details">
+    <div class="panel__inner">
+      <button type="button" class="panel__close mono">Close ✕</button>
+      <div class="panel__content"></div>
     </div>
   </aside>
 
+  <!-- ask -->
+  <div class="ask" hidden>
+    <div class="ask__scrim" data-close-ask></div>
+    <div class="ask__box" role="dialog" aria-modal="true" aria-label="Ask about Nehal">
+      <div class="ask__field"><span class="bar__ask-ico" aria-hidden="true"></span><input class="ask__input" type="text" placeholder="Ask anything — CAD, code, how he thinks, availability…" autocomplete="off" spellcheck="false" /><kbd>esc</kbd></div>
+      <ul class="ask__results" aria-live="polite"></ul>
+    </div>
+  </div>
+
+  <!-- field note -->
+  <div class="note" hidden>
+    <div class="note__scrim" data-close-note></div>
+    <div class="note__card" role="dialog" aria-modal="true" aria-label="Field note">
+      <p class="note__count mono"></p>
+      <p class="note__text"></p>
+      <p class="note__sig">— N.</p>
+      <button type="button" class="note__close mono" data-close-note>Keep exploring</button>
+    </div>
+  </div>
+
+  <!-- index: plain reading view -->
+  <div class="index" hidden>
+    <div class="index__head">
+      <p class="mono">Index — the whole world as text, for when you're in a hurry</p>
+      <button type="button" class="mono index__close" data-close-index>Back to the world ✕</button>
+    </div>
+    <div class="index__list"></div>
+  </div>
+
   <div class="toast mono" role="status" aria-live="polite"></div>
+  <div class="cursor" aria-hidden="true"><span class="cursor__dot"></span><span class="cursor__ring"><em class="cursor__text"></em></span></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
-  <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>
