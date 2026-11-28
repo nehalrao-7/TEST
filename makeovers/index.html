@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Makeovers by Riddhii | Makeup &amp; Hair in Brampton</title>
+<meta name="description" content="Makeup and simple hairstyling for parties, gatherings and special occasions in Brampton, Ontario. Home studio or mobile appointments. Portfolio pricing — now booking.">
+<meta name="theme-color" content="#fff8f5">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%234a2a30'/%3E%3Ctext x='32' y='42' font-family='Georgia,serif' font-size='30' fill='%23f3d9d6' text-anchor='middle'%3ER%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+
+<canvas id="scene" aria-hidden="true"></canvas>
+<div class="scene-fallback" aria-hidden="true"></div>
+
+<header class="nav" id="top">
+  <a href="#home" class="brand" aria-label="Makeovers by Riddhii — home">
+    <span class="brand-mark">R</span>
+    <span class="brand-text">Makeovers <em>by</em> Riddhii</span>
+  </a>
+  <nav class="nav-links" aria-label="Main">
+    <a href="#services">Services</a>
+    <a href="#good-to-know">Good to know</a>
+    <a href="#book">Booking</a>
+  </nav>
+  <a href="#book" class="btn btn-primary btn-sm">Book now</a>
+</header>
+
+<main>
+  <!-- HERO -->
+  <section class="hero" id="home">
+    <div class="hero-copy reveal">
+      <p class="eyebrow">Makeup &amp; hair · Brampton</p>
+      <h1>Look and feel <em>beautiful</em> for every occasion.</h1>
+      <p class="lede">Makeup and simple hairstyling for parties, gatherings and special occasions — at my home studio in Brampton, or at your place.</p>
+      <div class="hero-actions">
+        <a href="#book" class="btn btn-primary">Book now</a>
+        <a href="#services" class="btn btn-ghost">See prices</a>
+      </div>
+      <p class="badge"><span class="dot"></span> Portfolio discount · Now booking</p>
+    </div>
+    <a href="#services" class="scroll-cue" aria-label="Scroll to services"><span></span></a>
+  </section>
+
+  <!-- SERVICES -->
+  <section class="section" id="services">
+    <div class="section-head reveal">
+      <p class="eyebrow">Services &amp; prices</p>
+      <h2>Simple, honest pricing</h2>
+      <p class="muted">I'm building my portfolio, so these prices include a portfolio discount. Prices are per person.</p>
+    </div>
+    <div class="cards">
+      <article class="card reveal">
+        <p class="card-label">Makeup</p>
+        <p class="price">$35</p>
+        <p>Full makeup look for one person.</p>
+        <a href="#book" class="card-link" data-service="makeup">Book makeup →</a>
+      </article>
+      <article class="card reveal">
+        <p class="card-label">Simple hairstyle</p>
+        <p class="price">+$25</p>
+        <p>Add a simple hairstyle to your makeup booking.</p>
+        <a href="#book" class="card-link" data-service="combo">Add hair →</a>
+      </article>
+      <article class="card card-feature reveal">
+        <p class="card-label">Makeup + Hair</p>
+        <p class="price">$60</p>
+        <p>Makeup and a simple hairstyle together for one person.</p>
+        <a href="#book" class="card-link" data-service="combo">Book the full look →</a>
+      </article>
+    </div>
+  </section>
+
+  <!-- GOOD TO KNOW -->
+  <section class="section" id="good-to-know">
+    <div class="section-head reveal">
+      <p class="eyebrow">Booking, last-minute &amp; travel</p>
+      <h2>Good to know</h2>
+    </div>
+    <div class="info-grid">
+      <div class="info reveal">
+        <span class="info-num">01</span>
+        <h3>Book 3 days ahead</h3>
+        <p>Please book at least 3 days in advance so I can plan your appointment properly.</p>
+      </div>
+      <div class="info reveal">
+        <span class="info-num">02</span>
+        <h3>Last-minute: +$15</h3>
+        <p>Booking with less than 3 days to go? A $15 last-minute fee is added to your total.</p>
+      </div>
+      <div class="info reveal">
+        <span class="info-num">03</span>
+        <h3>Travel: extra</h3>
+        <p>I can come to your place for an extra cost. The travel fee depends on your location — just ask when you book.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- BOOKING -->
+  <section class="section" id="book">
+    <div class="section-head reveal">
+      <p class="eyebrow">Book your appointment</p>
+      <h2>Pick a date, I'll confirm the rest</h2>
+      <p class="muted">Choose your look, date and location. I'll confirm your exact time and price.</p>
+    </div>
+
+    <form class="booking reveal" id="booking-form" novalidate>
+      <!-- Step 1 -->
+      <fieldset class="step">
+        <legend><span class="step-num">1</span> Choose your look</legend>
+        <div class="choice-row">
+          <label class="choice">
+            <input type="radio" name="service" value="makeup" checked>
+            <span><strong>Makeup</strong><small>$35 per person</small></span>
+          </label>
+          <label class="choice">
+            <input type="radio" name="service" value="combo">
+            <span><strong>Makeup + Hair</strong><small>$60 per person</small></span>
+          </label>
+        </div>
+        <div class="people">
+          <span>Number of people</span>
+          <div class="stepper">
+            <button type="button" id="people-minus" aria-label="Fewer people">−</button>
+            <output id="people" aria-live="polite">1</output>
+            <button type="button" id="people-plus" aria-label="More people">+</button>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Step 2 -->
+      <fieldset class="step">
+        <legend><span class="step-num">2</span> Pick a date</legend>
+        <div class="calendar" id="calendar">
+          <div class="cal-head">
+            <button type="button" class="cal-nav" id="cal-prev" aria-label="Previous month">‹</button>
+            <p class="cal-title" id="cal-title" aria-live="polite"></p>
+            <button type="button" class="cal-nav" id="cal-next" aria-label="Next month">›</button>
+          </div>
+          <div class="cal-dow" aria-hidden="true"><span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span></div>
+          <div class="cal-grid" id="cal-grid" role="grid" aria-labelledby="cal-title"></div>
+          <p class="cal-legend"><span class="lg lg-ok"></span> Available <span class="lg lg-late"></span> Last-minute (+$15)</p>
+        </div>
+        <p class="field-label">Preferred time</p>
+        <div class="choice-row times">
+          <label class="choice compact"><input type="radio" name="time" value="Morning" checked><span><strong>Morning</strong></span></label>
+          <label class="choice compact"><input type="radio" name="time" value="Afternoon"><span><strong>Afternoon</strong></span></label>
+          <label class="choice compact"><input type="radio" name="time" value="Evening"><span><strong>Evening</strong></span></label>
+        </div>
+      </fieldset>
+
+      <!-- Step 3 -->
+      <fieldset class="step">
+        <legend><span class="step-num">3</span> Where &amp; who</legend>
+        <div class="choice-row">
+          <label class="choice">
+            <input type="radio" name="location" value="studio" checked>
+            <span><strong>My studio</strong><small>Home studio, Brampton</small></span>
+          </label>
+          <label class="choice">
+            <input type="radio" name="location" value="mobile">
+            <span><strong>Your place</strong><small>Travel fee extra</small></span>
+          </label>
+        </div>
+        <label class="field" id="area-field" hidden>
+          <span>Your area / neighbourhood</span>
+          <input type="text" name="area" placeholder="e.g. Springdale, Brampton" autocomplete="address-level2">
+        </label>
+        <div class="field-row">
+          <label class="field">
+            <span>Your name</span>
+            <input type="text" name="name" required autocomplete="name" placeholder="First and last name">
+          </label>
+          <label class="field">
+            <span>Phone</span>
+            <input type="tel" name="phone" autocomplete="tel" placeholder="(optional)">
+          </label>
+        </div>
+        <label class="field">
+          <span>Occasion or notes</span>
+          <textarea name="notes" rows="2" placeholder="Wedding guest, birthday, look inspiration… (optional)"></textarea>
+        </label>
+      </fieldset>
+
+      <!-- Summary -->
+      <aside class="summary" aria-live="polite">
+        <p class="eyebrow">Your booking</p>
+        <dl id="summary-list"></dl>
+        <div class="total">
+          <span>Estimated total</span>
+          <strong id="total">$35</strong>
+        </div>
+        <p class="fine" id="total-note">Final price confirmed by Riddhi.</p>
+        <p class="form-error" id="form-error" role="alert" hidden></p>
+        <button type="submit" class="btn btn-primary btn-block">Request booking</button>
+        <p class="fine center">Your request opens in Instagram DM — <strong>@makeoversbyriddhii</strong></p>
+      </aside>
+    </form>
+  </section>
+</main>
+
+<footer class="footer">
+  <p class="footer-brand">Makeovers <em>by</em> Riddhii</p>
+  <p>by Riddhi Desai · Brampton, Ontario · Home studio &amp; mobile appointments</p>
+  <p><a href="https://www.instagram.com/makeoversbyriddhii/" target="_blank" rel="noopener">Instagram @makeoversbyriddhii</a></p>
+  <p class="fine">Prices shown are portfolio prices. Travel and last-minute fees are added where they apply.</p>
+</footer>
+
+<a href="#book" class="mobile-cta btn btn-primary">Book now</a>
+
+<!-- Confirmation dialog -->
+<dialog class="modal" id="confirm">
+  <form method="dialog" class="modal-inner">
+    <p class="eyebrow">Almost done</p>
+    <h3>Send your request to Riddhi</h3>
+    <p class="muted">Your message is ready. Tap <strong>Open Instagram</strong>, then paste it into the chat with @makeoversbyriddhii.</p>
+    <pre class="message" id="message"></pre>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-primary" id="send-ig">Copy &amp; open Instagram</button>
+      <button type="button" class="btn btn-ghost" id="copy-msg">Copy message</button>
+    </div>
+    <p class="fine center" id="copy-status" aria-live="polite"></p>
+    <button class="modal-close" value="close" aria-label="Close">×</button>
+  </form>
+</dialog>
+
+<script src="booking.js" defer></script>
+<script type="module" src="scene.js"></script>
+</body>
+</html>
