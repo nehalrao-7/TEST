@@ -3,16 +3,16 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Nehal Rao — Exploded View</title>
-  <meta name="description" content="Nehal Rao — engineer, industrial designer and creative technologist. Scroll to take apart a machine built entirely in code, and the career behind it." />
-  <meta name="theme-color" content="#0b0c0e" />
-  <meta property="og:title" content="Nehal Rao — Exploded View" />
-  <meta property="og:description" content="I design the whole machine. Scroll to take it apart." />
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230b0c0e'/%3E%3Ccircle cx='20' cy='42' r='6' fill='%23ff5a1f'/%3E%3Ccircle cx='44' cy='22' r='6' fill='%23ecebe6'/%3E%3Cpath d='M20 42 44 22' stroke='%23ff5a1f' stroke-width='3'/%3E%3C/svg%3E" />
+  <title>Nehal Rao</title>
+  <meta name="description" content="Nehal Rao. Beautiful things, brilliantly made." />
+  <meta name="theme-color" content="#efede8" />
+  <meta property="og:title" content="Nehal Rao" />
+  <meta property="og:description" content="Beautiful things. Brilliantly made." />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%23efede8'/%3E%3Ctext x='8' y='44' font-family='Arial' font-weight='700' font-size='30' fill='%23111'%3E%22N%22%3C/text%3E%3Ccircle cx='54' cy='12' r='5' fill='%23ff5a14'/%3E%3C/svg%3E" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@300;400;500;600&family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/journey.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,300..900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/studio.css" />
   <script type="importmap">
     { "imports": {
       "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
@@ -21,117 +21,111 @@
   </script>
 </head>
 <body>
-  <div class="backdrop" aria-hidden="true"></div>
-  <canvas id="machine" aria-label="A procedurally generated electric drive unit that comes apart as you scroll"></canvas>
-  <div class="scrim" aria-hidden="true"></div>
-  <svg class="leaders" aria-hidden="true"></svg>
-  <div class="callouts" aria-hidden="true"></div>
+  <div class="word" aria-hidden="true"><span class="word__in">NEHAL RAO</span></div>
+  <canvas id="stage" aria-label="A single sculptural object, shown as a line drawing, a clay form, a finished piece and ten thousand copies"></canvas>
+  <div class="curtain" aria-hidden="true"><span class="mono">&ldquo;LOADING&rdquo;</span></div>
 
-  <div class="loader" aria-hidden="true">
-    <p class="mono">Generating parts</p>
-    <p class="loader__count">0</p>
-    <div class="loader__bar"><span></span></div>
-  </div>
-
-  <header class="top">
-    <a href="#intro" class="top__mark" aria-label="Back to the start">
-      <svg viewBox="0 0 40 40" width="26" height="26" aria-hidden="true"><circle cx="11" cy="28" r="4.5" fill="#ff5a1f"/><circle cx="29" cy="12" r="4.5" fill="#ecebe6"/><path d="M11 28 29 12" stroke="#ff5a1f" stroke-width="2"/></svg>
-      <span>Nehal Rao</span>
-    </a>
-    <p class="top__meta mono"><span class="dot"></span>Open to roles · Toronto</p>
-    <a href="#next" class="top__cta">Get in touch</a>
+  <header class="bar mono">
+    <a href="#hello">Nehal Rao</a>
+    <span class="bar__mid">&ldquo;PORTFOLIO&rdquo; &nbsp;2026</span>
+    <a href="#next" class="bar__avail"><i></i>Available</a>
   </header>
 
-  <!-- Scroll guide -->
-  <nav class="guide" aria-label="Chapters">
-    <p class="guide__pct mono" aria-hidden="true">00</p>
-    <div class="guide__track" aria-hidden="true"><span class="guide__fill"></span></div>
+  <nav class="guide mono" aria-label="Scenes">
+    <span class="guide__track" aria-hidden="true"><span class="guide__fill"></span></span>
     <ol class="guide__list"></ol>
   </nav>
 
   <main>
-    <section class="chapter chapter--intro" id="intro" data-label="Intro">
-      <div class="chapter__card">
-        <p class="kicker mono">Engineer · Industrial designer · Creative technologist</p>
-        <h1>I design the <em>whole</em> machine.</h1>
-        <p class="lead">Ten years across robots, consumer products, production lines and software. One person who can take something from the first sketch to the factory floor — and make it look like this.</p>
-        <p class="scrollhint mono"><span class="scrollhint__line"></span>Scroll to take it apart</p>
+    <section class="scene scene--hello" id="hello" data-label="NEHAL RAO">
+      <div class="frame">
+        <p class="corner tl mono">&ldquo;DESIGNER&rdquo; &ldquo;ENGINEER&rdquo;</p>
+        <p class="corner tr mono">00 / 06</p>
+        <h1 class="line">Beautiful things.<br>Brilliantly made.</h1>
+        <p class="corner bl mono">c/o Nehal Rao, Toronto</p>
+        <p class="corner br mono scroll"><span></span>Scroll</p>
       </div>
     </section>
 
-    <section class="chapter" id="form" data-label="Form">
-      <div class="chapter__card">
-        <p class="kicker mono"><span>01</span> Industrial design · Elevety · 2016 →</p>
-        <h2>Form a factory can <em>love.</em></h2>
-        <p>At Elevety I owned products from the first sketch to production drawings. The outer shell is where design and engineering negotiate: draft angles, wall thickness, how it feels in a hand, and how it comes out of a mould a hundred thousand times.</p>
-        <ul class="skills"><li>SolidWorks</li><li>CATIA V5</li><li>Surfacing</li><li>DFM / DFA</li><li>GD&amp;T</li><li>CMF</li></ul>
-        <p class="proof mono">Sketch → CAD → tooling → shelf</p>
+    <section class="scene scene--line" id="line" data-label="LINE">
+      <div class="frame">
+        <p class="corner tl mono">&ldquo;SKETCH&rdquo;</p>
+        <p class="corner tr mono">01 / 06</p>
+        <h2 class="line">It starts with a line.</h2>
+        <p class="corner bl mono">Every product I've shipped began on paper.</p>
       </div>
     </section>
 
-    <section class="chapter" id="motion" data-label="Motion">
-      <div class="chapter__card">
-        <p class="kicker mono"><span>02</span> Robotics · VEX Team 356 · Solus Robots</p>
-        <h2>Motion is a <em>negotiation.</em></h2>
-        <p>It started with VEX: Team 356 was part of the winning alliance at the 2014 Ontario Provincial Championship, rebuilding drivetrains between matches. At Solus Robots I designed mechanisms for robots that left the lab and went to work.</p>
-        <ul class="skills"><li>Mechanism design</li><li>Gear trains</li><li>Kinematics</li><li>Rapid prototyping</li><li>Test to failure</li></ul>
-        <p class="proof mono">9 : 1 planetary · every tooth generated, every mesh real</p>
+    <section class="scene" id="form" data-label="FORM">
+      <div class="frame">
+        <p class="corner tl mono">&ldquo;SOLIDWORKS&rdquo; &ldquo;CATIA&rdquo;</p>
+        <p class="corner tr mono">02 / 06</p>
+        <h2 class="line">Then, a form.</h2>
+        <p class="corner bl mono">Shaped until it feels inevitable.</p>
       </div>
     </section>
 
-    <section class="chapter" id="core" data-label="Core">
-      <div class="chapter__card">
-        <p class="kicker mono"><span>03</span> Production engineering · Weston Foods</p>
-        <h2>Built ten thousand times <em>an hour.</em></h2>
-        <p>A high-speed production line teaches you that a design is only as good as its worst day on the floor. I ran time studies, redesigned fixtures and chased tolerance stacks until changeovers stopped hurting.</p>
-        <ul class="skills"><li>Lean / SMED</li><li>Time studies</li><li>Fixture design</li><li>Tolerance stacks</li><li>Root cause</li></ul>
-        <p class="proof mono">28 laminations · 72 copper bars · 0.5 mm air gap</p>
+    <section class="scene" id="finish" data-label="FINISH">
+      <div class="frame">
+        <p class="corner tl mono">&ldquo;INDUSTRIAL DESIGN&rdquo;</p>
+        <p class="corner tr mono">03 / 06</p>
+        <h2 class="line">Then it becomes<br>beautiful.</h2>
+        <p class="corner bl mono">Beauty isn't decoration. It's a decision.</p>
       </div>
     </section>
 
-    <section class="chapter" id="brain" data-label="Electronics">
-      <div class="chapter__card">
-        <p class="kicker mono"><span>04</span> Hardware + software · iBoost · HackPrinceton</p>
-        <h2>Where atoms <em>meet code.</em></h2>
-        <p>At Ryerson's iBoost accelerator I turned pitch decks into working prototypes in days, not quarters. At HackPrinceton my team built the hardware and the software together in 36 hours and took Best Overall Hack.</p>
-        <ul class="skills"><li>Electronics prototyping</li><li>Embedded</li><li>JavaScript</li><li>Python</li><li>User testing</li></ul>
-        <p class="proof mono">Orange means high voltage — treat it with respect</p>
+    <section class="scene scene--production" id="production" data-label="PRODUCTION">
+      <div class="frame">
+        <p class="corner tl mono">&ldquo;PRODUCTION ENGINEERING&rdquo;</p>
+        <p class="corner tr mono">04 / 06</p>
+        <p class="count"><span data-count>0</span><small class="mono">&ldquo;UNITS&rdquo;</small></p>
+        <h2 class="line">Then we make<br>ten thousand.</h2>
+        <p class="corner bl mono">Every single one, perfect.</p>
       </div>
     </section>
 
-    <section class="chapter" id="system" data-label="System">
-      <div class="chapter__card">
-        <p class="kicker mono"><span>05</span> Systems · Creative technology</p>
-        <h2>See every part <em>at once.</em></h2>
-        <p>Everything you've been looking at is generated in code: every gear tooth, bolt, lamination and copper bar, with no imported models. It's how I work now. I build the system that builds the thing, then spend my time on the decisions only a person should make.</p>
-        <ul class="skills"><li>Three.js</li><li>GLSL</li><li>Procedural design</li><li>Automation</li><li>Systems thinking</li></ul>
-        <p class="proof mono"><b data-parts>—</b> parts · 0 imported · rendered live</p>
-      </div>
-    </section>
-
-    <section class="chapter chapter--next" id="next" data-label="Next">
-      <div class="chapter__card">
-        <p class="kicker mono"><span>06</span> Now · BOLO, Toronto</p>
-        <h2>Your team is the <em>next part.</em></h2>
-        <!-- PLACEHOLDER: replace with the real BOLO role -->
-        <p>I'm at BOLO in Toronto today, and I'm looking for a team that builds real things — on shelves, on roads or on screens. If you need someone who can sketch it, engineer it, build it and tell its story, let's talk.</p>
-        <!-- PLACEHOLDER: real email -->
-        <button type="button" class="cta" data-copy="hello@nehalrao.com"><span>hello@nehalrao.com</span><small class="mono">Click to copy</small></button>
-        <div class="links">
-          <a href="https://ca.linkedin.com/in/nehalrao" target="_blank" rel="noopener">LinkedIn ↗</a>
-          <a href="assets/Nehal-Rao-Resume.pdf" target="_blank" rel="noopener">Résumé ↗</a>
+    <section class="scene scene--record" id="record" data-label="RECORD">
+      <div class="frame frame--record">
+        <p class="corner tl mono">&ldquo;RECORD&rdquo;</p>
+        <p class="corner tr mono">05 / 06</p>
+        <div class="record">
+          <h2 class="line">Ten years.<br>One standard.</h2>
+          <ol class="tracks">
+            <li><span class="mono">01</span><b>&ldquo;Industrial Design&rdquo;</b><em>Elevety</em></li>
+            <li><span class="mono">02</span><b>&ldquo;Production&rdquo;</b><em>Weston Foods</em></li>
+            <li><span class="mono">03</span><b>&ldquo;Robotics&rdquo;</b><em>Solus Robots</em></li>
+            <li><span class="mono">04</span><b>&ldquo;Champions&rdquo;</b><em>VEX Ontario, 2014</em></li>
+            <li><span class="mono">05</span><b>&ldquo;Prototypes&rdquo;</b><em>iBoost, Ryerson</em></li>
+            <li><span class="mono">06</span><b>&ldquo;Best Overall&rdquo;</b><em>HackPrinceton</em></li>
+            <!-- PLACEHOLDER: real BOLO title -->
+            <li><span class="mono">07</span><b>&ldquo;Now&rdquo;</b><em>BOLO, Toronto</em></li>
+          </ol>
+          <p class="stripe" aria-hidden="true"></p>
         </div>
-        <p class="proof mono">Open to roles · Willing to relocate · Toronto <span data-clock>--:--</span></p>
+        <p class="corner bl mono">B.Eng, Ryerson University</p>
+      </div>
+    </section>
+
+    <section class="scene scene--next" id="next" data-label="NEXT">
+      <div class="frame">
+        <p class="corner tl mono">&ldquo;NEXT&rdquo;</p>
+        <p class="corner tr mono">06 / 06</p>
+        <div class="finale">
+          <h2 class="line finale__a">One more thing.</h2>
+          <div class="finale__b">
+            <h2 class="line">I'm available.</h2>
+            <!-- PLACEHOLDER: real email -->
+            <button type="button" class="cta" data-copy="hello@nehalrao.com"><span>hello@nehalrao.com</span><small class="mono">&ldquo;CLICK TO COPY&rdquo;</small></button>
+            <p class="links mono"><a href="https://ca.linkedin.com/in/nehalrao" target="_blank" rel="noopener">LinkedIn&nbsp;&#8599;</a><a href="assets/Nehal-Rao-Resume.pdf" target="_blank" rel="noopener">R&eacute;sum&eacute;&nbsp;&#8599;</a></p>
+          </div>
+        </div>
+        <p class="corner bl mono">Toronto <span data-clock>--:--</span> &middot; Willing to relocate</p>
+        <p class="corner br mono">&copy; 2026 &ldquo;Nehal Rao&rdquo;</p>
       </div>
     </section>
   </main>
 
-  <footer class="foot mono">
-    <span>© 2026 Nehal Rao</span>
-    <span>Designed, modelled and coded by hand</span>
-  </footer>
-
   <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
-  <script type="module" src="js/journey.js"></script>
+  <script type="module" src="js/story.js"></script>
 </body>
 </html>

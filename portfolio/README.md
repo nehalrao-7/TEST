@@ -1,46 +1,37 @@
-# Nehal Rao — Exploded View
+# Nehal Rao
 
-A scroll-driven portfolio built around one machine: an **electric drive unit** (motor, 9:1 planetary gearbox, cast housing, inverter) generated entirely in code and rendered live in the browser, in the style of an automotive exploded-view launch film.
+An immersive scroll story about one object, told in seven screens, one idea each.
 
-Each chapter takes one subsystem apart and pairs it with a part of Nehal's career:
-
-| # | Chapter | What comes apart | Career |
+| # | Scene | What you see | Line |
 |---|---|---|---|
-| 00 | Intro | Assembled, studio-lit | Engineer · industrial designer · creative technologist |
-| 01 | Form | Cast housing: fins, flanges, ports, nameplate | Industrial design — Elevety |
-| 02 | Motion | Gearbox: sun, 3 planets, 96-tooth ring gear (they really mesh) | Robotics — VEX Team 356, Solus Robots |
-| 03 | Core | Stator laminations, hairpin copper windings, magnet rotor, shaft | Production engineering — Weston Foods |
-| 04 | Electronics | Inverter: power stage, DC-link capacitor, controller, HV harness | Hardware + software — iBoost, HackPrinceton |
-| 05 | System | Everything exploded, live part count | Systems & creative technology |
-| 06 | Next | Reassembled, contact | Now: BOLO, Toronto |
+| 00 | NEHAL RAO | A gloss porcelain object, name behind it | Beautiful things. Brilliantly made. |
+| 01 | "LINE" | The object as a contour drawing that draws itself | It starts with a line. |
+| 02 | "FORM" | Matte clay | Then, a form. |
+| 03 | "FINISH" | Dark room; gloss, seam, orange button, tagged zip tie | Then it becomes beautiful. |
+| 04 | PRODUCTION | Camera rises over ~1,600 copies; one is orange; counter to 10,000 | Then we make ten thousand. |
+| 05 | "RECORD" | Career as a tracklist | Ten years. One standard. |
+| 06 | NEXT | The object turns orange | One more thing. I'm available. |
 
-A **scroll guide** on the right shows progress and jumps to any chapter. Callouts carry engineering specs; parts outside each chapter's focus turn to see-through ghosts with edge lines.
+Voice: short, declarative, one idea per screen.
+Design: off-white, black and one zip-tie orange, with condensed type (Archivo), mono labels in "quotation marks", diagonal stripes and a tag. These are inspired devices only, with no third-party marks.
+
+A scroll guide on the right shows the scenes and jumps between them.
 
 ## Run locally
-
 ```bash
 cd portfolio && python3 -m http.server 8000
-# open http://localhost:8000
 ```
-
-No build step. Deploys as-is to Vercel, Netlify, GitHub Pages or Cloudflare Pages (root: `portfolio/`).
+No build step; deploy the `portfolio/` folder anywhere static.
 
 ## Files
-- `index.html`: all chapter copy (edit the words here)
-- `js/machine.js`: the procedural machine: geometry, materials, lighting, explode/ghost system
-- `js/journey.js`: scroll → machine state per chapter, camera keyframes, callouts, scroll guide
-- `css/journey.css`: layout and type
-- `interview/`: the refinement interview (published separately)
-
-## Stack
-Three.js 0.160 (physical materials, environment reflections, soft shadows, bloom), Lenis smooth scroll, and Inter Tight, Instrument Serif and JetBrains Mono. It scales quality down automatically on slower machines and respects `prefers-reduced-motion`.
+- `index.html`: all words (edit copy here)
+- `js/object.js`: the 3D object, its four materials, and the production field
+- `js/story.js`: scroll → scene state, background colour, guide
+- `css/studio.css`: type and layout
+- `interview/`: the refinement interview
 
 ## ⚠️ Replace before publishing
-Facts from public sources and the résumé: Ryerson B.Eng, Elevety, Weston Foods, iBoost, Solus Robots, VEX Team 356 (2014 Ontario provincial winning alliance), HackPrinceton Best Overall Hack, BOLO in Toronto, SolidWorks, CATIA, CNC and body engineering.
-
-Still to confirm or replace (the interview covers all of these):
-- [ ] **Email** `hello@nehalrao.com` and **résumé PDF** at `assets/Nehal-Rao-Resume.pdf`
-- [ ] **BOLO role** (chapter 06)
-- [ ] **Chapter specifics**: what you actually did at Elevety, Weston Foods and HackPrinceton, plus the skill chips per chapter
-- [ ] **Skills list**: keep only what's true (Python, embedded, GLSL etc.)
-- [ ] The machine is an illustrative design, not a real product. Keep that framing.
+- [ ] Email `hello@nehalrao.com` and résumé PDF at `assets/Nehal-Rao-Resume.pdf`
+- [ ] The "Now" row (BOLO title)
+- [ ] Tracklist labels: make sure each one is what you'd say about that role
+- [ ] The object is a concept piece. If you have a real product you designed, it can replace it.
