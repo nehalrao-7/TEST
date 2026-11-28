@@ -9,8 +9,9 @@ An immersive scroll story about one object, told in seven screens, one idea each
 | 02 | "FORM" | Matte clay | Then, a form. |
 | 03 | "FINISH" | Dark room; gloss, seam, orange button, tagged zip tie | Then it becomes beautiful. |
 | 04 | PRODUCTION | Camera rises over ~1,600 copies; one is orange; counter to 10,000 | Then we make ten thousand. |
-| 05 | "RECORD" | Career as a tracklist | Ten years. One standard. |
-| 06 | NEXT | The object turns orange | One more thing. I'm available. |
+| 05 | BOLO | Client list: Microsoft, Amazon Prime at TIFF, TIFF, Billboard, Women in Music, Pizza Depot | Then the world opens it. |
+| 06 | "RECORD" | Career as a tracklist | Ten years. One standard. |
+| 07 | NEXT | The object turns orange | One more thing. I'm available. |
 
 Voice: short, declarative, one idea per screen.
 Design: off-white, black and one zip-tie orange, with condensed type (Archivo), mono labels in "quotation marks", diagonal stripes and a tag. These are inspired devices only, with no third-party marks.
@@ -32,6 +33,6 @@ No build step; deploy the `portfolio/` folder anywhere static.
 
 ## ⚠️ Replace before publishing
 - [ ] Email `hello@nehalrao.com` and résumé PDF at `assets/Nehal-Rao-Resume.pdf`
-- [ ] The "Now" row (BOLO title)
-- [ ] Tracklist labels: make sure each one is what you'd say about that role
+- [ ] VEX: the site says "Worlds, twice" (back-to-back World Championships). Confirm.
+- [ ] Client names are text only; confirm you're comfortable listing them publicly.
 - [ ] The object is a concept piece. If you have a real product you designed, it can replace it.

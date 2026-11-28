@@ -6,6 +6,7 @@ import { createObject } from "./object.js";
 const $ = (s, c = document) => c.querySelector(s);
 const $$ = (s, c = document) => [...c.querySelectorAll(s)];
 const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const phone = () => matchMedia("(max-width: 760px)").matches;
 
 let object = null;
 try { object = createObject($("#stage"), { reduced }); }
@@ -23,6 +24,8 @@ const SCENES = [
     s: () => ({ cam: [2.9, 0.7, 6.9], look: [0, -0.05, 0], gloss: 1, detail: 1, dark: 1, spin: 0.16, offX: 0.1 }) },
   { id: "production", word: "", count: true,
     s: (f) => ({ cam: [0.4, 17 + f * 6, 21 + f * 6], look: [0, -1.4, -3], gloss: 1, detail: 0, army: Math.min(1, 0.15 + f * 1.5), spin: 0.06 }) },
+  { id: "opened", word: "", dark: true,
+    s: () => ({ cam: [-1.4, 0.9, 7.4], look: [0, 0, 0], gloss: 1, detail: 1, dark: 1, spin: 0.22, offX: 0.2, scale: phone() ? 0.6 : 0.9, offY: phone() ? 0.27 : 0 }) },
   { id: "record", word: "",
     s: () => ({ cam: [0, 0.4, 8.2], look: [0, 0, 0], gloss: 1, detail: 1, spin: 0.2, offX: 0.2, scale: 0.85 }) },
   { id: "next", word: "", dark: true,
